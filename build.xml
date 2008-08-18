@@ -1,0 +1,69 @@
+<project name="PSPersistence build" basedir="." default="javadoc">
+
+	<property name="jar.name" value="ps_persistence.jar" />
+
+	<target name="clean">
+		<delete dir="dbEnv" includes="*/**" includeemptydirs="true"/>
+		<delete file="${jar.name}" />
+	</target>
+
+	<path id="required_libs">
+		<fileset file="ps_db.jar" />
+		<fileset file="log4j-1.2.9.jar" />
+		<fileset file="antlr-3.1b2.jar" />
+		<fileset file="antlr-runtime-3.1b2.jar" />
+	</path>
+
+	<target name="build_ps_persistence_jar">
+		<echo message="javac" />
+		<mkdir dir="__build_dir" />
+		<javac srcdir="src" destdir="__build_dir" nowarn="on" debug="on" classpathref="required_libs" target="1.5" >
+			<exclude name="com/pagesociety/test/**"/>
+		</javac>
+
+		<echo message="jar ${jar.name}" />
+		<jar destfile="${jar.name}">
+			<fileset dir="__build_dir" />
+		</jar>
+		<delete dir="__build_dir" />
+	</target>
+
+	<target name="javadoc">
+		<javadoc sourcepath="src"  
+			packagenames="com.pagesociety.persistence.*"
+			excludepackagenames="com.pagesociety.persistence.util.*" 
+			defaultexcludes="yes" 
+			linksource="yes" 
+			nohelp="yes"
+			nodeprecated="yes"
+			destdir="docs/api" 
+			author="true" 
+			version="true" 
+			use="true" 
+			windowtitle="Persistence API">
+			<doctitle>
+				<![CDATA[<h1>Persistence API</h1>]]>
+	        </doctitle>
+			<bottom>
+				<![CDATA[<i>Copyright &#169; 2008 Page Soceity.</i>]]>
+	        </bottom>
+		</javadoc>
+	</target>
+
+	
+	<target name="javadoc_pdf">
+		<javadoc doclet="com.tarsec.javadoc.pdfdoclet.PDFDoclet"
+		        docletpath="docs/pdfdoclet-1.0.2-all.jar"
+		        packagenames="com.pagesociety.persistence.*"
+		        additionalparam="-pdf docs/limelife.pdf -config docs/config_laby.properties"
+				excludepackagenames="com.pagesociety.persistence.util.*" 
+		        private="no">
+		        <sourcepath>
+		            <pathelement location="src"/>
+		        </sourcepath>
+			
+		    </javadoc>
+	</target>
+	
+
+</project>

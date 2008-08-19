@@ -2817,12 +2817,21 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 	}
 	
 	@SuppressWarnings("unchecked")
-	protected void do_fill_reference_field(Entity e, FieldDefinition f) throws PersistenceException
+	private void do_fill_reference_field(Entity e, FieldDefinition f) throws PersistenceException
 	{
        if (f == null || f.getBaseType() != Types.TYPE_REFERENCE)
            throw new PersistenceException("REF FIELD CANT BE FILLED.IT IS EITHER DOES NOT EXIST IN ENTITY OR IS NOT A REFERNCE TYPE");
 
+       String type = f.getReferenceType();
+       if(type.equals(FieldDefinition.REF_TYPE_UNTYPED_ENTITY))
+    	   do_fill_untyped_reference_field(e, f);
+       else
+    	   do_fill_typed_reference_field(e, f);
 
+   }
+	
+	private void do_fill_typed_reference_field(Entity e, FieldDefinition f) throws PersistenceException
+	{
        BDBPrimaryIndex ref_pidx = entity_primary_indexes_as_map.get(f.getReferenceType());
        if (ref_pidx==null)
     	   throw new PersistenceException("STORE DOES NOT RECOGNIZE REFERENCE TYPE "+f.getReferenceType());
@@ -2859,6 +2868,55 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 		}
    }
 
+	private void do_fill_untyped_reference_field(Entity e, FieldDefinition f) throws PersistenceException
+	{
+		BDBPrimaryIndex ref_pidx = null;
+		try 
+		{
+	       if (f.isArray())
+	       {
+	           List<Entity> refs = (List<Entity>) e.getAttribute(f.getName());
+	           if (refs == null || refs.size() == 0)
+	               return;
+	           
+	           List<Entity> filled_refs = new ArrayList<Entity>();
+	           Entity r = null;
+	           for (int i=0; i<refs.size(); i++)
+	           {
+	              r = refs.get(i);
+	              if(r == null)
+	            	  filled_refs.add(null);
+	              else
+	              {
+	            	  /* here we need to look up this things per entity since this will probably
+	            	   * be a non homgenous list of entities */
+	                  ref_pidx = entity_primary_indexes_as_map.get(r.getType());
+	                  if (ref_pidx==null)
+	               	   throw new PersistenceException("STORE DOES NOT RECOGNIZE REFERENCE TYPE "+f.getReferenceType());
+	            	  filled_refs.add(ref_pidx.getById(null,r.getId()));
+	              }
+	             }
+	            e.getAttributes().put(f.getName(), filled_refs);
+	       }
+	       else
+	       {
+	    	   Entity ref = (Entity) e.getAttribute(f.getName());
+	           if (ref == null)
+	               return;
+               ref_pidx = entity_primary_indexes_as_map.get(ref.getType());
+               if (ref_pidx==null)
+            	   throw new PersistenceException("STORE DOES NOT RECOGNIZE REFERENCE TYPE "+f.getReferenceType());
+	           e.getAttributes().put(f.getName(),ref_pidx.getById(null,ref.getId()));
+	       }
+		}catch(DatabaseException de)
+		{
+			logger.error("do_fill_reference_field(Entity, FieldDefinition)", de);
+			throw new PersistenceException("FILL FAILED BECAUSE OF DB EXCEPTION");
+		}
+   }
+
+	
+	
 	private void clean_query_cache(String entity_name)
 	{
 		_query_manager.cleanCache(entity_name);

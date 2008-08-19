@@ -187,7 +187,7 @@ public class EntityComparatorFactory
 				return i;
 			Entity ee1  = (Entity)v1;
 			Entity ee2  = (Entity)v2;
-			return (int)(ee1.getId() - ee2.getId());
+			return (ee1.compareTo(ee2));
 		}
 	}
 	

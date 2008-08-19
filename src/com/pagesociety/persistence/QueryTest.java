@@ -81,8 +81,56 @@ public class QueryTest {
 		//range_test();
 		//intersect_test();
 		//union_test();
-		pssql_test();
+		//pssql_test();
 		//concurrency_test();
+		untyped_reference_test();
+	}
+	
+	public void untyped_reference_test() throws PersistenceException
+	{
+		EntityDefinition def;
+		FieldDefinition f;	
+		
+		def =  new EntityDefinition("A");
+		_store.addEntityDefinition(def);
+		f = new FieldDefinition("Children", Types.TYPE_REFERENCE | Types.TYPE_ARRAY,FieldDefinition.REF_TYPE_UNTYPED_ENTITY);
+		addEntityField("A", f, null);
+		
+		
+		def =  new EntityDefinition("B");
+		_store.addEntityDefinition(def);
+		f = new FieldDefinition("BName", Types.TYPE_STRING);
+		addEntityField("B", f, null);
+
+		
+		def =  new EntityDefinition("C");
+		_store.addEntityDefinition(def);
+		f = new FieldDefinition("CName", Types.TYPE_STRING);
+		addEntityField("C", f, null);
+		
+		
+		Entity e = _store.getEntityDefinition("A").createInstance();
+		e.setAttribute("Children", null);
+		e = _store.saveEntity(e);
+		
+		Entity b = _store.getEntityDefinition("B").createInstance();
+		b.setAttribute("BName", "i am the b name");
+		b = _store.saveEntity(b);
+
+		Entity c = _store.getEntityDefinition("C").createInstance();
+		c.setAttribute("CName", "i am the c name");
+		c = _store.saveEntity(c);
+
+		List<Entity> children = new ArrayList<Entity>();
+		children.add(b);
+		children.add(c);
+		e.setAttribute("Children", children);
+		e = _store.saveEntity(e);
+	
+		e = _store.getEntityById("A", 1);
+		_store.fillReferenceFields(e);
+		System.out.println("A Children is "+e.getAttribute("Children"));
+	
 	}
 	
 	private List<Thread> ACTIVE_THREADS = new ArrayList<Thread>();

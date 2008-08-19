@@ -13,13 +13,19 @@ package com.pagesociety.persistence;
  */
 public class FieldDefinition implements java.io.Serializable
 {
+	/* used if you want a reference field to be an untyped entity*/
+	/* fillReference methods will key off this value to deal with */
+	/* singleton and list untyped entity references */
+	public static final String REF_TYPE_UNTYPED_ENTITY = "*";
+	
 	// !!!!!! REMEMBER TO UPDATE CLONE METHOD IF YOU ADD OR REMOVE FIELDS !!!!!!!//
-	private String _name;
-	private int _type;
-	private String _ref_type;
+	private String 	_name;
+	private int 	_type;
+	private String 	_ref_type;
+
 	//private int _array_dimensionality;
 	private boolean _required;
-	private String _description;
+	private String 	_description;
 
 	/**
 	 * A default constructor. Usage requires that the name and type be set

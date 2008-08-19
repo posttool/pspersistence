@@ -40,7 +40,8 @@ public class SimpleSingleFieldIndex extends AbstractSingleFieldIndex
 	@SuppressWarnings("unchecked")
 	public void getInsertKeys(Entity e,Set<DatabaseEntry> result) throws DatabaseException
 	{
-		Object val = e.getAttribute(field.getName());
+		String name = field.getName();
+		Object val = e.getAttribute(name);
 		result.add(getQueryKey(val));
 	}
 	

@@ -72,5 +72,7 @@ public class Types
 	 * reference or a reference array must specify the name of the entity
 	 * definition to which it refers.
 	 */
-	public static final int TYPE_REFERENCE = 0x400;
+	public static final int TYPE_REFERENCE 		   = 0x400;
+	
+	
 }

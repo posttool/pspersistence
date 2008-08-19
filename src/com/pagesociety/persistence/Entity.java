@@ -334,7 +334,7 @@ public class Entity implements Comparable<Entity>
 						if(ee == null)
 							ret.append("null");
 						else
-							ret.append(ee.getId() + ",");
+							ret.append(ee.getType()+":"+ee.getId() + ",");
 					}
 					ret.setLength(ret.length() - 1);
 					ret.append(" ]");
@@ -384,6 +384,21 @@ public class Entity implements Comparable<Entity>
 	{
 		if(e == null)
 			return -1;
-		return (int) (_id - e._id);
+		if(_type.equals(e._type))
+			return (int) (_id - e._id);
+		else
+		{
+			/* this is for the case when we have a group of entities that are
+			 * non homogenous and we wish to use comparable interface on them
+			 * for instance when building an array equality index on an untyped
+			 * entity reference. in this case they will be sorted by type by id
+			 * it mainly matters that they sort the same because the index key
+			 * will be a compound one of the whole list
+			 */
+			String s1 = _type+String.valueOf(_id);
+			String s2 = e._type+String.valueOf(e._id);
+			return s1.compareTo(s2);
+		}
+	
 	}
 }

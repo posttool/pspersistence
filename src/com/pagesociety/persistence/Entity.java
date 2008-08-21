@@ -393,7 +393,9 @@ public class Entity implements Comparable<Entity>
 			 * for instance when building an array equality index on an untyped
 			 * entity reference. in this case they will be sorted by type by id
 			 * it mainly matters that they sort the same because the index key
-			 * will be a compound one of the whole list
+			 * will be a compound one of the whole list. other wise if we had list
+			 * A:15 and B:23....C:15 and B:23 would produce the same key which isn't
+			 * right...see get_equality_key_for_array in SimpleSingleFieldIndex
 			 */
 			String s1 = _type+String.valueOf(_id);
 			String s2 = e._type+String.valueOf(e._id);

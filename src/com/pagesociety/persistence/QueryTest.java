@@ -500,10 +500,10 @@ public class QueryTest {
 		q.pageSize(Query.ALL_RESULTS);
 		q.idx("byFirstName");
 		q.eq(Query.VAL_GLOB);
-		q.orderBy("Birthday");
+		q.orderBy("Birthday",Query.DESC);
 		result = _store.executeQuery(q);
 		print(result);
-		System.out.println("ORDER BY BIRTHDAY");
+		System.out.println("ORDER BY BIRTHDAY DESC");
 	}
 	
 	

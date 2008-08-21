@@ -200,15 +200,24 @@ public class Query
 		//i = define_pagesize_var(Query.ALL_RESULTS);
 		_root_node.attributes.put(ATT_PAGE_SIZE, Query.ALL_RESULTS);
 		_root_node.attributes.put(ATT_INDEX_NAME, null);
-		_root_node.attributes.put(ATT_ORDER, null);		
+		_root_node.attributes.put(ATT_ORDER_FIELDNAME, null);		
 		_root_node.attributes.put(ATT_CACHE_RESULTS, true);				
 	}
 
 //start per block commands//	
 	public Query orderBy(String attribute)
 	{
-		current_block().attributes.put(ATT_ORDER, attribute);
-		_cache_key_buf.append("_OB:"+attribute);
+		current_block().attributes.put(ATT_ORDER_FIELDNAME, attribute);
+		current_block().attributes.put(ATT_ORDER_ORDER, Query.ASC);
+		_cache_key_buf.append("_OB:"+attribute+(Query.ASC));
+		return this;
+	}
+	
+	public Query orderBy(String attribute,int direction)
+	{
+		current_block().attributes.put(ATT_ORDER_FIELDNAME, attribute);
+		current_block().attributes.put(ATT_ORDER_ORDER, direction);
+		_cache_key_buf.append("_OB:"+attribute+direction);
 		return this;
 	}
 	
@@ -529,9 +538,10 @@ public class Query
 	public static final String ATT_INDEX_NAME    			= "index_name";
 	public static final String ATT_OFFSET		  			= "offset";
 	public static final String ATT_PAGE_SIZE				= "page_size";
-	public static final String ATT_ORDER		  			= "order";
+	public static final String ATT_ORDER_FIELDNAME		  	= "order_field";
+	public static final String ATT_ORDER_ORDER			  	= "order_order";
 	public static final String ATT_CACHE_RESULTS 			= "cache_results";
-	public static final String ATT_ITER_OP 	  			= "iter_op";
+	public static final String ATT_ITER_OP 	  				= "iter_op";
 	public static final String ATT_PREDICATE_ITER_USER_PARAM 	 = "p_user_param";
 	public static final String ATT_RANGE_ITER_USER_BOTTOM_PARAM = "r_user_bottom_param";
 	public static final String ATT_RANGE_ITER_USER_TOP_PARAM 	 = "r_user_top_param";
@@ -566,7 +576,8 @@ public class Query
 	         															ATT_INDEX_NAME,
 	         															ATT_OFFSET,
 	         															ATT_PAGE_SIZE,
-	         															ATT_ORDER,
+	         															ATT_ORDER_FIELDNAME,
+	         															ATT_ORDER_ORDER,
 	         															ATT_CACHE_RESULTS,
 	         	                                                     };
 

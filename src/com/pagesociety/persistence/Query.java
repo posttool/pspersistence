@@ -86,7 +86,8 @@ public class Query
 	public static final Object VAL_MAX  = new Object();
 	public static final Object VAL_GLOB = new Object();
 	public static final String PRIMARY_IDX = new String("_byId_");
-	
+	public static final int ASC			   = 0x00;
+	public static final int DESC		   = 0x01;
 	public static final int NODE_TYPE_COMPOUND		= 0x20;
 	public static final int NODE_TYPE_INTERSECTION 	= 0x21;
 	public static final int NODE_TYPE_UNION			= 0x22;

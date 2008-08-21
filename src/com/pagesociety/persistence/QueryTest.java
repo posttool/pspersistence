@@ -65,7 +65,7 @@ public class QueryTest {
 		//set_contains_all_test();
 		//forensic_test();
 		//pkey_query_test();
-		//order_by_test();
+		order_by_test();
 		//double_query_test();
 		//delete_test();
 		//string_min_test();
@@ -83,7 +83,7 @@ public class QueryTest {
 		//union_test();
 		//pssql_test();
 		//concurrency_test();
-		untyped_reference_test();
+		//untyped_reference_test();
 	}
 	
 	public void untyped_reference_test() throws PersistenceException
@@ -122,8 +122,8 @@ public class QueryTest {
 		c = _store.saveEntity(c);
 
 		List<Entity> children = new ArrayList<Entity>();
-		children.add(b);
 		children.add(c);
+		children.add(b);
 		e.setAttribute("Children", children);
 		e = _store.saveEntity(e);
 	
@@ -131,6 +131,20 @@ public class QueryTest {
 		_store.fillReferenceFields(e);
 		System.out.println("A Children is "+e.getAttribute("Children"));
 	
+		addSingleFieldEntityIndex("A", "Children",EntityIndex.TYPE_ARRAY_MEMBERSHIP_INDEX, "byChildren",null);			
+		Query q = new Query("A");
+		q.idx("byChildren");
+		q.setContainsAny(q.list(b));
+
+		QueryResult result = _store.executeQuery(q);
+		System.out.println("RESULT: "+result.getEntities());
+		
+		q = new Query("A");
+		q.idx("byChildren");
+		q.setContainsAny(q.list(c));
+
+		result = _store.executeQuery(q);
+		System.out.println("RESULT: "+result.getEntities());
 	}
 	
 	private List<Thread> ACTIVE_THREADS = new ArrayList<Thread>();

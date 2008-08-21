@@ -35,6 +35,9 @@ public class EntityComparatorFactory
 				break;
 			case Query.DESC:
 				sso = _instance.new desc_sort_order();
+				break;
+			default:
+				sso = _instance.new asc_sort_order();
 		}
 		final sort_order so = sso;
 		

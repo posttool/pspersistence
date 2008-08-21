@@ -124,9 +124,13 @@ public class QueryExecutor
 			//System.out.println("INTERNAL EXECUTE TOOK "+(System.currentTimeMillis() - t1));	
 			//if(result.size() != 0)
 				//System.out.println("RESULT SIZE IS "+result.size()+" LAST ID IS "+result.getEntities().get(result.size()-1).getId());	
-			String order_attribute = (String)root.attributes.get(Query.ATT_ORDER);
+			String order_attribute = (String)root.attributes.get(Query.ATT_ORDER_FIELDNAME);
 			if(order_attribute != null)
-				do_order_by(result, order_attribute);
+			{
+				int direction = (Integer)root.attributes.get(Query.ATT_ORDER_ORDER);
+				do_order_by(result, order_attribute,direction);
+				
+			}
 			if(cached_query)
 				put_cached_results(return_type,real_cache_key, result);
 		}
@@ -218,7 +222,7 @@ public class QueryExecutor
 		_env.getQueryCacheManager().getQueryCache(entity_type).put(key,count);
 	}
 
-	private void do_order_by(QueryResult result,String order_attribute) throws PersistenceException
+	private void do_order_by(QueryResult result,String order_attribute,int direction) throws PersistenceException
 	{
 		int i = 0;
 		int s = result.size();
@@ -231,7 +235,7 @@ public class QueryExecutor
 		else
 		{
 			EntityDefinition def = valid_instance.getEntityDefinition();
-			Comparator<Entity> comp = EntityComparatorFactory.getComparator(def, order_attribute);
+			Comparator<Entity> comp = EntityComparatorFactory.getComparator(def, order_attribute,direction);
 			Collections.sort(result.getEntities(),comp);
 		}
 	}

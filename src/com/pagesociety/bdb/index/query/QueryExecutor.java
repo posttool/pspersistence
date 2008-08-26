@@ -12,10 +12,12 @@ import org.apache.log4j.Logger;
 import com.pagesociety.bdb.BDBPrimaryIndex;
 import com.pagesociety.bdb.BDBQueryResult;
 import com.pagesociety.bdb.binding.FieldBinding;
+import com.pagesociety.bdb.cache.ConcurrentLRUCache;
 import com.pagesociety.bdb.index.ArrayMembershipIndex;
 import com.pagesociety.bdb.index.MultiFieldArrayMembershipIndex;
 import com.pagesociety.bdb.index.SimpleMultiFieldIndex;
 import com.pagesociety.bdb.index.SimpleSingleFieldIndex;
+import com.pagesociety.bdb.index.freetext.FreeTextIndex;
 import com.pagesociety.bdb.index.iterator.BETWEEN_ASC_END_INCLUSIVEIndexIterator;
 import com.pagesociety.bdb.index.iterator.BETWEEN_ASC_EXCLUSIVEIndexIterator;
 import com.pagesociety.bdb.index.iterator.BETWEEN_ASC_INCLUSIVEIndexIterator;
@@ -25,6 +27,9 @@ import com.pagesociety.bdb.index.iterator.BETWEEN_DESC_EXCLUSIVEIndexIterator;
 import com.pagesociety.bdb.index.iterator.BETWEEN_DESC_INCLUSIVEIndexIterator;
 import com.pagesociety.bdb.index.iterator.BETWEEN_DESC_START_INCLUSIVEIndexIterator;
 import com.pagesociety.bdb.index.iterator.EQIndexIterator;
+import com.pagesociety.bdb.index.iterator.FREETEXTCONTAINSALLIndexIterator;
+import com.pagesociety.bdb.index.iterator.FREETEXTCONTAINSANYIndexIterator;
+import com.pagesociety.bdb.index.iterator.FREETEXTCONTAINSPHRASEIndexIterator;
 import com.pagesociety.bdb.index.iterator.GTEIndexIterator;
 import com.pagesociety.bdb.index.iterator.GTIndexIterator;
 import com.pagesociety.bdb.index.iterator.IndexIterator;
@@ -114,7 +119,14 @@ public class QueryExecutor
 		
 		QueryResult result = null;
 		if(cached_query)
+		{
+			//ConcurrentLRUCache<String,Object> qc = (ConcurrentLRUCache<String,Object>)_env.getQueryCacheManager().getQueryCache(return_type);
+			//synchronized(qc)
+			//{
+				
+			//}
 			result = get_cached_results(return_type,real_cache_key);
+		}
 		if(result == null)
 		{
 			//System.out.println("!!!!NO CACHE HIT!!!!! FOR "+real_cache_key);
@@ -622,9 +634,13 @@ public class QueryExecutor
 		{
 			iter = setup_range_iterator(idx,ismulti,iter_op,iter_node);
 		}
-		else if((iter_op & Q.SET_ITER_TYPE) == Q.SET_ITER_TYPE)
+		else if((iter_op & Query.SET_ITER_TYPE) == Query.SET_ITER_TYPE)
 		{
 			iter = setup_set_iterator(idx,ismulti,iter_op,iter_node);
+		}
+		else if((iter_op & Query.FREETEXT_ITER_TYPE) == Query.FREETEXT_ITER_TYPE)
+		{
+			iter = setup_freetext_iterator(idx,ismulti,iter_op,iter_node);
 		}
 		else
 		{
@@ -637,7 +653,15 @@ public class QueryExecutor
 		try{
 			while(iter.isValid())
 			{
+				//System.out.println("ABOUT TO LOOKUP...CURRENT DATA IS "+new String(iter.currentData().getData()));
 				Entity e = p_idx.getByPrimaryKey(iter.currentData());
+				if(e == null)
+				{
+					System.out.println("E WAS NULL FOR PKEY "+new String(iter.currentData().getData()));
+					byte[] tmp = new byte[8];
+					System.arraycopy(iter.currentData().getData(), 0, tmp, 0, 8);
+					System.out.println("ID IS "+LongBinding.entryToLong(new DatabaseEntry(tmp)));
+				}
 				results.add(e);
 				if(++added == page_size)
 				{
@@ -949,7 +973,7 @@ public class QueryExecutor
 			if (l_user_param.get(last) == Query.VAL_GLOB)
 			  return get_globbed_multi_index_predicate_iterator(idx,l_user_param,iter_type,last,iter_node);
 			
-			if(last != idx.getNumIndexedFields()-1 && iter_type != Q.STARTSWITH)
+			if(last != idx.getNumIndexedFields()-1 && iter_type != Query.STARTSWITH)
 				throw new PersistenceException("WRONG NUMBER OF ARGUMENTS FOR INDEX. INDEX HAS "+(last+1)+" AND "+l_user_param.size()+" WERE PROVIDED");
  
 			try{
@@ -1245,6 +1269,87 @@ public class QueryExecutor
 				break;			
 			case Query.SET_CONTAINS_ALL:		
 				iter 	= new SETCONTAINSALLIndexIterator();
+				break;
+			default:
+				throw new PersistenceException("UNKNOWN SET ITER TYPE");
+		}
+		//open the iterator and return it//
+		try{
+			iter.open(idx,globbing,list_param);
+		}catch(DatabaseException dbe)
+		{
+			try{
+				iter.close();
+			}catch(DatabaseException dbe2)
+			{
+				dbe2.printStackTrace();
+			}
+			dbe.printStackTrace();
+			throw new PersistenceException("FAILED TO OPEN ITERATOR!!!");
+
+		}
+		return iter;
+	}
+	
+	private IndexIterator setup_freetext_iterator(IterableIndex idx,boolean is_multi,int iter_type,QueryNode iter_node) throws PersistenceException
+	{
+		if(!idx.isFreeTextIndex())
+			throw new PersistenceException("UNSUPPORTED OPERATION FOR INDEX."+idx.getName()+"IS A FREETEXT INDEX AND ONLY SUPPORTS FREETEXT OPERATIONS.");
+		List<Object> user_list_param = (List<Object>)_query_params[(Integer)iter_node.attributes.get(Query.ATT_SET_ITER_USER_PARAM)];
+		//right here is where we would catch classcastexception if we wanted to accept single values to set ops
+		List<DatabaseEntry> list_param  = null;
+		boolean globbing = false;
+		if(is_multi)
+		{
+			try{
+				int last = user_list_param.size() - 1;
+				if(user_list_param.get(last) == Query.VAL_GLOB)
+				{
+					//clone
+					ArrayList<Object> copy = (ArrayList<Object>)((ArrayList<Object>)user_list_param).clone();
+					
+					do
+					{
+						copy.remove(last--);						
+					}
+					while(last >= 0 && copy.get(last) == Query.VAL_GLOB);
+					globbing = true;
+					
+					if(last == 0 && copy.get(0) == Query.VAL_GLOB )
+						copy.add(null);
+					
+					list_param = ((FreeTextIndex)idx).getQueryKeys((List<Object>)copy);
+					//System.out.println("LIST PARAM IS "+list_param);
+				}
+				else
+				{
+					list_param = ((FreeTextIndex)idx).getQueryKeys((List<Object>)user_list_param);
+				}
+			}catch(DatabaseException dbe)
+			{
+				throw new PersistenceException("UNABLE TO GENERATE QUERY KEY FOR QUERY VAL");
+			}
+		}
+		else
+		{
+			try{
+				list_param = ((FreeTextIndex)idx).getQueryKeys((List<Object>)user_list_param);
+			}catch(DatabaseException dbe)
+			{
+				throw new PersistenceException("UNABLE TO GENERATE QUERY KEY FOR QUERY VAL");
+			}
+		}
+		SetIndexIterator iter = null;
+		switch(iter_type)
+		{
+			case Query.FREETEXT_CONTAINS_ANY:
+				iter 	= new FREETEXTCONTAINSANYIndexIterator();
+				break;			
+			case Query.FREETEXT_CONTAINS_ALL:		
+				iter 	= new FREETEXTCONTAINSALLIndexIterator();
+				break;
+			case Query.FREETEXT_CONTAINS_PHRASE:		
+				iter 	= new FREETEXTCONTAINSPHRASEIndexIterator();
 				break;
 			default:
 				throw new PersistenceException("UNKNOWN SET ITER TYPE");

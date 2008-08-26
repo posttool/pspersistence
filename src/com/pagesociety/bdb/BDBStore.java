@@ -1745,7 +1745,7 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 					classname = "com.pagesociety.bdb.index.MultiFieldArrayMembershipIndex";
 					break;
 				case EntityIndex.TYPE_FREETEXT_INDEX:
-					classname = "com.pagesociety.bdb.index.freetext.FreeTextIndex";
+					classname = "com.pagesociety.bdb.index.FreeTextIndex";
 					break;	
 				default:
 					throw new PersistenceException("UNKNOWN INDEX TYPE 0x"+Integer.toHexString(index_type));
@@ -2269,7 +2269,7 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 				classname = "com.pagesociety.bdb.index.MultiFieldArrayMembershipIndex";
 				break;
 			case EntityIndex.TYPE_FREETEXT_INDEX:
-				classname = "com.pagesociety.bdb.index.freetext.FreeTextIndex";
+				classname = "com.pagesociety.bdb.index.FreeTextIndex";
 				break;	
 			default:
 				throw new PersistenceException("UNKNOWN INDEX TYPE 0x"+Integer.toHexString(index_type));

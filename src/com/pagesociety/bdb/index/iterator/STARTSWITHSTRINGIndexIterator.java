@@ -6,7 +6,7 @@ import com.sleepycat.db.DatabaseException;
 import com.sleepycat.db.LockMode;
 import com.sleepycat.db.OperationStatus;
 
-public class STARTSWITHSTRINGIndexIterator extends PredicateIndexIterator implements RespositionableIndexIterator
+public class STARTSWITHSTRINGIndexIterator extends PredicateIndexIterator /*implements RespositionableIndexIterator*/
 {
 
 	private int 		  original_param_length;

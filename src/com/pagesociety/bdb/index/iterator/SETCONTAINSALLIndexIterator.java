@@ -2,7 +2,6 @@ package com.pagesociety.bdb.index.iterator;
 
 
 import com.pagesociety.bdb.BDBSecondaryIndex;
-import com.sleepycat.bind.tuple.LongBinding;
 import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
 
@@ -15,17 +14,18 @@ public class SETCONTAINSALLIndexIterator extends SetIndexIterator
 	protected PredicateIndexIterator iter;
 	protected DatabaseEntry  first_value_key;
 	protected int		     keys_size;
-	
+	/* we arent doing the whole smallest key thing anymore. should probably 
+	 * get back to that at some point....just count dupes when we open.
+	 */
 	public void open(IterableIndex index,Object... user_list_of_db_entries) throws DatabaseException
 	{
 		super.open(index,user_list_of_db_entries);
 		prepare_iterator();
 		first_value_key = keys.get(0);
-		keys_size = keys.size();		
+		keys_size 		= keys.size();		
 		iter.open(index,first_value_key);
 		DatabaseEntry first_value_copy = IteratorUtil.cloneDatabaseEntry(first_value_key);
 		((PredicateIndexIterator)r_iter).open(index,first_value_copy);	
-		
 		advance_to_next();
 
 	}
@@ -56,19 +56,18 @@ public class SETCONTAINSALLIndexIterator extends SetIndexIterator
 
 	}
 
-	private void advance_to_next() throws DatabaseException
+	protected void advance_to_next() throws DatabaseException
 	{
 		if(iter.isDone())
 		{
 			//System.out.println(">>> ITER IS DONE");
-			return;//if it cant even find the first one we already failed
+			return;
 		}
 		do
 		{		
 			//System.out.println(">>> ITER IS NOT DONE");
 			for(int i = 1;i < keys_size;i++)
 			{
-				//DatabaseEntry tmp = IteratorUtil.cloneDatabaseEntry(iter.currentData());
 				//System.out.println(">>>ABOUT TO MOVE DATA IS "+)
 				r_iter.move(keys.get(i),iter.currentData());
 				if(((PredicateIndexIterator)r_iter).isDone())//failed so not a member of result set

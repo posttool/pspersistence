@@ -95,33 +95,34 @@ public class STARTSWITHDATAIndexIterator extends PredicateIndexIterator implemen
 	}
 	//this is only used by globbed SETCONTAINSALL
 	//TODO: NOTE: this shit is sort of crazy....
+	//...the reason we do this is because you can't move
+	//to a partial key with the data specified.searchkeyrange()
+	//does not allow us to specify the data//
 	public void move(DatabaseEntry newkey,DatabaseEntry newdata) throws DatabaseException
 	{
-		//System.out.println("NEWKEY IS "+new String(newkey.getData()));
 		Cursor reverse_cursor = index.getReverseIndexDbh().openCursor(null, null);
-		original_param  = IteratorUtil.cloneDatabaseEntry((DatabaseEntry)newkey);
+		original_param  	  = IteratorUtil.cloneDatabaseEntry((DatabaseEntry)newkey);
 		original_param_length = original_param.getSize();
 
 		key = IteratorUtil.cloneDatabaseEntry(newkey);
-		   
-		//System.out.println("\tMOVING TO "+new String(key.getData())+" | "+LongBinding.entryToLong(newdata));
-		//TODO:!!!could probably do something here with get search both range!
-		//to test use a multi array membership index with a globbing query//
+		   	
 		last_opstat	=	reverse_cursor.getSearchBothRange(newdata,key, LockMode.DEFAULT);
-		//commented out old way. this way is much more efficient...this is the current impl of the above TODO!!!//
-		//last_opstat	=	reverse_cursor.getSearchKey(newdata,key, LockMode.DEFAULT);
-		//do{
-			if(IteratorUtil.compareDatabaseEntries(key, 0, original_param_length, original_param, 0, original_param_length)==0)
-			{
-				last_opstat = index_cursor.getSearchBoth(key, newdata, LockMode.DEFAULT);				
-				reverse_cursor.close();
-				return;
-			}
-		//}while(reverse_cursor.getNextDup(newdata, key, LockMode.DEFAULT) == OperationStatus.SUCCESS);
+		if(IteratorUtil.compareDatabaseEntries(key, 0, original_param_length, original_param, 0, original_param_length)==0)
+		{
+			last_opstat = index_cursor.getSearchBoth(key, newdata, LockMode.DEFAULT);				
+			reverse_cursor.close();
+			return;
+		}
+
 		last_opstat = OperationStatus.NOTFOUND;
 		reverse_cursor.close();
 	}
 
+	public void moveWithPartialData(DatabaseEntry newkey,DatabaseEntry newdata)
+	{
+		
+		/*not toally sure about all this yet */
+	}
 }
 
 

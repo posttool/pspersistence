@@ -6,4 +6,6 @@ public interface RespositionableIndexIterator
 {
 	public void move(DatabaseEntry newkey) throws DatabaseException;
 	public void move(DatabaseEntry newkey,DatabaseEntry newdata) throws DatabaseException;
+	/* move to newkey and data that starts with newdata */
+	public void moveWithPartialData(DatabaseEntry newkey,DatabaseEntry newdata) throws DatabaseException;
 }

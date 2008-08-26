@@ -10,5 +10,6 @@ public interface IterableIndex
 	public int 		getNumIndexedFields();
 	public boolean  isNormalIndex();
 	public boolean  isSetIndex();
+	public boolean  isFreeTextIndex();
 	public String   getName();
 }

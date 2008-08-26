@@ -67,14 +67,39 @@ public class EQIndexIterator extends PredicateIndexIterator implements Respositi
 	
 	public void move(DatabaseEntry newkey,DatabaseEntry newdata) throws DatabaseException
 	{
-		key = newkey;
+	//	System.out.println("\tMOVE TO KEY"+new String(key.getData())+" DATA "+new String(newdata.getData()));
+	//	System.out.println("NEWDATA SIZE IS "+newdata.getSize());
+		key  = newkey;
 		data = newdata;
-	//	System.out.println("\tMOVING TO "+new String(key.getData())+" | "+LongBinding.entryToLong(data));
 		last_opstat	=	index_cursor.getSearchBoth(key, data, LockMode.DEFAULT);	
 	//	if(isValid())
 	//		System.out.println("\t\tMOVE OK "+new String(key.getData())+" | "+LongBinding.entryToLong(newdata));
 	//	else
 	//		System.out.println("\t\tFAILED MOVE "+new String(key.getData())+" | "+LongBinding.entryToLong(newdata));
 	}
+	
+	
+	/* used in freetext index stuff since the row data is not just a pkey. it also has a
+	 * pos index after it e.g. 42-pkey:pos
+	 */
+	public void moveWithPartialData(DatabaseEntry newkey,DatabaseEntry partial_data) throws DatabaseException
+	{
+		key  = newkey;
+		data = partial_data;
+		DatabaseEntry original_data = IteratorUtil.cloneDatabaseEntry(partial_data);
+		int s = original_data.getSize();
+		
+		last_opstat	=	index_cursor.getSearchBothRange(key, data, LockMode.DEFAULT);	
+		
+		if(IteratorUtil.compareDatabaseEntries(original_data, 0, s, data, 0, s) != 0)
+			last_opstat = OperationStatus.NOTFOUND;
+		
+	//	if(isValid())
+	//		System.out.println("\t\tMOVE OK "+new String(key.getData())+" | "+LongBinding.entryToLong(newdata));
+	//	else
+	//		System.out.println("\t\tFAILED MOVE "+new String(key.getData())+" | "+LongBinding.entryToLong(newdata));
+	}
+	
+	
 	
 }	

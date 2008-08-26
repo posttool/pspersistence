@@ -2,7 +2,7 @@ package com.pagesociety.bdb.index.iterator;
 
 
 import com.pagesociety.bdb.BDBSecondaryIndex;
-import com.pagesociety.bdb.index.freetext.SingleFieldFreeTextIndex;
+import com.pagesociety.bdb.index.freetext.FreeTextIndex;
 import com.sleepycat.bind.tuple.IntegerBinding;
 import com.sleepycat.bind.tuple.LongBinding;
 import com.sleepycat.bind.tuple.TupleInput;
@@ -37,7 +37,7 @@ public class FREETEXTCONTAINSPHRASEIndexIterator extends SETCONTAINSALLIndexIter
 				DatabaseEntry next_key = keys.get(i);
 				//we preserve stop words in the query but ignore them
 				// so as to preserve position
-				if(next_key == SingleFieldFreeTextIndex.FREETEXT_STOP_WORD)
+				if(next_key == FreeTextIndex.FREETEXT_STOP_WORD)
 					continue;
 				
 				TupleOutput to = new TupleOutput();

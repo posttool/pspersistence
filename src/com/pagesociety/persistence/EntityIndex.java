@@ -26,8 +26,12 @@ public class EntityIndex
 
 	public static final int TYPE_SIMPLE_SINGLE_FIELD_INDEX 			 = 0x01;
 	public static final int TYPE_SIMPLE_MULTI_FIELD_INDEX  			 = 0x02;
+
 	public static final int TYPE_ARRAY_MEMBERSHIP_INDEX    			 = 0x11;
 	public static final int TYPE_MULTIFIELD_ARRAY_MEMBERSHIP_INDEX   = 0x12;
+	
+	public static final int TYPE_FREETEXT_INDEX   		 = 0x21;
+	public static final int TYPE_MULTI_FIELD_FREETEXT_INDEX   		 = 0x22;
 
 	private String 					_name;//the user name for the index. unique per entity type
 	private int				 		_index_type;//the type of the index. must be one of the types above
@@ -199,6 +203,10 @@ public class EntityIndex
 				return "ArrayMembershipIndex";
 			case TYPE_MULTIFIELD_ARRAY_MEMBERSHIP_INDEX:
 				return "MultiFieldArrayMembershipIndex";
+			case TYPE_FREETEXT_INDEX:
+				return "SingleFieldFreeTextIndex";	
+			case TYPE_MULTI_FIELD_FREETEXT_INDEX:
+				return "MultiFieldFreeTextIndex";					
 			default:
 				return "Unknown";
 		}

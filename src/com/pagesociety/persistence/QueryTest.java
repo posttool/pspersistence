@@ -65,7 +65,7 @@ public class QueryTest {
 		//set_contains_all_test();
 		//forensic_test();
 		//pkey_query_test();
-		order_by_test();
+		//order_by_test();
 		//double_query_test();
 		//delete_test();
 		//string_min_test();
@@ -84,6 +84,45 @@ public class QueryTest {
 		//pssql_test();
 		//concurrency_test();
 		//untyped_reference_test();
+		freetext_test();
+	}
+	
+	public void freetext_test() throws PersistenceException
+	{
+		Entity[] books = new Entity[50];
+		for(int i = 0;i < books.length;i++)
+		{
+			Entity b = _store.getEntityDefinition("Book").createInstance();
+			b.setAttribute("Title", R(titles));
+			b = _store.saveEntity(b);
+			books[i] = b;
+		//	System.out.println("BOOK "+i+" IS "+b);
+		}
+		addSingleFieldEntityIndex("Book", "Title", EntityIndex.TYPE_FREETEXT_INDEX, "byTitle", null);
+		int finncount = 0;
+		for(int i = 0;i < books.length;i++)
+		{
+			Entity b = _store.getEntityById("Book",i+1);
+			b.setAttribute("Title", R(titles));
+			b = _store.saveEntity(b);
+			books[i] = b;
+			System.out.println("BOOK "+i+" IS "+b);
+			if(((String)b.getAttribute("Title")).indexOf("Huckleberry Finn") != -1)
+				finncount++;
+		}
+		
+		Query q = new Query("Book");
+		q.idx("byTitle");
+		q.textContainsPhrase(q.list("the","adventures","of","Huckleberries"));
+	/* figure out how phrase and stemming relate */
+		t1 = System.currentTimeMillis();
+		QueryResult result = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		for (Entity e : result.getEntities())
+		{
+			System.out.println(e);
+		}
+		System.out.println("TIME "+t2+"(ms) FINNCOUNT "+finncount);
 	}
 	
 	public void untyped_reference_test() throws PersistenceException
@@ -1742,6 +1781,7 @@ public class QueryTest {
 			_store.addEntityIndex(entity,field_name,index_type,index_name,attributes);		
 		}catch(PersistenceException pe)
 		{
+			pe.printStackTrace();
 			System.out.println(index_name+" ALREADY EXISTS");
 		}
 	}
@@ -1807,5 +1847,5 @@ public class QueryTest {
 			"The Adventures of Captain Bonneville",
 			"The Adventures of Captain Bonneville, U.S.A. in the Rocky Mountains and the Far West: Digested from His Journals and Illustrated from Various Other Sources",
 			"The Adventures of Don Quixote Vol. 2", "The Adventures of Gerard", "The Adventures of Hajji Baba of Ispahan",
-			"The Adventures of Huckleberry Finn" };
+			"The Adventures of Huckleberry Finn","Huckleberry Finn","The Great Finn"};
 }

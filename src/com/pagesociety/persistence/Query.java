@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringTokenizer;
 
 //import com.pagesociety.bdb.index.query.Q;
 
@@ -152,7 +153,15 @@ public class Query
 	/* set helpers */
 	public Query setContainsAll(List<?> vals){build_set_query(SET_CONTAINS_ALL, vals);return this;}
 	public Query setContainsAny(List<?> vals){build_set_query(SET_CONTAINS_ANY, vals);return this;}
+	/* freetext helpers */
+	public Query textContainsAll(List<?> vals){build_freetext_query(FREETEXT_CONTAINS_ALL, vals);return this;}
+	public Query textContainsAny(List<?> vals){build_freetext_query(FREETEXT_CONTAINS_ANY, vals);return this;}
+	public Query textContainsPhrase(List<?> vals){build_freetext_query(FREETEXT_CONTAINS_PHRASE, vals);return this;}
+	public Query textContainsAll(String vals){build_freetext_query(FREETEXT_CONTAINS_ALL, string_to_list(vals));return this;}
+	public Query textContainsAny(String vals){build_freetext_query(FREETEXT_CONTAINS_ANY, string_to_list(vals));return this;}
+	public Query textContainsPhrase(String vals){build_freetext_query(FREETEXT_CONTAINS_PHRASE, string_to_list(vals));return this;}
 	
+
 	/* currently unimplemented ops */
 	public Query isAnyOf(List<?> vals){return this;}
 
@@ -191,6 +200,25 @@ public class Query
 		_cache_key_buf.append("_OP:"+queryOpToString(op));
 	}
 	
+	private void build_freetext_query(int op,Object val)
+	{
+		QueryNode iter = new QueryNode(NODE_TYPE_ITER);
+		copy_block_context(current_block(), iter);
+		iter.attributes.put(ATT_ITER_OP, op);
+		int i = define_param(val);
+		iter.attributes.put(ATT_SET_ITER_USER_PARAM, i);
+		current_block().children.add(iter);
+		_cache_key_buf.append("_OP:"+queryOpToString(op));
+	}
+	/* helper for passing in freetext queries as a single string instead of List<String> */
+	private static List<String> string_to_list(String s)
+	{
+		List<String> ret = new ArrayList<String>();
+		StringTokenizer st = new StringTokenizer(s);
+		while(st.hasMoreElements())
+			ret.add((String)st.nextElement());
+		return ret;
+	}
 	private void setup_root_node(String return_type)
 	{
 		_root_node = new QueryNode(0);
@@ -566,9 +594,14 @@ public class Query
 	public static final int BETWEEN_START_INCLUSIVE_DESC	= 0x107;
 	public static final int BETWEEN_END_INCLUSIVE_DESC	= 0x108;	
 	
-	public static final int SET_ITER_TYPE				= 0x200;
+	public static final int SET_ITER_TYPE					= 0x200;
 	public static final int SET_CONTAINS_ALL				= 0x201;
 	public static final int SET_CONTAINS_ANY				= 0x202;
+	
+	public static final int FREETEXT_ITER_TYPE				= 0x400;
+	public static final int FREETEXT_CONTAINS_ALL			= 0x401;
+	public static final int FREETEXT_CONTAINS_ANY			= 0x402;
+	public static final int FREETEXT_CONTAINS_PHRASE		= 0x403;
 	
 	private static final String[] sprintf_attribute_list = new String[]
 	         	                                                     {

@@ -520,6 +520,12 @@ public class BDBPrimaryIndex implements IterableIndex
 	public boolean isSetIndex() {
 		return false;
 	}
+	
+	public boolean isFreeTextIndex()
+	{
+		return false;
+	}
+	
 
 	public String getName()
 	{

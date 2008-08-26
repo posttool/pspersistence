@@ -1744,6 +1744,9 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 				case EntityIndex.TYPE_MULTIFIELD_ARRAY_MEMBERSHIP_INDEX:
 					classname = "com.pagesociety.bdb.index.MultiFieldArrayMembershipIndex";
 					break;
+				case EntityIndex.TYPE_FREETEXT_INDEX:
+					classname = "com.pagesociety.bdb.index.freetext.FreeTextIndex";
+					break;	
 				default:
 					throw new PersistenceException("UNKNOWN INDEX TYPE 0x"+Integer.toHexString(index_type));
 				}
@@ -1768,7 +1771,6 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 	private void bootstrap_existing_entity_relationships() throws PersistenceException
 	{
 		List<EntityRelationshipDefinition> rels = get_entity_relationships_from_db();
-
 
 		for (int i = 0; i < rels.size(); i++)
 		{
@@ -2139,37 +2141,45 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 		{
 			
 			BDBSecondaryIndex index 		= all_indexes_for_entity.get(i);
-			/* this is in case it is using the name of the field for some reason 
-			 * in the filename of its db
-			 */
-			index.fieldChangedName(old_field_name, new_field_name);			
 
-			EntityIndex   idx 				= index.getEntityIndex();
-			List<FieldDefinition> ifields	= index.getFields();
-			for(FieldDefinition fd:ifields)
-			{
-				if(fd.getName().equals(old_field_name))
-				{
-					try{
-						
-						/*persist change..we need to do the delete with the idx still referring to the old
-						 * fieldname. this is because we use getSearchBoth to delete it. see delete_entity_index_from_db
-						 * for details.*/
-						delete_entity_index_from_db(entity, idx);
-						fd.setName(new_field_name);
-						add_entity_index_to_db(entity, idx);
-					}catch(DatabaseException e)
-					{
-						logger.error("do_rename_entity_field(String, String, String)", e);
-						throw new PersistenceException("UNABLE TO COMMIT FIELD RENAME TO DEPENDEDNT INDEX");
-					}
-				}
-			}
+			if(index.indexesField(old_field_name))
+				update_index_field_definition_for_rename(index, old_field_name, new_field_name);
+
 		}
 		return f; 
 	}
 
-	
+	/*this deals with updateing the entity index instance in the event that you change the name of one of the fields it is indexing */
+	private void update_index_field_definition_for_rename(BDBSecondaryIndex index,String old_field_name,String new_field_name) throws PersistenceException
+	{	
+		EntityIndex   idx 				= index.getEntityIndex();
+		List<FieldDefinition> ifields	= index.getFields();
+		for(FieldDefinition fd:ifields)
+		{
+			if(fd.getName().equals(old_field_name))
+			{
+				try{
+					
+					/*persist change..we need to do the delete with the idx still referring to the old
+					 * fieldname. this is because we use getSearchBoth to delete it. see delete_entity_index_from_db
+					 * for details.*/
+					delete_entity_index_from_db(index.getEntityDefinition().getName(), idx);
+					fd.setName(new_field_name);
+					add_entity_index_to_db(index.getEntityDefinition().getName(), idx);
+					/* this is in case it is using the name of the field for some reason 
+					 * in the filename of its db
+					 */
+					index.fieldChangedName(old_field_name, new_field_name);	
+					break;
+				}catch(DatabaseException e)
+				{
+					logger.error("do_rename_entity_field(String, String, String)", e);
+					throw new PersistenceException("UNABLE TO COMMIT FIELD RENAME TO DEPENDEDNT INDEX");
+				}
+			}
+		}
+
+	}
 	
 	public void addEntityIndex(String entity,String field_name,int index_type,String index_name, Map<String,String> attributes) throws PersistenceException
 	{
@@ -2258,6 +2268,9 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 			case EntityIndex.TYPE_MULTIFIELD_ARRAY_MEMBERSHIP_INDEX:
 				classname = "com.pagesociety.bdb.index.MultiFieldArrayMembershipIndex";
 				break;
+			case EntityIndex.TYPE_FREETEXT_INDEX:
+				classname = "com.pagesociety.bdb.index.freetext.FreeTextIndex";
+				break;	
 			default:
 				throw new PersistenceException("UNKNOWN INDEX TYPE 0x"+Integer.toHexString(index_type));
 		}

@@ -50,6 +50,7 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 	public static final int TYPE_NORMAL_INDEX    	= 0x01; 
 	/* set indexes deconstruct arrays multiple rows in the index*/
 	public static final int TYPE_SET_INDEX 			= 0x02; 
+	public static final int TYPE_FREETEXT_INDEX 	= 0x04; 
 	
 	public BDBSecondaryIndex()
 	{
@@ -71,6 +72,11 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 	public boolean isSetIndex()
 	{
 		return type == TYPE_SET_INDEX;
+	}
+	
+	public boolean isFreeTextIndex()
+	{
+		return type == TYPE_FREETEXT_INDEX;
 	}
 	
 	public String getName()
@@ -358,15 +364,6 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 		return handle;
 	}
 
-	/* utility function for subclasses */
-	protected static Object get_required_query_attribute(Map<String,Object> query_attributes,String attrname) throws PersistenceException
-	{
-		Object val = query_attributes.get(attrname);
-		if(val == null)
-			throw new PersistenceException("MISSING REQUIRED QUERY PARAM: "+attrname);
-
-		return val;
-	}
 
 	//TODO: this can be set above when constructor is called
 	//as an optimization
@@ -382,7 +379,6 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 	
 	public abstract List<Object> getDistinctKeys() throws PersistenceException;
 	public abstract void getInsertKeys(Entity entity,Set<DatabaseEntry> result) throws DatabaseException;
-	
 	public abstract boolean indexesField(String fieldname);
 	public abstract boolean invalidatedByFieldDelete(FieldDefinition f);
 	public abstract void    fieldChangedName(String old_name,String new_name);

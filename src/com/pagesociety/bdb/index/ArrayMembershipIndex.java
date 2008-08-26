@@ -17,8 +17,6 @@ public class ArrayMembershipIndex extends AbstractSingleFieldIndex
 {
 
 	public static final String NAME 				= ArrayMembershipIndex.class.getSimpleName();
-	public static final String QUERY_PARAM_OP 	  	= "op";	
-	public static final String QUERY_PARAM_LIST  	= "values";
 	
 	public ArrayMembershipIndex()
 	{

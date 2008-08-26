@@ -6,7 +6,7 @@ import java.util.Map;
 public class DefaultStopList implements StopList
 {
 	
-	String[] _stop_words = new String[]	                                 
+	private static String[] _stop_words = new String[]	                                 
 	{
 		     "I",
 		     "a",
@@ -47,25 +47,21 @@ public class DefaultStopList implements StopList
 
 
 	private Map<String,Object> _stop_map;
-	private final Object NOT_NULL = new Object();
+	private static final Object NOT_NULL = new Object();
+	
 	public DefaultStopList(Map<String,Object> params)
 	{
+		_stop_map = new HashMap<String,Object>();
 		for( int i = 0;i < _stop_words.length;i++)
 		{
-			_stop_map = new HashMap<String,Object>();
-			_stop_map.put(_stop_words[i], NOT_NULL);
+			_stop_map.put(_stop_words[i],NOT_NULL);
 		}
 		
 	}
 	
 	public boolean isStop(String word) 
 	{
-		for(int i = 0;i < _stop_words.length;i++)
-		{
-			if(word.equals(_stop_words[i]))
-				return true;
-		}
-		return false;
+		return (_stop_map.get(word) == NOT_NULL);
 	}
 
 }

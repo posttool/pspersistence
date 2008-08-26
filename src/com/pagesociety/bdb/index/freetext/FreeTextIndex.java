@@ -31,14 +31,14 @@ import com.sleepycat.db.LockMode;
 import com.sleepycat.db.OperationStatus;
 import com.sleepycat.db.Transaction;
 
-public class SingleFieldFreeTextIndex extends AbstractSingleFieldIndex
+public class FreeTextIndex extends AbstractSingleFieldIndex
 {
 
-	public static final String NAME = SingleFieldFreeTextIndex.class.getSimpleName();
+	public static final String NAME = FreeTextIndex.class.getSimpleName();
 	private static  FreetextStemmer _stemmer = new PorterStemmer();
 	private static  StopList _stoplist 	  = new DefaultStopList(null);
 	
-	public SingleFieldFreeTextIndex()
+	public FreeTextIndex()
 	{
 		super(BDBSecondaryIndex.TYPE_FREETEXT_INDEX);
 	}
@@ -63,6 +63,7 @@ public class SingleFieldFreeTextIndex extends AbstractSingleFieldIndex
 		//just for abstract class since we are overloading insertIndexEntry
 	}
 	
+	public static final DatabaseEntry FREETEXT_STOP_WORD = new DatabaseEntry();
 	public List<DatabaseEntry> getQueryKeys(List<Object> values) throws DatabaseException
 	{
 		List<DatabaseEntry> ret;
@@ -77,18 +78,36 @@ public class SingleFieldFreeTextIndex extends AbstractSingleFieldIndex
 		}
 		else
 		{
+			//remove leading stop words first so first key is always
+			//something that could have been inserted (see SETCONTAINSPHRASEIterator)
+			String val;
+			for(;;)
+			{
+				val = ((String)values.get(0)).toLowerCase();
+				if(_stoplist.isStop(val))
+				{
+					values.remove(0);
+					continue;
+				}
+				break;
+			}
+			
 			int s = values.size();
 			ret = new ArrayList<DatabaseEntry>(s);
 			for(int i = 0; i < s;i++)
 			{
 				String lc_word = ((String)values.get(i)).toLowerCase();
 				if(_stoplist.isStop(lc_word))
-					continue;
-				
-				String val = _stemmer.stem(lc_word);
-				d = new DatabaseEntry();
-				StringBinding.stringToEntry(val,d);
-				ret.add(d);
+				{
+					ret.add(FREETEXT_STOP_WORD);
+				}
+				else
+				{
+					val = _stemmer.stem(lc_word);
+					d = new DatabaseEntry();
+					StringBinding.stringToEntry(val,d);
+					ret.add(d);
+				}
 			}
 		}
 		return ret;
@@ -116,14 +135,12 @@ public class SingleFieldFreeTextIndex extends AbstractSingleFieldIndex
 			{
 				
 				c++;
-				System.out.println(e.getId()+":C IS "+c);
+				//System.out.println(e.getId()+":C IS "+c);
 				String word = st.nextToken();
 				String lc_word = word.toLowerCase();
 				if(_stoplist.isStop(lc_word))
-				{
-					System.out.println("!!!!!!!!!!!!!!!!STOPPING WORD "+lc_word);
 					continue;
-				}
+
 				word = _stemmer.stem(lc_word);
 				/*CHECK IGNORE LIST IGNORE THAN STEM HERE*/
 				/*key*/

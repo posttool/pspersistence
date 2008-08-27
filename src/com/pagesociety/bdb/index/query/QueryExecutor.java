@@ -14,10 +14,11 @@ import com.pagesociety.bdb.BDBQueryResult;
 import com.pagesociety.bdb.binding.FieldBinding;
 import com.pagesociety.bdb.cache.ConcurrentLRUCache;
 import com.pagesociety.bdb.index.ArrayMembershipIndex;
+import com.pagesociety.bdb.index.FreeTextIndex;
 import com.pagesociety.bdb.index.MultiFieldArrayMembershipIndex;
+import com.pagesociety.bdb.index.MultiFieldFreeTextIndex;
 import com.pagesociety.bdb.index.SimpleMultiFieldIndex;
 import com.pagesociety.bdb.index.SimpleSingleFieldIndex;
-import com.pagesociety.bdb.index.freetext.FreeTextIndex;
 import com.pagesociety.bdb.index.iterator.BETWEEN_ASC_END_INCLUSIVEIndexIterator;
 import com.pagesociety.bdb.index.iterator.BETWEEN_ASC_EXCLUSIVEIndexIterator;
 import com.pagesociety.bdb.index.iterator.BETWEEN_ASC_INCLUSIVEIndexIterator;
@@ -30,6 +31,7 @@ import com.pagesociety.bdb.index.iterator.EQIndexIterator;
 import com.pagesociety.bdb.index.iterator.FREETEXTCONTAINSALLIndexIterator;
 import com.pagesociety.bdb.index.iterator.FREETEXTCONTAINSANYIndexIterator;
 import com.pagesociety.bdb.index.iterator.FREETEXTCONTAINSPHRASEIndexIterator;
+import com.pagesociety.bdb.index.iterator.FREETEXTMULTIWRAPPERIterator;
 import com.pagesociety.bdb.index.iterator.GTEIndexIterator;
 import com.pagesociety.bdb.index.iterator.GTIndexIterator;
 import com.pagesociety.bdb.index.iterator.IndexIterator;
@@ -1297,17 +1299,24 @@ public class QueryExecutor
 			throw new PersistenceException("UNSUPPORTED OPERATION FOR INDEX."+idx.getName()+"IS A FREETEXT INDEX AND ONLY SUPPORTS FREETEXT OPERATIONS.");
 		List<Object> user_list_param = (List<Object>)_query_params[(Integer)iter_node.attributes.get(Query.ATT_SET_ITER_USER_PARAM)];
 		//right here is where we would catch classcastexception if we wanted to accept single values to set ops
-		List<DatabaseEntry> list_param  = null;
+		
 		boolean globbing = false;
 		if(is_multi)
 		{
+			List<List<DatabaseEntry>> multi_list_param = null;
 			try{
+				/* this is a sort of special case because querying the free text
+				 * index is more syntactically complex. so MultiFieldFreeTextIndex
+				 * has its own iterator that it uses FREETEXTMULTIWRAPPER. It makes
+				 * a key for each field for each term in the search string
+				 * textContainsPhrase(q.list(q.list("title","summary"),q.list("huckleberry","finn"),PUBLISHED));
+				 * --GET ALL RECORDS WHERE TITLE OR SUMMARY CONTAINS THE PHRASE HUCKLEBERRY FINN
+				 */
 				int last = user_list_param.size() - 1;
 				if(user_list_param.get(last) == Query.VAL_GLOB)
 				{
 					//clone
-					ArrayList<Object> copy = (ArrayList<Object>)((ArrayList<Object>)user_list_param).clone();
-					
+					ArrayList<Object> copy = (ArrayList<Object>)((ArrayList<Object>)user_list_param).clone();					
 					do
 					{
 						copy.remove(last--);						
@@ -1318,27 +1327,38 @@ public class QueryExecutor
 					if(last == 0 && copy.get(0) == Query.VAL_GLOB )
 						copy.add(null);
 					
-					list_param = ((FreeTextIndex)idx).getQueryKeys((List<Object>)copy);
+					multi_list_param = ((MultiFieldFreeTextIndex)idx).getQueryKeys((List<Object>)copy);
 					//System.out.println("LIST PARAM IS "+list_param);
 				}
 				else
 				{
-					list_param = ((FreeTextIndex)idx).getQueryKeys((List<Object>)user_list_param);
+					multi_list_param = ((MultiFieldFreeTextIndex)idx).getQueryKeys((List<Object>)user_list_param);
 				}
+	
 			}catch(DatabaseException dbe)
 			{
 				throw new PersistenceException("UNABLE TO GENERATE QUERY KEY FOR QUERY VAL");
 			}
+	
+			return open_multi_field_freetext_iterator(iter_type, idx, globbing, multi_list_param);			
 		}
 		else
 		{
+			List<DatabaseEntry> list_param  = null;
 			try{
 				list_param = ((FreeTextIndex)idx).getQueryKeys((List<Object>)user_list_param);
 			}catch(DatabaseException dbe)
 			{
 				throw new PersistenceException("UNABLE TO GENERATE QUERY KEY FOR QUERY VAL");
 			}
+			return open_single_field_freetext_iterator(iter_type,idx, globbing, list_param);
 		}
+	
+	}
+
+
+	private IndexIterator open_single_field_freetext_iterator(int iter_type,IterableIndex idx,boolean globbing,Object list_param) throws PersistenceException
+	{
 		SetIndexIterator iter = null;
 		switch(iter_type)
 		{
@@ -1352,7 +1372,7 @@ public class QueryExecutor
 				iter 	= new FREETEXTCONTAINSPHRASEIndexIterator();
 				break;
 			default:
-				throw new PersistenceException("UNKNOWN SET ITER TYPE");
+				throw new PersistenceException("UNKNOWN FREETEXT ITER TYPE");
 		}
 		//open the iterator and return it//
 		try{
@@ -1370,7 +1390,31 @@ public class QueryExecutor
 
 		}
 		return iter;
+		
 	}
 	
+	private IndexIterator open_multi_field_freetext_iterator(int iter_type,IterableIndex idx,boolean globbing,Object list_param) throws PersistenceException
+	{
+		IndexIterator iter;
+		iter = new FREETEXTMULTIWRAPPERIterator();
+		//open the iterator and return it//
+		try{
+			iter.open(idx,globbing,list_param,iter_type);
+		}catch(DatabaseException dbe)
+		{
+			try{
+				iter.close();
+			}catch(DatabaseException dbe2)
+			{
+				dbe2.printStackTrace();
+			}
+			dbe.printStackTrace();
+			throw new PersistenceException("FAILED TO OPEN ITERATOR!!!");
+
+		}
+		return iter;		
+		
+	}
+
 
 }

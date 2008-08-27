@@ -157,9 +157,7 @@ public class Query
 	public Query textContainsAll(List<?> vals){build_freetext_query(FREETEXT_CONTAINS_ALL, vals);return this;}
 	public Query textContainsAny(List<?> vals){build_freetext_query(FREETEXT_CONTAINS_ANY, vals);return this;}
 	public Query textContainsPhrase(List<?> vals){build_freetext_query(FREETEXT_CONTAINS_PHRASE, vals);return this;}
-	public Query textContainsAll(String vals){build_freetext_query(FREETEXT_CONTAINS_ALL, string_to_list(vals));return this;}
-	public Query textContainsAny(String vals){build_freetext_query(FREETEXT_CONTAINS_ANY, string_to_list(vals));return this;}
-	public Query textContainsPhrase(String vals){build_freetext_query(FREETEXT_CONTAINS_PHRASE, string_to_list(vals));return this;}
+	
 	
 
 	/* currently unimplemented ops */

@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import org.apache.log4j.BasicConfigurator;
 
@@ -84,10 +85,12 @@ public class QueryTest {
 		//pssql_test();
 		//concurrency_test();
 		//untyped_reference_test();
-		freetext_test();
+		//simple_freetext_test();
+		//multi_freetext_test();
+		multi_freetext_globbing_test();
 	}
 	
-	public void freetext_test() throws PersistenceException
+	public void simple_freetext_test() throws PersistenceException
 	{
 		Entity[] books = new Entity[50];
 		for(int i = 0;i < books.length;i++)
@@ -125,6 +128,78 @@ public class QueryTest {
 		System.out.println("TIME "+t2+"(ms) FINNCOUNT "+finncount);
 	}
 	
+	public void multi_freetext_test() throws PersistenceException
+	{
+		int INSERTC = 0;
+		Random RR = new Random();
+		Entity[] books = new Entity[50];
+		for(int i = 0;i < books.length;i++)
+		{
+			Entity b = _store.getEntityDefinition("Book").createInstance();
+			b.setAttribute("Title", R(titles));
+			b.setAttribute("Summary", R(summaries));
+			int status = (RR.nextBoolean())?1:0;
+			b.setAttribute("Status", status);
+			b = _store.saveEntity(b);
+			books[i] = b;
+			
+			if(status == 1 && (((String)b.getAttribute("Title")).indexOf("Finn")!=-1 ||((String)b.getAttribute("Summary")).indexOf("one")!=-1 ) )
+			{
+				//System.out.println("INSERETING "+b);
+				INSERTC++;
+			}
+		//	System.out.println("BOOK "+i+" IS "+b);
+		}
+		addMultiFieldEntityIndex("Book", new String[]{"Title","Summary","Status"}, EntityIndex.TYPE_MULTI_FIELD_FREETEXT_INDEX, "BookFreeText", null);
+		Query q = new Query("Book");
+		q.idx("BookFreeText");
+		q.textContainsAny(q.list(q.list("Title","Summary"),q.list("Finn","one"),1));
+	
+		t1 = System.currentTimeMillis();
+		QueryResult result = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		for (Entity e : result.getEntities())
+		{
+			System.out.println(e);
+		}
+		System.out.println("TIME "+t2+"(ms) INSERT_C:"+INSERTC+" RESULT SIZE IS "+result.size()+" RPS IS "+((float)1000/t2*result.size()));
+	}
+	
+	public void multi_freetext_globbing_test() throws PersistenceException
+	{
+		int INSERTC = 0;
+		Random RR = new Random();
+		Entity[] books = new Entity[500];
+		for(int i = 0;i < books.length;i++)
+		{
+			Entity b = _store.getEntityDefinition("Book").createInstance();
+			b.setAttribute("Title", R(titles));
+			b.setAttribute("Summary", R(summaries));
+			int status = (RR.nextBoolean())?1:0;
+			b.setAttribute("Status", status);
+			b = _store.saveEntity(b);
+			books[i] = b;
+			
+			if((((String)b.getAttribute("Title")).indexOf("Finn")!=-1  ) && (((String)b.getAttribute("Title")).indexOf("Huckleberry")!=-1))
+			{
+				//System.out.println("INSERETING "+b);
+				INSERTC++;
+			}
+		//	System.out.println("BOOK "+i+" IS "+b);
+		}
+		addMultiFieldEntityIndex("Book", new String[]{"Title","Summary","Status"}, EntityIndex.TYPE_MULTI_FIELD_FREETEXT_INDEX, "BookFreeText", null);
+		Query q = new Query("Book");
+		q.idx("BookFreeText");
+		q.textContainsAll(q.list(Query.VAL_GLOB,q.list("Huckleberry","Finn"),Query.VAL_GLOB));
+		t1 = System.currentTimeMillis();
+		QueryResult result = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		for (Entity e : result.getEntities())
+		{
+			System.out.println(e);
+		}
+		System.out.println("TIME "+t2+"(ms) INSERT_C:"+INSERTC+" RESULT SIZE IS "+result.size()+" RPS IS "+((float)1000/t2*result.size()));
+	}
 	public void untyped_reference_test() throws PersistenceException
 	{
 		EntityDefinition def;
@@ -1551,6 +1626,10 @@ public class QueryTest {
 		addEntityField("Book", f, null);	
 		f = new FieldDefinition("PrimaryAuthor", Types.TYPE_REFERENCE , "Author");
 		addEntityField("Book", f, null);	
+		f = new FieldDefinition("Summary", Types.TYPE_STRING );
+		addEntityField("Book", f, null);	
+		f = new FieldDefinition("Status", Types.TYPE_INT );
+		addEntityField("Book", f, null);	
 	}
 	
 	static long DAY = 1000 * 60 * 60 * 24;	
@@ -1844,8 +1923,16 @@ public class QueryTest {
 	private String[] lastNames = new String[] { "Smith", "Jones", "Joyce", "Lee", "Lawson", "Nonnes", "Allen", "Hernadez", "King", "Wright", "Lopez",
 			"Garcia", "Baker", "Green", "Scott" };
 	private String[] titles = new String[] {
-			"The Adventures of Captain Bonneville",
+			"The Adventures of Captain Hook",
 			"The Adventures of Captain Bonneville, U.S.A. in the Rocky Mountains and the Far West: Digested from His Journals and Illustrated from Various Other Sources",
 			"The Adventures of Don Quixote Vol. 2", "The Adventures of Gerard", "The Adventures of Hajji Baba of Ispahan",
 			"The Adventures of Huckleberry Finn","Huckleberry Finn","The Great Finn"};
+	
+	
+	private String[] summaries = new String[] {
+			"This is the text of summary one.",
+			"This is summary two's text",
+			"This is sure to be summary 3's text",
+			"And finally we have summary four."
+	};
 }

@@ -93,11 +93,14 @@ public class STARTSWITHDATAIndexIterator extends PredicateIndexIterator implemen
 		
 		validate_position();
 	}
+	
 	//this is only used by globbed SETCONTAINSALL
 	//TODO: NOTE: this shit is sort of crazy....
 	//...the reason we do this is because you can't move
 	//to a partial key with the data specified.searchkeyrange()
 	//does not allow us to specify the data//
+	
+	/*essentially move with partial key and known data*/
 	public void move(DatabaseEntry newkey,DatabaseEntry newdata) throws DatabaseException
 	{
 		Cursor reverse_cursor = index.getReverseIndexDbh().openCursor(null, null);
@@ -117,12 +120,44 @@ public class STARTSWITHDATAIndexIterator extends PredicateIndexIterator implemen
 		last_opstat = OperationStatus.NOTFOUND;
 		reverse_cursor.close();
 	}
-
-	public void moveWithPartialData(DatabaseEntry newkey,DatabaseEntry newdata)
+	
+	/* only called by globbing freetextcontainsall iterator...this is unique because
+	 * both key and data are are partial instead of just one being partial */
+	
+	/* essentially move with partial key AND partial data */
+	public void moveWithPartialData(DatabaseEntry newkey,DatabaseEntry newdata) throws DatabaseException
 	{
+		Cursor reverse_cursor = index.getReverseIndexDbh().openCursor(null, null);
+		DatabaseEntry original_data  	  = IteratorUtil.cloneDatabaseEntry(newdata);
+		int original_data_length = original_data.getSize();
+		DatabaseEntry original_key   		= IteratorUtil.cloneDatabaseEntry(newkey);
+		int original_key_length   = original_key.getSize();
+
+		/* we do reverse cursor again so we just search that record instead of all records
+		 * containing that word.we are forced to do a mini table scan in this case since
+		 * pos data is part of freetext index pkey. 
+		 * 
+		 */
 		
-		/*not toally sure about all this yet */
+		last_opstat	=	reverse_cursor.getSearchKeyRange(newdata,key, LockMode.DEFAULT);
+		if(IteratorUtil.compareDatabaseEntries(newdata, 0, original_data_length, original_data, 0, original_data_length)==0)
+		{
+			do{
+				if((IteratorUtil.compareDatabaseEntries(newdata, 0, original_data_length, original_data, 0, original_data_length)==0)
+				&&(IteratorUtil.compareDatabaseEntries(key, 0, original_key_length, original_key, 0, original_key_length)==0))
+				{
+					index_cursor.getSearchBoth(key, newdata, LockMode.DEFAULT);
+					reverse_cursor.close();
+					return;
+				}
+			}while((last_opstat = reverse_cursor.getNext(newdata, key, LockMode.DEFAULT)) == OperationStatus.SUCCESS);
+		}
+
+		last_opstat = OperationStatus.NOTFOUND;
+		reverse_cursor.close();
 	}
+	
+
 }
 
 

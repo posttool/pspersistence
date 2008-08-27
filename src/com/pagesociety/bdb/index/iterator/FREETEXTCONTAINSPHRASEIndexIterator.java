@@ -2,7 +2,7 @@ package com.pagesociety.bdb.index.iterator;
 
 
 import com.pagesociety.bdb.BDBSecondaryIndex;
-import com.pagesociety.bdb.index.freetext.FreeTextIndex;
+import com.pagesociety.bdb.index.FreeTextIndex;
 import com.sleepycat.bind.tuple.IntegerBinding;
 import com.sleepycat.bind.tuple.LongBinding;
 import com.sleepycat.bind.tuple.TupleInput;

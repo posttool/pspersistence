@@ -14,7 +14,7 @@ import com.pagesociety.bdb.BDBQueryResult;
 import com.pagesociety.bdb.binding.FieldBinding;
 import com.pagesociety.bdb.cache.ConcurrentLRUCache;
 import com.pagesociety.bdb.index.ArrayMembershipIndex;
-import com.pagesociety.bdb.index.FreeTextIndex;
+import com.pagesociety.bdb.index.SingleFieldFreeTextIndex;
 import com.pagesociety.bdb.index.MultiFieldArrayMembershipIndex;
 import com.pagesociety.bdb.index.MultiFieldFreeTextIndex;
 import com.pagesociety.bdb.index.SimpleMultiFieldIndex;
@@ -657,13 +657,14 @@ public class QueryExecutor
 			{
 				//System.out.println("ABOUT TO LOOKUP...CURRENT DATA IS "+new String(iter.currentData().getData()));
 				Entity e = p_idx.getByPrimaryKey(iter.currentData());
-				if(e == null)
-				{
-					System.out.println("E WAS NULL FOR PKEY "+new String(iter.currentData().getData()));
-					byte[] tmp = new byte[8];
-					System.arraycopy(iter.currentData().getData(), 0, tmp, 0, 8);
-					System.out.println("ID IS "+LongBinding.entryToLong(new DatabaseEntry(tmp)));
-				}
+				
+		//		if(e == null)
+		//		{
+		//			System.out.println("E WAS NULL FOR PKEY "+new String(iter.currentData().getData()));
+		//			byte[] tmp = new byte[8];
+		//			System.arraycopy(iter.currentData().getData(), 0, tmp, 0, 8);
+		//			System.out.println("ID IS "+LongBinding.entryToLong(new DatabaseEntry(tmp)));
+		//		}
 				results.add(e);
 				if(++added == page_size)
 				{
@@ -671,6 +672,7 @@ public class QueryExecutor
 				}
 				iter.next();
 			}
+
 			iter.close();
 			return results;
 		}catch(DatabaseException dbe)
@@ -918,9 +920,13 @@ public class QueryExecutor
 		{
 			iter = setup_range_iterator(idx,ismulti,iter_op,iter_node);
 		}
-		else if((iter_op & Q.SET_ITER_TYPE) == Q.SET_ITER_TYPE)
+		else if((iter_op & Query.SET_ITER_TYPE) == Query.SET_ITER_TYPE)
 		{
 			iter = setup_set_iterator(idx,ismulti,iter_op,iter_node);
+		}
+		else if((iter_op & Query.FREETEXT_ITER_TYPE) == Query.FREETEXT_ITER_TYPE)
+		{
+			iter = setup_freetext_iterator(idx,ismulti,iter_op,iter_node);
 		}
 		else
 		{
@@ -1114,8 +1120,8 @@ public class QueryExecutor
 				_query_params[user_param_idx] = Query.VAL_MIN;
 				iter_node.attributes.put(Query.ATT_PREDICATE_ITER_USER_PARAM, user_param_idx);
 				return setup_predicate_iterator(idx,false,iter_type,iter_node);
-			case Q.LT:
-			case Q.LTE:
+			case Query.LT:
+			case Query.LTE:
 				user_param_idx = (Integer)iter_node.attributes.get(Query.ATT_PREDICATE_ITER_USER_PARAM);
 				_query_params[user_param_idx] = Query.VAL_MAX;
 				iter_node.attributes.put(Query.ATT_PREDICATE_ITER_USER_PARAM, user_param_idx);
@@ -1346,7 +1352,7 @@ public class QueryExecutor
 		{
 			List<DatabaseEntry> list_param  = null;
 			try{
-				list_param = ((FreeTextIndex)idx).getQueryKeys((List<Object>)user_list_param);
+				list_param = ((SingleFieldFreeTextIndex)idx).getQueryKeys((List<Object>)user_list_param);
 			}catch(DatabaseException dbe)
 			{
 				throw new PersistenceException("UNABLE TO GENERATE QUERY KEY FOR QUERY VAL");

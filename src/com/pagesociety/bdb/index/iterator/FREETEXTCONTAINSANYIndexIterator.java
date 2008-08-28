@@ -64,7 +64,10 @@ public class FREETEXTCONTAINSANYIndexIterator extends SETCONTAINSANYIndexIterato
 		iter.data.setSize(8);
 		return iter.data;
 	}
-	
+	/* maybe a future enhancement. basically have to stuff the meta data in at the right time since
+	 * we are resizing they data and actually truncating pos information in a lot of cases because
+	 * we only really need it for the phrase match.*
+	 */
 	public Map<String,Object> currentMetaData()
 	{
 		return null;

@@ -83,11 +83,11 @@ public class QueryTest {
 		//intersect_test();
 		//union_test();
 		//pssql_test();
-		concurrency_test();
+		//concurrency_test();
 		//untyped_reference_test();
 		//simple_freetext_test();
 		//multi_freetext_test();
-		//multi_freetext_globbing_test();
+		multi_freetext_globbing_test();
 	}
 	/*RULES FOR FREETEXT STUFF
 	 *'SingleFieldFreeTextIndex' - takes one field. it must be of string type
@@ -219,7 +219,7 @@ public class QueryTest {
 		addMultiFieldEntityIndex("Book", new String[]{"Title","Summary","Status"}, EntityIndex.TYPE_MULTI_FIELD_FREETEXT_INDEX, "BookFreeText", null);
 		Query q = new Query("Book");
 		q.idx("BookFreeText");
-		q.textContainsAll(q.list(Query.VAL_GLOB,q.list("Huckleberry","Finn"),Query.VAL_GLOB));
+		q.textContainsAny(q.list(Query.VAL_GLOB,q.list("Huckleberry","Finn"),Query.VAL_GLOB));
 		t1 = System.currentTimeMillis();
 		QueryResult result = _store.executeQuery(q);
 		t2 = System.currentTimeMillis()-t1;

@@ -9,6 +9,8 @@ public class PorterStemmer implements FreetextStemmer
 		Stemmer s = new Stemmer();
 		s.add(str.toCharArray(),str.length());
 		s.stem();
+		//System.out.println("STR IS "+str+" STEM IS "+s.toString());
+
 		return s.toString();
 	}
 

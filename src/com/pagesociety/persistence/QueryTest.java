@@ -83,13 +83,42 @@ public class QueryTest {
 		//intersect_test();
 		//union_test();
 		//pssql_test();
-		//concurrency_test();
+		concurrency_test();
 		//untyped_reference_test();
 		//simple_freetext_test();
 		//multi_freetext_test();
-		multi_freetext_globbing_test();
+		//multi_freetext_globbing_test();
 	}
-	
+	/*RULES FOR FREETEXT STUFF
+	 *'SingleFieldFreeTextIndex' - takes one field. it must be of string type
+	 * it can be created and queryed like so.
+	 * CREATE:
+	 * 	_store.addEntityIndex("Book","Title",EntityIndex.TYPE_SINGLE_FIELD_FREETEXT_INDEX,"byTitleFreeText",null);	 
+	 * QUERY:	
+	 * Query q = new Query("Book");
+	 * q.idx("byTitleFreeText");
+	 * q.containsAny(q.list("baking","boxing"));
+	 * q.containsAll(q.list("green", "Chevy"));
+	 * q.containsPhrase(q.list("Huckleberry","Finn"));
+	 *
+	 *'MultiFieldFreeTextIndex' - takes multiple string fields to be indexed. other fields are treated
+	 * as equality.Declare string fieldnames first and equalities second.(TODO: ADD IGNORE_STRING for the case when you want a string as an equality!)
+	 * CREATE:
+	 * 	_store.addEntityIndex("BlogEntry",new String[]{"Title","Subhead","Body",<-eq part starts here->, "publication_status"},EntityIndex.TYPE_MULTI_FIELD_FREETEXT_INDEX,"BlogEntryFreeText",null);	 
+	 * QUERY:	
+	 * Query q = new Query("BlogEntry");
+	 * q.idx("BlogEntryFreeText");
+	 * q.containsAny(q.list(q.list("Title","Subhead","Body"),q.list("baking","boxing"),PUBLISHED);
+	 * q.containsAll(q.list(q.list("Title"),q.list("Fantasy","World"),PUBLISHED);
+	 * q.containsPhrase(q.list(q.list("Title","Body"),q.list("in","search","of","love"),ARCHIVED);
+	 *
+	 *the first list is the string fields of the index you want to search
+	*the second list is the search phrase
+	*the rest of it are the equality values
+	*VAL_GLOB also works for natural ordering
+	*
+	*if you use VAL_GLOB for the field list it will search all fields in the index
+	*/
 	public void simple_freetext_test() throws PersistenceException
 	{
 		Entity[] books = new Entity[50];

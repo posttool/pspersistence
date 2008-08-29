@@ -453,18 +453,31 @@ public class BDBStore implements PersistentStore
 	{	
 
 		_store_locker.enterAppThread();
-		String entity_type 		  = e.getType();
-		if(!e.isDirty())
-		{
-			try{
-				_store_locker.exitAppThread();
-				throw new Exception("WARNING: SAVING UNDIRTY ENTITY");
-			}catch(Exception ee)
-			{
-				logger.error("saveEntity(Entity)", ee);
-			}
-			return e;
+		try{
+			//if(!e.isDirty())
+			//{
+			//	try{
+			//		_store_locker.exitAppThread();
+			//		throw new Exception("WARNING: SAVING UNDIRTY ENTITY");
+			//	}catch(Exception ee)
+			//	{
+			//		logger.error("saveEntity(Entity)", ee);
+			//	}
+			//	return e;
+			//}
+			do_save_entity(null,e);
 		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}	
+		return e;
+	}
+	
+	protected Entity do_save_entity(Transaction parent_txn,Entity e) throws PersistenceException
+	{
+		String entity_type 		  = e.getType();
+
 		BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(entity_type);
 		if(pi == null)
 		{
@@ -475,33 +488,34 @@ public class BDBStore implements PersistentStore
 		boolean update 		= true;
 		DatabaseEntry pkey 	= null;
 		int retry_count = 0;
-		Transaction txn = null;
 		if(e.getId() == Entity.UNDEFINED)
 			update = false;
 		try{
 			
-				while(true)
-				{
-					try{
-					txn = environment.beginTransaction(null, null);			
-			/* resolve side effects first so we still have handle to old value */
-			if (update)
+			while(true)
 			{
-				resolve_relationship_sidefx(txn,e, UPDATE);
-				pkey = pi.saveEntity(txn,e);
-			} 
-			else 
-			{
-				pkey = pi.saveEntity(txn,e);
-				resolve_relationship_sidefx(txn,e,INSERT);
-			}
-			save_to_secondary_indexes(txn, pkey, e, update);						
-			e.undirty();
-			txn.commitNoSync();
-			break;
+				try{
+					parent_txn = environment.beginTransaction(null, null);			
+					/* resolve side effects first so we still have handle to old value */
+					if (update)
+					{
+						resolve_relationship_sidefx(parent_txn,e, UPDATE);
+						pkey = pi.saveEntity(parent_txn,e);
+					} 
+					else 
+					{
+						
+						set_default_values(parent_txn, e);
+						pkey = pi.saveEntity(parent_txn,e);
+						resolve_relationship_sidefx(parent_txn,e,INSERT);
+					}
+					save_to_secondary_indexes(parent_txn, pkey, e, update);						
+					e.undirty();
+					parent_txn.commitNoSync();
+					break;
 				}catch(DatabaseException dbe)
 				{
-					abortTxn(txn);
+					abortTxn(parent_txn);
 					retry_count++;
 					if(retry_count >= BDBStore.MAX_DEADLOCK_RETRIES)
 					{
@@ -509,26 +523,95 @@ public class BDBStore implements PersistentStore
 						throw dbe;
 					}
 				}
-				}//end while
+			}//end while
 
 			if (checkpoint_policy.isCheckpointNecessary())
 				do_checkpoint();
-			
+		
 			//we might want a more elaborate policy here//
 			clean_query_cache(entity_type);
 		
+			return e;
 		}
 		catch(DatabaseException pe)
 		{
-			//abortTxn(txn);
+			/* this just catches the one thrown above */
 			pe.printStackTrace();
 			throw new PersistenceException("SAVE OF ENTITY FAILED. TRY AGAIN.\n"+e);
 		}
-		finally
+	}
+	
+	private void set_default_values(Transaction txn,Entity e) throws DatabaseException
+	{
+		List<String> dirty_fields = e.getDirtyAttributes();
+		List<FieldDefinition> all_fields = e.getEntityDefinition().getFields();
+		int s = all_fields.size();
+		for(int i = 0;i < s;i++)
 		{
-			_store_locker.exitAppThread();
+			FieldDefinition f = all_fields.get(i);
+			if(dirty_fields.contains(f.getName()))
+				continue;
+			set_default_value(txn, e, f);
+		}		
+	}
+	
+	private void set_default_value(Transaction txn,Entity e,FieldDefinition field) throws DatabaseException
+	{
+		Object val = field.getDefaultValue();
+		if(val == null)
+		{
+			e.setAttribute(field.getName(), null);
+			return;
+		}
+		
+		if(field.getBaseType() == Types.TYPE_REFERENCE)
+		{
+			if(field.isArray())
+			{
+				set_default_reference_array_value(txn,e,val,field);
+			}
+			else
+			{
+				set_default_reference_value(txn,e,val,field);
+			}
+			
+			return;
+		}
+		
+		e.setAttribute(field.getName(), val);
+	}
+	
+	private void set_default_reference_value(Transaction txn,Entity e,Object ev,FieldDefinition field) throws DatabaseException
+	{
+		Entity val = (Entity)ev;
+		if(val.getId() == Entity.UNDEFINED)
+		{
+			try{
+				e.setAttribute(field.getName(), do_save_entity(txn,val.cloneShallow()));	
+			}catch(PersistenceException pe){throw new DatabaseException("FAILED INITIALIZING DEFAULT FIELD.ROLLING BACK.");}
+		}
+		else
+		{
+			e.setAttribute(field.getName(),val);	
 		}	
-		return e;
+	}
+	
+	private void set_default_reference_array_value(Transaction txn,Entity e,Object elv,FieldDefinition field) throws DatabaseException
+	{
+		List<Entity> ee = (List<Entity>)elv;
+		for(int i = 0;i < ee.size();i++)
+		{
+			Entity eee = ee.get(i);
+			
+			if(eee.getId() == Entity.UNDEFINED)
+			{
+				try{
+					 do_save_entity(txn,eee);	
+				}catch(PersistenceException pe){throw new DatabaseException("FAILED INITIALIZING DEFAULT FIELD.ROLLING BACK.");}
+			
+			}
+		}
+		e.setAttribute(field.getName(),ee);	
 	}
 	
 	private void save_to_secondary_indexes(Transaction parent_txn,DatabaseEntry pkey,Entity e,boolean update) throws DatabaseException
@@ -1039,7 +1122,7 @@ public class BDBStore implements PersistentStore
 			DatabaseEntry data = new DatabaseEntry();
 			while (cursor.getNext(key, data, LockMode.DEFAULT) == OperationStatus.SUCCESS)
 			{
-				EntityDefinition e = (EntityDefinition) entity_def_binding.entryToObject(this,data);
+				EntityDefinition e = (EntityDefinition) entity_def_binding.entryToObject(data);
 				defs.add(e);
 			}
 			close_cursors(cursor);
@@ -1910,12 +1993,12 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 	}
 
 
-	public int addEntityField(String entity, FieldDefinition entity_field_def,Object default_value)throws PersistenceException
+	public int addEntityField(String entity, FieldDefinition entity_field_def)throws PersistenceException
 	{
 		_store_locker.enterLockerThread();
 		try{
 			logger.debug("addEntityField(String, FieldDefinition, Object) - ADD ENTITY FIELD " + entity_field_def);
-			return do_add_entity_field(entity,entity_field_def,default_value);	
+			return do_add_entity_field(entity,entity_field_def);	
 		}catch(PersistenceException pe)
 		{
 			throw pe;
@@ -1927,7 +2010,7 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 	}
 
 
-	protected int do_add_entity_field(String entity,FieldDefinition field,Object default_value) throws PersistenceException
+	protected int do_add_entity_field(String entity,FieldDefinition field) throws PersistenceException
 	{
 		BDBPrimaryIndex pidx = entity_primary_indexes_as_map.get(entity);
 		EntityDefinition old_def = pidx.getEntityDefinition();
@@ -1956,12 +2039,12 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 			/* when we delete a field we need to delete asociated indexes if the index only
 			 * has one field and it is the field being deleted
 			 */
-			while (cursor.getNext(foundKey, data, LockMode.RMW) == OperationStatus.SUCCESS)
+			while (cursor.getNext(foundKey, data, LockMode.DEFAULT) == OperationStatus.SUCCESS)
 			{	
 				Entity e = entity_binding.entryToEntity(old_def,data);
 				cursor.delete();
 				e.setEntityDefinition(new_def);
-				e.setAttribute(fieldname,default_value);
+				set_default_value(txn,e,field);
 				entity_binding.entityToEntry(e, data);
 				cursor.put(foundKey,data);
 				count++;	
@@ -1979,10 +2062,13 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 			abortTxn(txn);
 			logger.error("do_add_entity_field(String, FieldDefinition, Object) - Error accessing database." + de, de);
 		}
-		
+		/*duh...need to do this */
+		clean_query_cache(entity);
 		return count;
 	}
 		
+
+	
 	public int deleteEntityField(String entity, String fieldname)throws PersistenceException 
 	{
 		_store_locker.enterLockerThread();

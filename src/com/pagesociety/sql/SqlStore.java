@@ -361,8 +361,7 @@ public class SqlStore implements PersistentStore
 	}
 
 
-	public int addEntityField(String entity, FieldDefinition entity_field_def,
-			Object default_value) throws PersistenceException
+	public int addEntityField(String entity, FieldDefinition entity_field_def) throws PersistenceException
 	{
 		throw new PersistenceException("SqlStore.addEntityField NOT IMPLEMENTED");
 	}

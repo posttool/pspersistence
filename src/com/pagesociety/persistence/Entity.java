@@ -401,6 +401,16 @@ public class Entity implements Comparable<Entity>
 			String s2 = e._type+String.valueOf(e._id);
 			return s1.compareTo(s2);
 		}
+	}
 	
+	public Entity cloneShallow()
+	{
+		Entity e = new Entity();
+		e._type = _type;
+		e._id = _id;
+		e._attributes = _attributes;
+		e._dirty_attributes = _dirty_attributes;
+		e._entity_definition = _entity_definition;
+		return e;
 	}
 }

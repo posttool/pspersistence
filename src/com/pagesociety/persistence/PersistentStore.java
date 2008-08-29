@@ -172,14 +172,11 @@ public interface PersistentStore
 	 *            The name of the entity that will get the new field.
 	 * @param entity_field_def
 	 *            The definition of the new field.
-	 * @param default_value
-	 *            The default value of the field if unspecified.
 	 * @return The number of records affected by the alteration.
 	 * @throws PersistenceException
 	 * @see FieldDefinition
 	 */
-	public abstract int addEntityField(String entity, FieldDefinition entity_field_def,
-			Object default_value) throws PersistenceException;
+	public abstract int addEntityField(String entity, FieldDefinition entity_field_def) throws PersistenceException;
 
 	/**
 	 * Deletes a field from the specified entity

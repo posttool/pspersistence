@@ -11,6 +11,7 @@ import org.apache.log4j.BasicConfigurator;
 
 import com.pagesociety.bdb.BDBStore;
 import com.pagesociety.bdb.BDBStoreConfigKeyValues;
+import com.sun.corba.se.spi.legacy.connection.GetEndPointInfoAgainException;
 
 public class QueryTest {
 
@@ -87,8 +88,58 @@ public class QueryTest {
 		//untyped_reference_test();
 		//simple_freetext_test();
 		//multi_freetext_test();
-		multi_freetext_globbing_test();
+		//multi_freetext_globbing_test();
+		default_value_test();
 	}
+	
+	public void default_value_test() throws PersistenceException
+	{
+		_store.deleteEntityField("Author", "PrimaryBook");
+
+		Entity[] authors = new Entity[500];
+		for(int i = 0;i < authors.length;i++)
+		{
+			Entity a = _store.getEntityDefinition("Author").createInstance();
+			a		 = _store.saveEntity(a);
+		//	System.out.println("BOOK "+i+" IS "+b);
+		}
+		Entity[] books = new Entity[10];
+		for(int i = 0;i < books.length;i++)
+		{
+			Entity b = _store.getEntityDefinition("Book").createInstance();
+			b.setAttribute("Title", "Hail To The Chief!");
+			b		 = _store.saveEntity(b);
+		//	System.out.println("BOOK "+i+" IS "+b);
+		}
+		
+		Query q = new Query("Author");
+		q.idx(Query.PRIMARY_IDX);
+		q.eq(Query.VAL_GLOB);
+		QueryResult result = _store.executeQuery(q);
+		print(result);
+	
+		FieldDefinition fd = new FieldDefinition("Foo",Types.TYPE_FLOAT).setDefaultValue(123.4f);
+		_store.addEntityField("Author", fd);
+		
+	
+		q = new Query("Author");
+		q.idx(Query.PRIMARY_IDX);
+		q.eq(Query.VAL_GLOB);
+		result = _store.executeQuery(q);
+		for(int i = 0;i < result.size();i++)
+			System.out.println(result.getEntities().get(i));
+	
+		fd = new FieldDefinition("PrimaryBook",Types.TYPE_REFERENCE,"Book").setDefaultValue(_store.getEntityDefinition("Book").createInstance());
+		_store.addEntityField("Author", fd);
+		
+		q = new Query("Author");
+		q.idx(Query.PRIMARY_IDX);
+		q.eq(Query.VAL_GLOB);
+		result = _store.executeQuery(q);
+		for(int i = 0;i < result.size();i++)
+			System.out.println(result.getEntities().get(i));
+	}
+	
 	/*RULES FOR FREETEXT STUFF
 	 *'SingleFieldFreeTextIndex' - takes one field. it must be of string type
 	 * it can be created and queryed like so.
@@ -237,19 +288,19 @@ public class QueryTest {
 		def =  new EntityDefinition("A");
 		_store.addEntityDefinition(def);
 		f = new FieldDefinition("Children", Types.TYPE_REFERENCE | Types.TYPE_ARRAY,FieldDefinition.REF_TYPE_UNTYPED_ENTITY);
-		addEntityField("A", f, null);
+		addEntityField("A", f);
 		
 		
 		def =  new EntityDefinition("B");
 		_store.addEntityDefinition(def);
 		f = new FieldDefinition("BName", Types.TYPE_STRING);
-		addEntityField("B", f, null);
+		addEntityField("B", f);
 
 		
 		def =  new EntityDefinition("C");
 		_store.addEntityDefinition(def);
 		f = new FieldDefinition("CName", Types.TYPE_STRING);
-		addEntityField("C", f, null);
+		addEntityField("C", f);
 		
 		
 		Entity e = _store.getEntityDefinition("A").createInstance();
@@ -1526,7 +1577,7 @@ public class QueryTest {
 		q.ret();
 		t2 = System.currentTimeMillis()-t1;
 		System.out.println("QUERY COMPILE TOOK "+(t2));
-		
+
 		QueryResult result;
 		t1 = System.currentTimeMillis();
 		result = _store.executeQuery(q);
@@ -1614,51 +1665,51 @@ public class QueryTest {
 		def = new EntityDefinition("Book");
 		addEntityDefinition(def);		
 		FieldDefinition f;	
-		f = new FieldDefinition("FirstName", 		Types.TYPE_STRING);
-		addEntityField("Author", f, "Default FirstName");
+		f = new FieldDefinition("FirstName", 		Types.TYPE_STRING).setDefaultValue("Default First Name");
+		addEntityField("Author", f);
 		f = new FieldDefinition("LastName", 		Types.TYPE_STRING);
-		addEntityField("Author", f, "Default LastName");
+		addEntityField("Author", f);
 		f = new FieldDefinition("Weight", 			Types.TYPE_FLOAT);
-		addEntityField("Author", f, new Float(160f));
+		addEntityField("Author", f);
 		f = new FieldDefinition("IsHungry", 		Types.TYPE_BOOLEAN);
-		addEntityField("Author", f, null);
+		addEntityField("Author", f);
 
 		f = new FieldDefinition("Birthday", 		Types.TYPE_DATE);
-		addEntityField("Author", f, null);
+		addEntityField("Author", f);
 		
 		f = new FieldDefinition("FavoriteNumber", Types.TYPE_INT);
-		addEntityField("Author", f, null);
+		addEntityField("Author", f);
 		f = new FieldDefinition("WorkflowStatus", Types.TYPE_STRING);
-		addEntityField("Author", f, null);
+		addEntityField("Author", f);
 		f = new FieldDefinition("Owners", 			Types.TYPE_STRING | Types.TYPE_ARRAY);
-		addEntityField("Author", f, null);
+		addEntityField("Author", f);
 		f = new FieldDefinition("Owners2", 			Types.TYPE_STRING | Types.TYPE_ARRAY);
-		addEntityField("Author", f, null);
+		addEntityField("Author", f);
 		f = new FieldDefinition("Ints", 			Types.TYPE_INT | Types.TYPE_ARRAY);
-		addEntityField("Author", f, null);
+		addEntityField("Author", f);
 		f = new FieldDefinition("Double", 			Types.TYPE_DOUBLE);
-		addEntityField("Author", f, null);
+		addEntityField("Author", f);
 		f = new FieldDefinition("Floats", 			Types.TYPE_FLOAT | Types.TYPE_ARRAY);
-		addEntityField("Author", f, null);
+		addEntityField("Author", f);
 		f = new FieldDefinition("BLOB", 			Types.TYPE_BLOB);
-		addEntityField("Author", f, null);
+		addEntityField("Author", f);
 		f = new FieldDefinition("FavoriteBook", 	Types.TYPE_REFERENCE, "Book");
-		addEntityField("Author", f, null);
+		addEntityField("Author", f);
 		f = new FieldDefinition("Books", Types.TYPE_REFERENCE | Types.TYPE_ARRAY, "Book");
-		addEntityField("Author", f, null);
+		addEntityField("Author", f);
 		f = new FieldDefinition("PrimaryBook", Types.TYPE_REFERENCE , "Book");
-		addEntityField("Author", f, null);	
+		addEntityField("Author", f);	
 		
 		f = new FieldDefinition("Title", Types.TYPE_STRING);
-		addEntityField("Book", f, null);
+		addEntityField("Book", f);
 		f = new FieldDefinition("Authors", Types.TYPE_REFERENCE | Types.TYPE_ARRAY, "Author");
-		addEntityField("Book", f, null);	
+		addEntityField("Book", f);	
 		f = new FieldDefinition("PrimaryAuthor", Types.TYPE_REFERENCE , "Author");
-		addEntityField("Book", f, null);	
+		addEntityField("Book", f);	
 		f = new FieldDefinition("Summary", Types.TYPE_STRING );
-		addEntityField("Book", f, null);	
+		addEntityField("Book", f);	
 		f = new FieldDefinition("Status", Types.TYPE_INT );
-		addEntityField("Book", f, null);	
+		addEntityField("Book", f);	
 	}
 	
 	static long DAY = 1000 * 60 * 60 * 24;	
@@ -1871,11 +1922,11 @@ public class QueryTest {
 		}
 	}
 	
-	private void addEntityField(String entity,FieldDefinition entity_field_def,Object default_value) throws PersistenceException
+	private void addEntityField(String entity,FieldDefinition entity_field_def) throws PersistenceException
 	{
 		try{
 		
-			_store.addEntityField(entity, entity_field_def, default_value);
+			_store.addEntityField(entity, entity_field_def);
 		}catch(PersistenceException pe)
 		{
 			System.out.println(entity_field_def.getName()+" ALREADY EXISTS");

@@ -22,10 +22,10 @@ public class FieldDefinition implements java.io.Serializable
 	private String 	_name;
 	private int 	_type;
 	private String 	_ref_type;
-
+	private Object  _default_value;
+	
 	//private int _array_dimensionality;
-	private boolean _required;
-	private String 	_description;
+
 
 	/**
 	 * A default constructor. Usage requires that the name and type be set
@@ -44,13 +44,15 @@ public class FieldDefinition implements java.io.Serializable
 	 *            The type of the field.
 	 * @see Types
 	 */
-	public FieldDefinition(String name, int type)
+	public FieldDefinition(String name,int type)
 	{
 		if ((type & ~Types.TYPE_ARRAY) == Types.TYPE_REFERENCE)
 			throw new RuntimeException("Field " + name + " must be defined with a reference type.");
-		_name = name;
-		_type = type;
-		_ref_type = null;
+		_name 			= name;
+		_type 			= type;
+		_default_value 	= null;
+		_ref_type 		= null;
+		
 		//_array_dimensionality = 0;
 	}
 
@@ -66,9 +68,10 @@ public class FieldDefinition implements java.io.Serializable
 	 */
 	public FieldDefinition(String name, int type, String ref_type)
 	{
-		_name = name;
-		_type = type;
-		_ref_type = ref_type;
+		_name 			= name;
+		_type 			= type;
+		_ref_type 		= ref_type;
+		_default_value 	= null;
 		//_array_dimensionality = 0;
 	}
 
@@ -118,47 +121,6 @@ public class FieldDefinition implements java.io.Serializable
 		_type = type;
 	}
 
-	/**
-	 * Gets the description for this field.
-	 *
-	 * @return The description.
-	 */
-	public String getDescription()
-	{
-		return _description;
-	}
-
-	/**
-	 * Sets the description for this field.
-	 *
-	 * @param description
-	 *            The description
-	 */
-	public void setDescription(String description)
-	{
-		this._description = description;
-	}
-
-	/**
-	 * Sets whether this field is required or not.
-	 *
-	 * @param b
-	 *            Is required
-	 */
-	public void setRequired(boolean b)
-	{
-		this._required = b;
-	}
-
-	/**
-	 * Returns whether this field is required.
-	 *
-	 * @return true if the field is required.
-	 */
-	public boolean getRequired()
-	{
-		return _required;
-	}
 
 	/**
 	 * Returns the 'base' type of this field. The base type masks the array flag
@@ -225,6 +187,21 @@ public class FieldDefinition implements java.io.Serializable
 	{
 		return _ref_type;
 	}
+	
+	
+	/*returns field definition so we can do 
+	 * DEF.addField(new FieldDefinition(FIELD_NOTES, Types.TYPE_TEXT).setDefault("Untitled"));
+	 */
+	public FieldDefinition setDefaultValue(Object default_value)
+	{
+		_default_value = default_value;
+		return this;
+	}
+	
+	public Object getDefaultValue()
+	{
+		return _default_value;
+	}
 
 //	/**
 //	 * Gets the array dimensionality. Currently only 1 dimensional arrays are
@@ -257,9 +234,8 @@ public class FieldDefinition implements java.io.Serializable
 		f._name = _name;
 		f._type = _type;
 		f._ref_type = _ref_type;
+		f._default_value = _default_value;
 		//f._array_dimensionality = _array_dimensionality;
-		f._description = _description;
-		f._required = _required;
 		return f;
 	}
 
@@ -279,10 +255,10 @@ public class FieldDefinition implements java.io.Serializable
 			return false;
 		if (_ref_type != null && !_ref_type.equals(f._ref_type))
 			return false;
+		if (_default_value != null && !_default_value.equals(f._default_value))
+			return false;
 		//if (_array_dimensionality != f._array_dimensionality)
 		//	return false;
-		if (_required != f._required)
-			return false;
 		return true;
 	}
 

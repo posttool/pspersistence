@@ -465,7 +465,19 @@ public class BDBStore implements PersistentStore
 			//	}
 			//	return e;
 			//}
-			do_save_entity(null,e);
+			String entity_type 		  = e.getType();
+			BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(entity_type);
+			if(pi == null)
+			{
+				_store_locker.exitAppThread();
+				throw new PersistenceException("ENTITY OF TYPE "+entity_type+" DOES NOT EXIST");
+			}
+			do_save_entity(null,pi,e,true);
+		}
+		catch(DatabaseException dbe)
+		{
+			dbe.printStackTrace();
+			throw new PersistenceException("SAVE OF ENTITY FAILED. TRY AGAIN.\n"+e);	
 		}
 		finally
 		{
@@ -473,72 +485,65 @@ public class BDBStore implements PersistentStore
 		}	
 		return e;
 	}
-	
-	protected Entity do_save_entity(Transaction parent_txn,Entity e) throws PersistenceException
+	protected Entity do_save_entity(Transaction parent_txn,Entity e,boolean resolve_relations) throws DatabaseException
 	{
-		String entity_type 		  = e.getType();
+		BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(e.getType());
+		return do_save_entity(parent_txn, pi, e,resolve_relations);
+	}
+	
+	protected Entity do_save_entity(Transaction parent_txn,BDBPrimaryIndex pi,Entity e, boolean resolve_relations) throws DatabaseException
+	{
 
-		BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(entity_type);
-		if(pi == null)
-		{
-			_store_locker.exitAppThread();
-			throw new PersistenceException("ENTITY OF TYPE "+entity_type+" DOES NOT EXIST");
-		}
-		
 		boolean update 		= true;
 		DatabaseEntry pkey 	= null;
 		int retry_count = 0;
 		if(e.getId() == Entity.UNDEFINED)
 			update = false;
-		try{
 			
-			while(true)
-			{
-				try{
-					parent_txn = environment.beginTransaction(null, null);			
-					/* resolve side effects first so we still have handle to old value */
-					if (update)
-					{
-						resolve_relationship_sidefx(parent_txn,e, UPDATE);
-						pkey = pi.saveEntity(parent_txn,e);
-					} 
-					else 
-					{
-						
-						set_default_values(parent_txn, e);
-						pkey = pi.saveEntity(parent_txn,e);
-						resolve_relationship_sidefx(parent_txn,e,INSERT);
-					}
-					save_to_secondary_indexes(parent_txn, pkey, e, update);						
-					e.undirty();
-					parent_txn.commitNoSync();
-					break;
-				}catch(DatabaseException dbe)
-				{
-					abortTxn(parent_txn);
-					retry_count++;
-					if(retry_count >= BDBStore.MAX_DEADLOCK_RETRIES)
-					{
-						System.err.println(Thread.currentThread().getId()+" FAILING HORRIBLY HERE!!!!!!!!!");
-						throw dbe;
-					}
-				}
-			}//end while
-
-			if (checkpoint_policy.isCheckpointNecessary())
-				do_checkpoint();
-		
-			//we might want a more elaborate policy here//
-			clean_query_cache(entity_type);
-		
-			return e;
-		}
-		catch(DatabaseException pe)
+		while(true)
 		{
-			/* this just catches the one thrown above */
-			pe.printStackTrace();
-			throw new PersistenceException("SAVE OF ENTITY FAILED. TRY AGAIN.\n"+e);
-		}
+			try{
+				parent_txn = environment.beginTransaction(parent_txn, null);			
+				/* resolve side effects first so we still have handle to old value */
+				if (update)
+				{
+					if(resolve_relations)
+						resolve_relationship_sidefx(parent_txn,e, UPDATE);
+					pkey = pi.saveEntity(parent_txn,e);
+				} 
+				else 
+				{
+					
+					set_default_values(parent_txn, e);
+					pkey = pi.saveEntity(parent_txn,e);
+					if(resolve_relations)
+						resolve_relationship_sidefx(parent_txn,e,INSERT);
+				}
+				save_to_secondary_indexes(parent_txn, pkey, e, update);						
+				e.undirty();
+				parent_txn.commitNoSync();
+				break;
+			}catch(DatabaseException dbe)
+			{
+				abortTxn(parent_txn);
+				retry_count++;
+				if(retry_count >= BDBStore.MAX_DEADLOCK_RETRIES)
+				{
+					System.err.println(Thread.currentThread().getId()+" FAILING HORRIBLY HERE!!!!!!!!!");
+					throw dbe;
+				}
+			}
+		}//end while
+
+		if (checkpoint_policy.isCheckpointNecessary())
+			do_checkpoint();
+	
+		//we might want a more elaborate policy here//
+		clean_query_cache(e.getType());
+	
+		return e;
+		
+	
 	}
 	
 	private void set_default_values(Transaction txn,Entity e) throws DatabaseException
@@ -549,6 +554,7 @@ public class BDBStore implements PersistentStore
 		for(int i = 0;i < s;i++)
 		{
 			FieldDefinition f = all_fields.get(i);
+			/* don't default the ones the user has intentionally set */
 			if(dirty_fields.contains(f.getName()))
 				continue;
 			set_default_value(txn, e, f);
@@ -560,6 +566,11 @@ public class BDBStore implements PersistentStore
 		Object val = field.getDefaultValue();
 		if(val == null)
 		{
+			/* we link them back up here. up until this point the entity definition of the
+			 * default value in the case of a reference is not set. this is because of a circular
+			 * dependence where we can't bootstrap entity defs if they rely on themselves.
+			 */
+			e.setEntityDefinition(entity_primary_indexes_as_map.get(e.getType()).getEntityDefinition());
 			e.setAttribute(field.getName(), null);
 			return;
 		}
@@ -567,14 +578,10 @@ public class BDBStore implements PersistentStore
 		if(field.getBaseType() == Types.TYPE_REFERENCE)
 		{
 			if(field.isArray())
-			{
 				set_default_reference_array_value(txn,e,val,field);
-			}
 			else
-			{
 				set_default_reference_value(txn,e,val,field);
-			}
-			
+
 			return;
 		}
 		
@@ -585,33 +592,30 @@ public class BDBStore implements PersistentStore
 	{
 		Entity val = (Entity)ev;
 		if(val.getId() == Entity.UNDEFINED)
-		{
-			try{
-				e.setAttribute(field.getName(), do_save_entity(txn,val.cloneShallow()));	
-			}catch(PersistenceException pe){throw new DatabaseException("FAILED INITIALIZING DEFAULT FIELD.ROLLING BACK.");}
-		}
+			e.setAttribute(field.getName(), do_save_entity(txn,val.cloneShallow(),true));	
 		else
-		{
 			e.setAttribute(field.getName(),val);	
-		}	
+
 	}
 	
 	private void set_default_reference_array_value(Transaction txn,Entity e,Object elv,FieldDefinition field) throws DatabaseException
 	{
-		List<Entity> ee = (List<Entity>)elv;
+		List<Entity> ee = ((List<Entity>)elv);
+		List<Entity> instance_of_default = new ArrayList<Entity>(ee.size());
 		for(int i = 0;i < ee.size();i++)
 		{
 			Entity eee = ee.get(i);
-			
 			if(eee.getId() == Entity.UNDEFINED)
 			{
-				try{
-					 do_save_entity(txn,eee);	
-				}catch(PersistenceException pe){throw new DatabaseException("FAILED INITIALIZING DEFAULT FIELD.ROLLING BACK.");}
-			
+				eee = do_save_entity(txn,eee.cloneShallow(),true);	
+				instance_of_default.add(eee);
+			}
+			else
+			{
+				instance_of_default.add(eee);
 			}
 		}
-		e.setAttribute(field.getName(),ee);	
+		e.setAttribute(field.getName(),instance_of_default);	
 	}
 	
 	private void save_to_secondary_indexes(Transaction parent_txn,DatabaseEntry pkey,Entity e,boolean update) throws DatabaseException
@@ -746,7 +750,8 @@ public class BDBStore implements PersistentStore
 			if(old_rel != null)
 			{
 				old_rel.getAttributes().put(relation_field_to_e, null);
-				rel_pidx.saveEntity(ptxn, old_rel);			
+				do_save_entity(ptxn, rel_pidx,old_rel,false);
+				//rel_pidx.saveEntity(ptxn, old_rel);			
 			}
 		}
 		if (operation==INSERT || operation==UPDATE)
@@ -755,7 +760,7 @@ public class BDBStore implements PersistentStore
 			if(new_rel != null)
 			{
 				new_rel.getAttributes().put(relation_field_to_e, e);
-				rel_pidx.saveEntity(ptxn, new_rel);
+				do_save_entity(ptxn,rel_pidx, new_rel,false);
 			}
 		}
 	}
@@ -781,7 +786,8 @@ public class BDBStore implements PersistentStore
 				if (old_fathers_children==null)
 					throw new DatabaseException("RESOLVE RELATIONSHIP INTEGRITY ERROR resolve_one_to_many - father of child must have children");
 				old_fathers_children.remove(old_child_record);
-				father_pidx.saveEntity(ptxn, old_father);
+				//father_pidx.saveEntity(ptxn, old_father);
+				do_save_entity(ptxn,father_pidx, old_father,false);
 			}
 		}
 		if (operation==INSERT || operation==UPDATE)
@@ -822,7 +828,7 @@ public class BDBStore implements PersistentStore
 			{
 				Entity c = i.next();
 				c.getAttributes().put(relation_field_to_e, null);
-				child_pidx.saveEntity(ptxn, c);				
+				do_save_entity(ptxn,child_pidx, c,false);				
 			}
 			
 			int s = added_children.size();
@@ -834,7 +840,7 @@ public class BDBStore implements PersistentStore
 					expand_entity(ptxn, father_pidx, old_father);
 					List<Entity> old_fathers_children = (List<Entity>) old_father.getAttribute(dirty_field);
 					old_fathers_children.remove(c);
-					father_pidx.saveEntity(ptxn, old_father);
+					do_save_entity(ptxn,father_pidx, old_father,false);
 				}
 			}
 		}
@@ -846,7 +852,7 @@ public class BDBStore implements PersistentStore
 			{
 				Entity c = added_children.get(i);
 				c.getAttributes().put(relation_field_to_e, e);
-				child_pidx.saveEntity(ptxn, c);
+				do_save_entity(ptxn,child_pidx, c,false);
 			}
 		}
 		
@@ -863,22 +869,21 @@ public class BDBStore implements PersistentStore
 		Map<Long,Entity> removed_children_map = new HashMap<Long,Entity>();
 		List<Entity> added_children = new ArrayList<Entity>();
 		calc_added_and_removed(ptxn, e, dirty_field, orig_pidx, targ_pidx, operation, added_children, removed_children_map);
-		//
+		
 		if (operation==DELETE)
 		{
 			int s = added_children.size();
 			for(int j = 0; j < s;j++)
 			{
 				Entity c = added_children.get(j);
-				Entity old_father = (Entity)c.getAttribute(relation_field_to_e);
-				old_father = orig_pidx.getById(ptxn, old_father.getId());
-				List<Entity> old_fathers_children = (List<Entity>) old_father.getAttribute(dirty_field);
-				old_fathers_children.remove(c);
-				orig_pidx.saveEntity(ptxn, old_father);
+				List<Entity> old_fathers = (List<Entity>)c.getAttribute(relation_field_to_e);
+				old_fathers.remove(e);
+				do_save_entity(ptxn,targ_pidx, c,false);
+				
 			}
 		}
 		
-		if (operation==UPDATE)
+		if (operation==UPDATE )
 		{
 			Iterator<Entity> i = removed_children_map.values().iterator();
 			while (i.hasNext())
@@ -886,7 +891,7 @@ public class BDBStore implements PersistentStore
 				Entity t = i.next();
 				List<Entity> tc = (List<Entity>)t.getAttribute(relation_field_to_e);
 				tc.remove(e); //satisfies condition because entity equals method matches by type & id (not field vals)
-				targ_pidx.saveEntity(ptxn, t);			
+				do_save_entity(ptxn,targ_pidx, t,false);			
 			}			
 		}
 	
@@ -903,7 +908,7 @@ public class BDBStore implements PersistentStore
 					t.getAttributes().put(relation_field_to_e, tc);
 				}
 				tc.add(e);
-				targ_pidx.saveEntity(ptxn, t);			
+				do_save_entity(ptxn,targ_pidx, t,false);			
 			}
 		}
 		
@@ -1001,6 +1006,7 @@ public class BDBStore implements PersistentStore
 		return x;
 	}
 	
+
 	
 	/*
 	 * END resolve relationship side effects
@@ -1008,17 +1014,20 @@ public class BDBStore implements PersistentStore
 
 	
 	
-	
+	/* TODO:!!!need to make this like save entity at some point so we can call it internally 
+	 * if need be and have indexes dealt with.Lets see when we need to call it internally*/
 	public void deleteEntity(Entity e) throws PersistenceException
 	{	
 		_store_locker.enterAppThread();
-		String entity_type 		  = e.getType();
-		BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(entity_type);
-		if(pi == null)
-			throw new PersistenceException("ENTITY OF TYPE "+entity_type+" DOES NOT EXIST");
+		
 		Transaction txn = null;
 		DatabaseEntry pkey;
+		
 		try{
+			String entity_type 		  = e.getType();
+			BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(entity_type);
+			if(pi == null)
+				throw new PersistenceException("ENTITY OF TYPE "+entity_type+" DOES NOT EXIST");
 			txn = environment.beginTransaction(null, null);	
 			resolve_relationship_sidefx(txn,e, DELETE);
 			pkey = pi.deleteEntity(txn,e);
@@ -1208,10 +1217,11 @@ public class BDBStore implements PersistentStore
 	{
 		_store_locker.enterAppThread();	
 		
-		BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(entity);
-		if(pi == null)
-			throw new PersistenceException("ENTITY OF TYPE "+entity+" DOES NOT EXIST");
 		try{
+			BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(entity);
+			if(pi == null)
+				throw new PersistenceException("ENTITY OF TYPE "+entity+" DOES NOT EXIST");
+		
 			List<EntityIndex> indices = new ArrayList<EntityIndex>();
 			List<BDBSecondaryIndex> bdb_idx = entity_secondary_indexes_as_list.get(entity);
 			for (int i=0; i<bdb_idx.size(); i++)
@@ -1442,9 +1452,10 @@ public class BDBStore implements PersistentStore
 		{
 			do_checkpoint();
 		}
-		catch (PersistenceException pe)
+		catch (DatabaseException e)
 		{
-			throw pe;
+			e.printStackTrace();
+			throw new PersistenceException("Can't checkpoint database", e);
 		}
 		finally
 		{
@@ -1457,18 +1468,10 @@ public class BDBStore implements PersistentStore
 	 * 
 	 * @throws PersistenceException
 	 */
-	public void do_checkpoint() throws PersistenceException
+	protected void do_checkpoint() throws DatabaseException
 	{
-		try
-		{
 			environment.checkpoint(null);
 			logger.debug("C H E C K P O I N T");
-		}
-		catch (DatabaseException e)
-		{
-			e.printStackTrace();
-			throw new PersistenceException("Can't checkpoint database", e);
-		}
 	}
 	
 	/**
@@ -1490,10 +1493,10 @@ public class BDBStore implements PersistentStore
 	
 	public void archive(File destination_directory) throws PersistenceException
 	{
-		checkpoint();
+		_store_locker.enterLockerThread();
 		try
 		{
-			lock();
+			do_checkpoint();
 			File[] archive_dbs = environment.getArchiveDatabases();
 			File[] archive_logs = environment.getArchiveLogFiles(true);
 			for (int i=0; i<archive_dbs.length; i++)
@@ -1509,7 +1512,7 @@ public class BDBStore implements PersistentStore
 		}
 		finally
 		{
-			unlock();
+			_store_locker.exitLockerThread();
 		}
 		
 	}
@@ -1548,12 +1551,23 @@ public class BDBStore implements PersistentStore
 
 	}
 
-
+	//TODO: this needs proper locking stuff around it//
 	public void useEnvironment(String environment_name) throws PersistenceException
 	{
-		close();
-		set_active_env_prop(environment_name);
-		init(_config);
+		_store_locker.enterLockerThread();
+		try{
+			do_close();
+			set_active_env_prop(environment_name);
+			init(_config);
+		}catch(PersistenceException pe)
+		{
+			pe.printStackTrace();
+			throw pe;
+		}
+		finally
+		{
+			_store_locker.exitLockerThread();
+		}
 	}
 	
 	
@@ -2663,11 +2677,12 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 	public Entity getEntityById(String type, long id) throws PersistenceException
 	{
 		_store_locker.enterAppThread();	
-		BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(type);
 		Entity e;
-		if(pi == null)
-			throw new PersistenceException("ENTITY OF TYPE "+type+" DOES NOT EXIST");
 		try{
+			BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(type);
+			if(pi == null)
+				throw new PersistenceException("ENTITY OF TYPE "+type+" DOES NOT EXIST");
+			
 			e =  pi.getById(null,id);
 		}catch(DatabaseException de)
 		{

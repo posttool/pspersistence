@@ -374,7 +374,15 @@ public class Entity implements Comparable<Entity>
 		if(o == null)
 			return false;
 		Entity e = (Entity) o;
-		return (_type.equals(e._type) && _id == e._id);
+		return (_id == e._id && _type.equals(e._type));
+	}
+	
+	private int hash = 42;/* any arbitray constant will do */
+	public int hashCode()
+	{
+		hash =  31 * hash + _type.hashCode();
+		hash =  31 * hash + (int)(_id ^ (_id >>> 32));
+		return hash;
 	}
 
 	/**

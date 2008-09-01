@@ -75,6 +75,7 @@ public class FieldBinding
 	}
 
 
+
 	public static void doWriteValueToTuple(int type, Object val, TupleOutput to) throws DatabaseException
 	{
 
@@ -174,7 +175,8 @@ public class FieldBinding
 				String entity_type = ti.readString();//this should be some sort of class id at some point...not a string//
 				long id = ti.readLong();
 				Entity e = Entity.createInstance();
-				//TODO go to registry to get this info
+				//TODO: primary index map should become static instance and be like a
+				//directory service
 				e.setEntityDefinition(_primary_index_map.get(entity_type).getEntityDefinition());
 				e.setType(entity_type);
 				e.setId(id);

@@ -58,7 +58,7 @@ public class QueryCacheManager
 			e_cache.clear();
 	
 		List<String> dependencies = _dependency_map.get(entity_name);
-		System.out.println("CLEARING QUERY CACHE FOR "+entity_name);
+		//System.out.println("CLEARING QUERY CACHE FOR "+entity_name);
 		if(dependencies == null || IGNORE_DEPENDENCIES)
 			return;
 		int s = dependencies.size();

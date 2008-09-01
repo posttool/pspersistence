@@ -11,7 +11,7 @@ import org.apache.log4j.BasicConfigurator;
 
 import com.pagesociety.bdb.BDBStore;
 import com.pagesociety.bdb.BDBStoreConfigKeyValues;
-import com.sun.corba.se.spi.legacy.connection.GetEndPointInfoAgainException;
+
 
 public class QueryTest {
 
@@ -49,13 +49,13 @@ public class QueryTest {
 		}catch(PersistenceException pe)
 		{
 			pe.printStackTrace();
-		//	try{
-		//		_store.close();
-		//	}catch(Exception e)
-		//	{
-		//		e.printStackTrace();
-		//		System.out.println("FAILED TO CLOSE DB");
-		//	}
+			try{
+				_store.close();
+			}catch(Exception e)
+			{
+				e.printStackTrace();
+				System.out.println("FAILED TO CLOSE DB");
+			}
 		}
 		finally{
 		
@@ -89,14 +89,186 @@ public class QueryTest {
 		//simple_freetext_test();
 		//multi_freetext_test();
 		//multi_freetext_globbing_test();
-		default_value_test();
+		//default_value_test();
+		//relationship_one_to_one_test();
+		//relationship_one_to_many_test();
+		//relationship_many_to_many_test();
+		entity_hash_test();
 	}
+	public void dump_table(String entity_name) throws PersistenceException
+	{
+		Query q = new Query(entity_name);
+		q.idx(Query.PRIMARY_IDX);
+		q.eq(Query.VAL_GLOB);
+		
+		QueryResult result = _store.executeQuery(q);
+		for(int i = 0;i < result.size();i++)
+		{
+			System.out.println(result.getEntities().get(i));
+		}		
+		
+	}
+	
+	public void entity_hash_test() throws PersistenceException
+	{
+		Entity b = _store.getEntityDefinition("Book").createInstance();
+		_store.saveEntity(b);
+		
+		Map<Entity,String> map = new HashMap<Entity,String>();
+		map.put(b,"test");
+		
+		b = _store.getEntityById("Book", 1);
+		System.out.println("TEST IS "+map.get(b));
+		
+	}
+	
+	public void relationship_one_to_one_test() throws PersistenceException
+	{
+		EntityRelationshipDefinition r = new EntityRelationshipDefinition(
+				"Author","PrimaryBook",
+				EntityRelationshipDefinition.TYPE_ONE_TO_ONE,
+				"Book","PrimaryAuthor");
+		
+		_store.addEntityRelationship(r);
+		
+		Entity author = _store.getEntityDefinition("Author").createInstance();
+		Entity book   = _store.getEntityDefinition("Book").createInstance();
+		_store.saveEntity(author);
+		_store.saveEntity(book);
+		
+		author.setAttribute("PrimaryBook", book);
+		_store.saveEntity(author);
+		
+		dump_table("Author");
+		dump_table("Book");
+		
+		book.setAttribute("PrimaryAuthor", null);
+		_store.saveEntity(book);
+		
+		dump_table("Author");
+		dump_table("Book");
+	}
+	
+	public void relationship_one_to_many_test() throws PersistenceException
+	{
+		EntityRelationshipDefinition r = new EntityRelationshipDefinition(
+				"Book","PrimaryAuthor",
+				EntityRelationshipDefinition.TYPE_ONE_TO_MANY,
+				"Author","Books");
+		
+		_store.addEntityRelationship(r);
+		
+		Entity author = _store.getEntityDefinition("Author").createInstance();
+		Entity author2 = _store.getEntityDefinition("Author").createInstance();
+		_store.saveEntity(author);
+		_store.saveEntity(author2);
+		List<Entity> book_list = new ArrayList<Entity>();
+		for(int i = 0;i < 10;i++)
+		{
+			Entity book   = _store.getEntityDefinition("Book").createInstance();
+			_store.saveEntity(book);
+			book_list.add(book);
+		}
+		
+		author.setAttribute("Books", book_list);
+		_store.saveEntity(author);
+		
+		dump_table("Author");
+		dump_table("Book");
+
+		Entity book = _store.getEntityById("Book", 3);
+		book.setAttribute("PrimaryAuthor", author2);
+		_store.saveEntity(book);
+		
+		 book = _store.getEntityById("Book", 5);
+		book.setAttribute("PrimaryAuthor", author2);
+		_store.saveEntity(book);
+		
+		dump_table("Author");
+		dump_table("Book");
+	}
+
+	public void relationship_many_to_many_test() throws PersistenceException
+	{
+		EntityRelationshipDefinition r = new EntityRelationshipDefinition(
+				"Book","Authors",
+				EntityRelationshipDefinition.TYPE_MANY_TO_MANY,
+				"Author","Books");
+		
+		_store.addEntityRelationship(r);
+		
+		List<Entity> authors = new ArrayList<Entity>();
+
+		Entity author  = _store.getEntityDefinition("Author").createInstance();
+		Entity author2 = _store.getEntityDefinition("Author").createInstance();
+		Entity author3 = _store.getEntityDefinition("Author").createInstance();
+		Entity author4 = _store.getEntityDefinition("Author").createInstance();
+		Entity author5 = _store.getEntityDefinition("Author").createInstance();
+		_store.saveEntity(author);
+		_store.saveEntity(author2);
+		_store.saveEntity(author3);
+		_store.saveEntity(author4);
+		_store.saveEntity(author5);
+		List<Entity> author_list = new ArrayList<Entity>();
+		author_list.add(author);
+		author_list.add(author2);
+		author_list.add(author3);
+		author_list.add(author4);
+		author_list.add(author5);
+
+		
+		List<Entity> book_list = new ArrayList<Entity>();
+		for(int i = 0;i < 5;i++)
+		{
+			Entity book   = _store.getEntityDefinition("Book").createInstance();
+			book.setAttribute("Authors", author_list);
+			_store.saveEntity(book);
+			book_list.add(book);
+		}
+		dump_table("Author");
+		dump_table("Book");
+		
+		Random RR = new Random();
+		for(int i = 0;i < 5;i++)
+		{
+			Entity book   = _store.getEntityById("Book", i+1);
+			if(RR.nextBoolean())
+			{
+				_store.deleteEntity(book);
+			}
+		}
+		dump_table("Author");
+		dump_table("Book");
+	
+
+		for(int i = 0;i < 5;i++)
+		{
+			Entity aut   = _store.getEntityById("Author", i+1);
+			if(RR.nextBoolean())
+			{
+				_store.deleteEntity(aut);
+			}
+			else
+			{
+				List<Entity> books = (List<Entity>)aut.getAttribute("Books");
+				books.add(_store.saveEntity(_store.getEntityDefinition("Book").createInstance()));
+				aut.setAttribute("Books", books);
+				_store.saveEntity(aut);
+			}
+		}
+		dump_table("Author");
+		dump_table("Book");
+
+		
+	}
+
+	
 	
 	public void default_value_test() throws PersistenceException
 	{
 		_store.deleteEntityField("Author", "PrimaryBook");
 
-		Entity[] authors = new Entity[500];
+		Entity[] authors = new Entity[25];
 		for(int i = 0;i < authors.length;i++)
 		{
 			Entity a = _store.getEntityDefinition("Author").createInstance();
@@ -138,6 +310,32 @@ public class QueryTest {
 		result = _store.executeQuery(q);
 		for(int i = 0;i < result.size();i++)
 			System.out.println(result.getEntities().get(i));
+	
+		List<Entity> booklist = new ArrayList<Entity>();
+		for(int i = 0;i < 25;i++)
+		{	
+			Entity book = _store.getEntityDefinition("Book").createInstance();
+			book.setAttribute("Title", R(titles));
+			Random RR = new Random();
+			if(RR.nextBoolean())
+			{
+			
+				_store.saveEntity(book);
+			System.out.println("SAVED BOOK "+book.getId());
+			}
+			booklist.add(book);
+		}
+		
+		fd = new FieldDefinition("PrimaryBooks",Types.TYPE_REFERENCE|Types.TYPE_ARRAY,"Book").setDefaultValue(booklist);
+		_store.addEntityField("Author", fd);
+	
+		q = new Query("Author");
+		q.idx(Query.PRIMARY_IDX);
+		q.eq(Query.VAL_GLOB);
+		result = _store.executeQuery(q);
+		for(int i = 0;i < result.size();i++)
+			System.out.println(result.getEntities().get(i));
+	
 	}
 	
 	/*RULES FOR FREETEXT STUFF

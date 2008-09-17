@@ -96,13 +96,13 @@ public class EntityDefinition implements java.io.Serializable
 	}
 	
 	/**
-	 * Returns the field definitions of this entity definition.
+	 * Returns the reference field definitions of this entity definition.
 	 *
 	 * @return A list of all the reference field definitions.
 	 */
 	public ArrayList<FieldDefinition> getReferenceFields()
 	{
-		return _fields;
+		return _reference_fields;
 	}
 
 	/**

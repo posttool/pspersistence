@@ -64,6 +64,18 @@ public class EntityIndex
 		_attributes = new HashMap<String, String>();
 		_fields = new ArrayList<FieldDefinition>();
 	}
+	
+	public EntityIndex(String name, int index_type,FieldDefinition ...fields)
+	{
+		_index_type = index_type;
+		_name = name;
+		_attributes = new HashMap<String, String>();
+		_fields = new ArrayList<FieldDefinition>();
+		for(int i = 0;i < fields.length;i++)
+			addField(fields[i]);
+	}
+	
+	
 
 	/**
 	 * Returns the definition for this index.

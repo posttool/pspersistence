@@ -1076,7 +1076,7 @@ public class BDBStore implements PersistentStore
 	}
 
 	
-	public EntityDefinition getEntityDefinition(String entity_name) throws PersistenceException
+	public EntityDefinition getEntityDefinition(String entity_name)
 	{
 		_store_locker.enterAppThread();	
 		EntityDefinition def;
@@ -1084,7 +1084,7 @@ public class BDBStore implements PersistentStore
 		_store_locker.exitAppThread();	
 		
 		if(def == null)
-			throw new PersistenceException("CANT FIND ENTITY DEFINITION FOR "+entity_name);
+			return null;
 		else
 			return def;	
 	}
@@ -2839,9 +2839,6 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 		if(es.size() == 0)
 			return;
 		Entity e = es.get(0);
-	    BDBPrimaryIndex pidx = entity_primary_indexes_as_map.get(e.getEntityDefinition().getName());
-	    if(pidx == null)
-	    	throw new PersistenceException("UNKNOWN ENTITY TYPE "+e.getEntityDefinition().getName());
 		EntityDefinition ed = e.getEntityDefinition();
 		int s = es.size();
 		try{
@@ -2870,17 +2867,32 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 		if(es.size() == 0)
 			return;
 		Entity e = es.get(0);
-	    BDBPrimaryIndex pidx = entity_primary_indexes_as_map.get(e.getEntityDefinition().getName());
-	    if(pidx == null)
-	    	throw new PersistenceException("UNKNOWN ENTITY TYPE "+e.getEntityDefinition().getName());
 		EntityDefinition ed = e.getEntityDefinition();
 		FieldDefinition fd = ed.getField(fieldname);
-		if(fd == null)
-			throw new PersistenceException("FIELD "+fieldname+" DOES NOT EXIST IN "+e.getType());
-		if(fd.getBaseType() != Types.TYPE_REFERENCE)
-			throw new PersistenceException("FIELD "+fieldname+" IS NOT A REFERENCE TYPE IN "+e.getType());
-		int s = es.size();
 		try{
+			int s = es.size();			
+			for (int i = 0;i < s;i++)
+				do_fill_reference_field(es.get(i),fd);    
+		}catch(PersistenceException pe)
+		{
+			throw pe;
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}	
+	}
+	
+	public void fillReferenceFields(List<Entity> es,String fieldname) throws PersistenceException
+	{
+		_store_locker.enterAppThread();
+		if(es.size() == 0)
+			return;
+		Entity e = es.get(0);
+		EntityDefinition ed = e.getEntityDefinition();
+		FieldDefinition fd = ed.getField(fieldname);
+		try{
+			int s = es.size();			
 			for (int i = 0;i < s;i++)
 				do_fill_reference_field(es.get(i),fd);    
 		}catch(PersistenceException pe)
@@ -2896,12 +2908,10 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 	public void fillReferenceFields(Entity e) throws PersistenceException
 	{
 		_store_locker.enterAppThread();
-	    BDBPrimaryIndex pidx = entity_primary_indexes_as_map.get(e.getEntityDefinition().getName());
-	    if(pidx == null)
-	    	throw new PersistenceException("UNKNOWN ENTITY TYPE "+e.getEntityDefinition().getName());
-		EntityDefinition ed = e.getEntityDefinition();
+
 	    try{
-		    for (FieldDefinition f : ed.getFields())
+			EntityDefinition ed = e.getEntityDefinition();
+	    	for (FieldDefinition f : ed.getFields())
 		    {
 		    	if(f.getBaseType() != Types.TYPE_REFERENCE)
 		    		continue;
@@ -2917,15 +2927,13 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 		}		
 	}
 	 
-	public void fillReferenceField(Entity e,String field_name) throws PersistenceException
+	public void fillReferenceField(Entity e,String fieldname) throws PersistenceException
 	{
 		_store_locker.enterAppThread();
-	    BDBPrimaryIndex pidx = entity_primary_indexes_as_map.get(e.getEntityDefinition().getName());
-	    if(pidx == null)
-	    	throw new PersistenceException("UNKNOWN ENTITY TYPE "+e.getEntityDefinition().getName());
-		FieldDefinition fd = e.getEntityDefinition().getField(field_name);
+
 	    try{
-		    do_fill_reference_field(e, fd);   
+			FieldDefinition fd = e.getEntityDefinition().getField(fieldname);
+			do_fill_reference_field(e, fd);   
 		}catch(PersistenceException pe)
 		{
 			throw pe;

@@ -67,15 +67,11 @@ public class EntitySecondaryIndexBinding
 		String entity_name 		= ti.readString();
 		//String field_name = ti.readString();
 		EntityDefinition def;
-		try
-		{
+
 			def = store.getEntityDefinition(entity_name);
-		}
-		catch (PersistenceException e)
-		{
-			e.printStackTrace();
-			throw new DatabaseException("COULDNT GET ENTITY DEF FOR INDEX");
-		}
+			if(def == null)
+				throw new DatabaseException("NO ENTITY DEF FOR "+entity_name);
+
 		EntityIndex esi = new EntityIndex(index_name, index_type);
 		esi.setEntity(entity_name);	
 		

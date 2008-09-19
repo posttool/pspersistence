@@ -64,7 +64,7 @@ public class Entity implements Comparable<Entity>
 	 * 
 	 * @see #createInstance()
 	 */
-	private Entity()
+	public Entity()
 	{
 		this(null, UNDEFINED);
 	}

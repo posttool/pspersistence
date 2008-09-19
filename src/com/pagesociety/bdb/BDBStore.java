@@ -142,6 +142,7 @@ public class BDBStore implements PersistentStore
 			public void run()
 			{
 				try{
+					System.out.println("SHUTDOWN HOOK IS RUNNING");
 					close();
 				}catch(Exception e)
 				{
@@ -1586,16 +1587,12 @@ public class BDBStore implements PersistentStore
 		}
 	}
 
-	private boolean _closed = false;
+	
 	public void close() throws PersistenceException
 	{
 		_store_locker.enterLockerThread();	
 		try{
-			if(!_closed)
-			{
-				do_close();
-				_closed = true;
-			}
+			do_close();
 		}catch(PersistenceException pe)
 		{
 			throw pe;
@@ -1606,8 +1603,15 @@ public class BDBStore implements PersistentStore
 		}	
 	}
 	
-	private void do_close() throws PersistenceException
+	private boolean _closed = false;
+	private synchronized void do_close() throws PersistenceException
 	{
+		System.err.println("ENTER CLOSE");
+		System.err.flush();
+		if(_closed)
+			return;
+		
+		_closed = true;
 		long t = System.currentTimeMillis();
 		try
 		{			
@@ -1648,7 +1652,7 @@ public class BDBStore implements PersistentStore
 
 		
 
-		logger.debug("do_close() - CLOSED EVERYTHING IN " + (System.currentTimeMillis() - t) + " MS");		
+		System.out.println("BDBStore - do_close() - CLOSED EVERYTHING IN " + (System.currentTimeMillis() - t) + " MS");		
 	}
 
 	/******************SUPPORT FUNCTIONS**************************************************/

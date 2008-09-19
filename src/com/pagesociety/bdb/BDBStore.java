@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-
 import org.apache.log4j.Logger;
 
 import com.pagesociety.bdb.binding.EntityBinding;
@@ -37,24 +36,20 @@ import com.pagesociety.persistence.PersistentStore;
 import com.pagesociety.persistence.Query;
 import com.pagesociety.persistence.QueryResult;
 import com.pagesociety.persistence.Types;
-import com.sleepycat.bind.tuple.LongBinding;
-import com.sleepycat.collections.PrimaryKeyAssigner;
 import com.sleepycat.db.Cursor;
 import com.sleepycat.db.Database;
 import com.sleepycat.db.DatabaseConfig;
 import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
 import com.sleepycat.db.DatabaseType;
-import com.sleepycat.db.DeadlockException;
 import com.sleepycat.db.Environment;
 import com.sleepycat.db.EnvironmentConfig;
 import com.sleepycat.db.LockDetectMode;
 import com.sleepycat.db.LockMode;
 import com.sleepycat.db.OperationStatus;
 import com.sleepycat.db.Transaction;
-import com.sleepycat.db.TransactionConfig;
 
-public class BDBStore implements PersistentStore
+public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 {
 	private static final Logger logger = Logger.getLogger(BDBStore.class);
 	//environment
@@ -67,6 +62,7 @@ public class BDBStore implements PersistentStore
 	private EntityDefinitionBinding 	entity_def_binding;
 	private EntitySecondaryIndexBinding entity_index_binding;
 	private EntityRelationshipBinding 	entity_relationship_binding;
+	private BDBEntityDefinitionProvider entity_definition_provider;
 
 	// modules
 	protected BDBEntityIndexDefinitionManager _entity_index_definition_manager;
@@ -110,7 +106,7 @@ public class BDBStore implements PersistentStore
 		entity_secondary_indexes_as_map 		 = new HashMap<String, Map<String, BDBSecondaryIndex>>();
 		entity_secondary_indexes_as_list 		 = new HashMap<String,List<BDBSecondaryIndex>>();
 		entity_relationship_map 		 	 	 = new HashMap<String, Map<String,EntityRelationshipDefinition>>();
-		entity_binding					 		 = new EntityBinding();
+		entity_binding					 		 = new EntityBinding(); 
 		
 		/* order is important */
 		init_shutdown_hook();
@@ -118,6 +114,7 @@ public class BDBStore implements PersistentStore
 		init_checkpoint_policy(config);
 		init_environment(config);
 		init_entity_definition_db(config);
+		init_entity_definition_provider(config);
 		init_entity_secondary_index_db(config);
 		init_entity_relationship_db(config);
 		init_entity_index_definition_manager();
@@ -194,7 +191,7 @@ public class BDBStore implements PersistentStore
 			if(entity_primary_indexes_as_map.get(entity_def.getName()) != null)
 				throw new PersistenceException("Entity Definition already exists for: "+entity_def.getName()+".Delete existing entity definition first.");			
 			add_entity_definition_to_db(entity_def);
-			BDBPrimaryIndex pidx = new BDBPrimaryIndex();
+			BDBPrimaryIndex pidx = new BDBPrimaryIndex(entity_binding);
 			pidx.setup(environment, entity_def);
 			
 			/*do runtime cacheing*/
@@ -550,7 +547,7 @@ public class BDBStore implements PersistentStore
 	private void set_default_values(Transaction txn,Entity e) throws DatabaseException
 	{
 		List<String> dirty_fields = e.getDirtyAttributes();
-		List<FieldDefinition> all_fields = e.getEntityDefinition().getFields();
+		List<FieldDefinition> all_fields = getEntityDefinitionProvider().provideEntityDefinition(e).getFields();
 		int s = all_fields.size();
 		for(int i = 0;i < s;i++)
 		{
@@ -567,11 +564,6 @@ public class BDBStore implements PersistentStore
 		Object val = field.getDefaultValue();
 		if(val == null)
 		{
-			/* we link them back up here. up until this point the entity definition of the
-			 * default value in the case of a reference is not set. this is because of a circular
-			 * dependence where we can't bootstrap entity defs if they rely on themselves.
-			 */
-			e.setEntityDefinition(entity_primary_indexes_as_map.get(e.getType()).getEntityDefinition());
 			e.setAttribute(field.getName(), null);
 			return;
 		}
@@ -628,7 +620,7 @@ public class BDBStore implements PersistentStore
 		else
 		{
 			//TODO: i dont like the fact that getFieldNames calls keySet();
-			dirty_fields = e.getEntityDefinition().getFieldNames();
+			dirty_fields = getEntityDefinitionProvider().provideEntityDefinition(e).getFieldNames();
 		}
 		
 		int ss 					  = dirty_fields.size();
@@ -677,7 +669,7 @@ public class BDBStore implements PersistentStore
 	private void resolve_relationship_sidefx(Transaction parent_txn,Entity e,int operation) throws DatabaseException
 	{
 		// TODO get references only
-		List<String> dirty_fields = operation == DELETE ? e.getEntityDefinition().getFieldNames() : e.getDirtyAttributes();
+		List<String> dirty_fields = operation == DELETE ? getEntityDefinitionProvider().provideEntityDefinition(e).getFieldNames() : e.getDirtyAttributes();
 		int s = dirty_fields.size();
 		
 		String dirty_fieldname = null;
@@ -991,7 +983,7 @@ public class BDBStore implements PersistentStore
 		if (entity.getId()==Entity.UNDEFINED)
 			throw new DatabaseException("INTEGRITY PROBLEM - all remove & added children is relationships have to be weakly filled at least");
 		Entity e = pidx.getById(ptxn, entity.getId());
-		entity.setAttributes(e);
+		entity.copyAttributes(e);
 	}
 
 	private Map<Long, Entity> get_map_from_list(List<Entity> entities, Map<Long, Entity> x)
@@ -1076,12 +1068,35 @@ public class BDBStore implements PersistentStore
 		sidx.deleteIndexEntry(parent_txn,pkey);
 	}
 
+	/* implements BDBEntityDefProvider... */
+	public EntityDefinition provideEntityDefinition(Entity e)
+	{
+		return do_get_entity_definition(e.getType());
+	}
 	
-	public EntityDefinition getEntityDefinition(String entity_name)
+	/* implements BDBEntityDefProvider... */
+	public EntityDefinition provideEntityDefinition(String entity_type)
+	{
+		return do_get_entity_definition(entity_type);
+	}
+	
+	/* implements BDBEntityDefProvider... */
+	public List<EntityDefinition> provideEntityDefinitions()
+	{
+		return do_get_entity_definitions();
+	}
+	
+	
+	public BDBEntityDefinitionProvider getEntityDefinitionProvider()
+	{
+		return entity_definition_provider;
+	}
+	
+	public EntityDefinition getEntityDefinition(String entity_type)
 	{
 		_store_locker.enterAppThread();	
 		EntityDefinition def;
-		def = do_get_entity_definition(entity_name);
+		def = do_get_entity_definition(entity_type);
 		_store_locker.exitAppThread();	
 		
 		if(def == null)
@@ -1102,14 +1117,8 @@ public class BDBStore implements PersistentStore
 	public List<EntityDefinition> getEntityDefinitions()throws PersistenceException
 	{
 		_store_locker.enterAppThread();	
-		List<EntityDefinition> ret = new ArrayList<EntityDefinition>();
-		int s = entity_primary_indexes_as_list.size();
-		try{
-		
-			for(int i = 0; i < s;i++)
-				ret.add(entity_primary_indexes_as_list.get(i).getEntityDefinition());
-
-		return ret;
+		try {
+			return do_get_entity_definitions();
 		}catch(Exception e)
 		{
 			throw new PersistenceException("FAILED GETTING ENTITY DEFINITIONS FROM MAP.");
@@ -1120,6 +1129,16 @@ public class BDBStore implements PersistentStore
 		}
 	}
 	
+	private List<EntityDefinition> do_get_entity_definitions()
+	{
+		List<EntityDefinition> ret = new ArrayList<EntityDefinition>();
+		int s = entity_primary_indexes_as_list.size();
+		for(int i = 0; i < s;i++)
+			ret.add(entity_primary_indexes_as_list.get(i).getEntityDefinition());
+
+		return ret;
+	}
+
 	/* get the entity defs from the db and bootstrap the entity_def cache */
 	protected List<EntityDefinition> get_entity_definitions_from_db() throws PersistenceException
 	{
@@ -1725,6 +1744,15 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 		
 	}
 	
+	private void init_entity_definition_provider(HashMap<Object,Object> config) throws PersistenceException
+	{
+
+		entity_definition_provider = this;
+		entity_binding.setEntityDefinitionProvider(getEntityDefinitionProvider());
+		
+	}
+
+	
 	private void init_entity_secondary_index_db(HashMap<Object,Object> config) throws PersistenceException
 	{
 
@@ -1804,7 +1832,7 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 		for (int i = 0; i < defs.size(); i++)
 		{
 			EntityDefinition def = defs.get(i); 
-			pidx = new BDBPrimaryIndex();
+			pidx = new BDBPrimaryIndex(entity_binding);
 			pidx.setup(environment,def);
 			String entity_name = def.getName();
 			entity_primary_indexes_as_map.put(entity_name, pidx);
@@ -2061,7 +2089,6 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 			{	
 				Entity e = entity_binding.entryToEntity(old_def,data);
 				cursor.delete();
-				e.setEntityDefinition(new_def);
 				set_default_value(txn,e,field);
 				entity_binding.entityToEntry(e, data);
 				cursor.put(foundKey,data);
@@ -2153,7 +2180,6 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 			{			
 				Entity e = entity_binding.entryToEntity(old_def,data);
 				cursor.delete();
-				e.setEntityDefinition(new_def);
 				entity_binding.entityToEntry(e, data);
 				cursor.put(foundKey,data);
 				count++;
@@ -2843,7 +2869,7 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 		if(es.size() == 0)
 			return;
 		Entity e = es.get(0);
-		EntityDefinition ed = e.getEntityDefinition();
+		EntityDefinition ed = getEntityDefinitionProvider().provideEntityDefinition(e);
 		int s = es.size();
 		try{
 			for(FieldDefinition fd:ed.getFields())
@@ -2871,7 +2897,7 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 		if(es.size() == 0)
 			return;
 		Entity e = es.get(0);
-		EntityDefinition ed = e.getEntityDefinition();
+		EntityDefinition ed = getEntityDefinitionProvider().provideEntityDefinition(e);
 		FieldDefinition fd = ed.getField(fieldname);
 		try{
 			int s = es.size();			
@@ -2893,7 +2919,7 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 		if(es.size() == 0)
 			return;
 		Entity e = es.get(0);
-		EntityDefinition ed = e.getEntityDefinition();
+		EntityDefinition ed = getEntityDefinitionProvider().provideEntityDefinition(e);
 		FieldDefinition fd = ed.getField(fieldname);
 		try{
 			int s = es.size();			
@@ -2914,7 +2940,7 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 		_store_locker.enterAppThread();
 
 	    try{
-			EntityDefinition ed = e.getEntityDefinition();
+			EntityDefinition ed = getEntityDefinitionProvider().provideEntityDefinition(e);
 	    	for (FieldDefinition f : ed.getFields())
 		    {
 		    	if(f.getBaseType() != Types.TYPE_REFERENCE)
@@ -2936,7 +2962,7 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 		_store_locker.enterAppThread();
 
 	    try{
-			FieldDefinition fd = e.getEntityDefinition().getField(fieldname);
+			FieldDefinition fd = getEntityDefinitionProvider().provideEntityDefinition(e).getField(fieldname);
 			do_fill_reference_field(e, fd);   
 		}catch(PersistenceException pe)
 		{

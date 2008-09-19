@@ -248,7 +248,8 @@ public class QueryExecutor
 			return;
 		else
 		{
-			EntityDefinition def = valid_instance.getEntityDefinition();
+			
+			EntityDefinition def = _env.getPrimaryIndex(valid_instance.getType()).getEntityDefinition();
 			Comparator<Entity> comp = EntityComparatorFactory.getComparator(def, order_attribute,direction);
 			Collections.sort(result.getEntities(),comp);
 		}

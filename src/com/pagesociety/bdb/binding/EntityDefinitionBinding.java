@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.apache.log4j.Logger;
 
+import com.pagesociety.bdb.BDBEntityDefinitionProvider;
 import com.pagesociety.bdb.BDBStore;
 import com.pagesociety.persistence.Entity;
 import com.pagesociety.persistence.EntityDefinition;
@@ -20,6 +21,8 @@ public class EntityDefinitionBinding extends TupleBinding
 {
 	private static final Logger logger = Logger.getLogger(EntityDefinitionBinding.class);
 
+	public EntityDefinitionBinding(){}
+	
 	
 	public void objectToEntry(Object object, TupleOutput to)
 	{
@@ -105,7 +108,7 @@ public class EntityDefinitionBinding extends TupleBinding
 			return;
 		}
 		to.writeFast(FieldBinding.NULL_FLAG_VAL_NOT_NULL);
-		to.writeString(e.getEntityDefinition().getName());
+		to.writeString(e.getType());
 		to.writeLong(e.getId());			
 	}
 	

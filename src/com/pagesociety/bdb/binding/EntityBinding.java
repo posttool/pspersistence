@@ -6,6 +6,8 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 
 
+import com.pagesociety.bdb.BDBEntityDefinitionProvider;
+import com.pagesociety.bdb.BDBStore;
 import com.pagesociety.persistence.Entity;
 import com.pagesociety.persistence.EntityDefinition;
 import com.pagesociety.persistence.FieldDefinition;
@@ -19,7 +21,17 @@ public class EntityBinding
 {
 
 	private static final Logger logger = Logger.getLogger(EntityBinding.class);
+	private BDBEntityDefinitionProvider _def_provider;
 	
+	public EntityBinding()
+	{
+	}
+	
+	public void setEntityDefinitionProvider(BDBEntityDefinitionProvider provider)
+	{
+		_def_provider = provider;
+	}
+
 	public void entityToEntry(Entity entity, DatabaseEntry entry) throws DatabaseException
 	{
 		TupleOutput to = new TupleOutput();
@@ -28,7 +40,8 @@ public class EntityBinding
 		else
 		{
 			to.writeFast(FieldBinding.NULL_FLAG_VAL_NOT_NULL);
-			EntityDefinition ed = entity.getEntityDefinition();
+//			EntityDefinition ed = entity.getEntityDefinition();
+			EntityDefinition ed = _def_provider.provideEntityDefinition(entity.getType());
 			ArrayList<FieldDefinition> fields = ed.getFields();
 			for (int i = 0; i < fields.size(); i++)
 			{

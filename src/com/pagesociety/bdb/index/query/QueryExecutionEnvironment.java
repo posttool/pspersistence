@@ -40,6 +40,7 @@ public class QueryExecutionEnvironment
 		return idx;
 	}
 	
+	// this should use the provider...
 	public BDBPrimaryIndex getPrimaryIndex(String entity_name) throws PersistenceException
 	{
 		BDBPrimaryIndex idx = _primary_index_map.get(entity_name);

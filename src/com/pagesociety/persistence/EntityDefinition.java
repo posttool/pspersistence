@@ -149,9 +149,7 @@ public class EntityDefinition implements java.io.Serializable
 	 */
 	public Entity createInstance()
 	{
-		Entity e =  new Entity(this);
-		int s = _fields.size();
-		return e;
+		return new Entity(getName());
 	}
 
 	/**

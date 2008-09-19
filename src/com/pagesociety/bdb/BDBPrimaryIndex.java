@@ -41,9 +41,9 @@ public class BDBPrimaryIndex implements IterableIndex
 	private Sequence 		 _sequence;
 	private DatabaseEntry 	 _sequence_key;
 	
-	protected BDBPrimaryIndex()
+	protected BDBPrimaryIndex(EntityBinding binding)
 	{
-		_binding = new EntityBinding();
+		_binding = binding;
 	}
 	
 	

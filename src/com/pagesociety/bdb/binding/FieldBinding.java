@@ -125,7 +125,7 @@ public class FieldBinding
 					throw new DatabaseException("CANT SERIALIZE UNDEFINED. REF SAVE REFERENCE " + e);
 				//TODO: give entity definitions ids and make this a reference to that and keep
 				//a map of entity_def_ids to entity_definitions
-				to.writeString(e.getEntityDefinition().getName());
+				to.writeString(e.getType());
 				to.writeLong(id);
 				break;
 			default:
@@ -177,7 +177,6 @@ public class FieldBinding
 				Entity e = Entity.createInstance();
 				//TODO: primary index map should become static instance and be like a
 				//directory service
-				e.setEntityDefinition(_primary_index_map.get(entity_type).getEntityDefinition());
 				e.setType(entity_type);
 				e.setId(id);
 				return e;

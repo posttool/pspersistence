@@ -1,8 +1,6 @@
 package com.pagesociety.persistence;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,47 +53,37 @@ public class Entity implements Comparable<Entity>
 	private long _id;
 	private Map<String, Object> _attributes;
 	private List<String> _dirty_attributes;
-	private EntityDefinition _entity_definition;
 	public static final long UNDEFINED = -1;
-	private static final SimpleDateFormat date_format = new SimpleDateFormat("yyyy.MM.dd  HH:mm");
+//	private static final SimpleDateFormat date_format = new SimpleDateFormat("yyyy.MM.dd  HH:mm");
 
 	/**
-	 * Untyped.
+	 * Untyped. This is only used for object serialization.... unless we add
+	 * something to Bean that will do private constructors.
 	 * 
-	 * @see #createInstance()
 	 */
 	public Entity()
 	{
 		this(null, UNDEFINED);
 	}
-
+	
 	/**
 	 * Constructs an entity from a definition
 	 * 
 	 * @param def
 	 *            The entity definition.
 	 */
-	public Entity(EntityDefinition def)
+	protected Entity(String type)
 	{
-		this(def, UNDEFINED);
+		this(type, UNDEFINED);
 	}
 
-	/**
-	 * Constructs an entity with a definition and an id
-	 * 
-	 * @param def
-	 *            The entity definition.
-	 * @param id
-	 *            The entity id.
-	 */
-	public Entity(EntityDefinition def, long id)
+	private Entity(String type, long id)
 	{
+		_type = type;
 		_id = id;
-		_attributes = new HashMap<String, Object>();
-		_entity_definition = def;
-		if (def != null)
-			_type = _entity_definition.getName();
+		_attributes = new HashMap<String,Object>();
 		_dirty_attributes = new ArrayList<String>();
+
 	}
 
 	/**
@@ -145,31 +133,6 @@ public class Entity implements Comparable<Entity>
 	}
 
 	/**
-	 * Sets the definition of this entity. This method is assumed to be used
-	 * only by implementations of the persistent store. Generally an entity is
-	 * either constructed with a definition or the definition is used to create
-	 * an instance of an entity.
-	 * 
-	 * @param def
-	 *            The definition
-	 * @see EntityDefinition#createInstance()
-	 */
-	public void setEntityDefinition(EntityDefinition def)
-	{
-		_entity_definition = def;
-	}
-
-	/**
-	 * Returns the appropriate entity definition.
-	 * 
-	 * @return The appropriate entity definition.
-	 */
-	public EntityDefinition getEntityDefinition()
-	{
-		return _entity_definition;
-	}
-
-	/**
 	 * Returns the value of a named attribute.
 	 * 
 	 * @param name
@@ -192,6 +155,11 @@ public class Entity implements Comparable<Entity>
 		return _attributes;
 	}
 
+	public void setAttributes(Map<String,Object> o)
+	{
+		_attributes = o;
+	}
+	
 	/**
 	 * Links the attributes of this entity for the supplied entity. Note that
 	 * this implies that changing either this entity or the supplied one will
@@ -200,37 +168,15 @@ public class Entity implements Comparable<Entity>
 	 * @param e
 	 *            The entity to link.
 	 */
-	public void setAttributes(Entity e)
+	public void copyAttributes(Entity e)
 	{
 		_id = e._id;
 		_type = e._type;
 		_attributes = e._attributes;
 		_dirty_attributes = e._dirty_attributes;
-		_entity_definition = e._entity_definition;
 	}
 
-	/**
-	 * Returns any attribute as a String.
-	 * 
-	 * @param name
-	 *            The name of a field.
-	 * @return The attribute value as a String.
-	 */
-	public String getAttributeAsString(String name)
-	{
-		Object o = _attributes.get(name);
-		if (o == null)
-			return "NULL";
-		FieldDefinition f = _entity_definition.getField(name);
-		switch (f.getBaseType())
-		{
-		case Types.TYPE_DATE:
-			return date_format.format((Date) o);
-		default:
-			break;
-		}
-		return String.valueOf(o);
-	}
+	
 
 	/**
 	 * Sets the value of an attribute. Marks the field as 'dirty'.
@@ -309,46 +255,48 @@ public class Entity implements Comparable<Entity>
 		ret.append(getType());
 		ret.append(" ");
 		ret.append(getId());
-		EntityDefinition def = getEntityDefinition();
-		List<FieldDefinition> fields = def.getFields();
-		for (int i = 0; i < fields.size(); i++)
-		{
-			FieldDefinition fd = fields.get(i);
-			Object val = _attributes.get(fd.getName());
-			String name = fd.getName();
-			if (val == null)
-			{
-				ret.append("\t\t" + name + " =  NULL");
-				continue;
-			}
-			switch (fd.getBaseType())
-			{
-			case Types.TYPE_REFERENCE:
-				if (fd.isArray())
-				{
-					ret.append("\t\t" + name + " = [ ");
-					List<Object> vals = (List<Object>) val;
-					for (int ii = 0; ii < vals.size(); ii++)
-					{
-						Entity ee = (Entity) vals.get(ii);
-						if(ee == null)
-							ret.append("null");
-						else
-							ret.append(ee.getType()+":"+ee.getId() + ",");
-					}
-					ret.setLength(ret.length() - 1);
-					ret.append(" ]");
-				}
-				else
-				{
-					Entity v = (Entity) val;
-					ret.append("\t\t" + name + " = " + fd.getReferenceType() + " " + v.getId());
-				}
-				break;
-			default:
-				ret.append("\t\t" + name + " = " + val);
-			}
-		}
+		ret.append(" ");
+		ret.append(getAttributes());
+//		EntityDefinition def = getEntityDefinition();
+//		List<FieldDefinition> fields = def.getFields();
+//		for (int i = 0; i < fields.size(); i++)
+//		{
+//			FieldDefinition fd = fields.get(i);
+//			Object val = _attributes.get(fd.getName());
+//			String name = fd.getName();
+//			if (val == null)
+//			{
+//				ret.append("\t\t" + name + " =  NULL");
+//				continue;
+//			}
+//			switch (fd.getBaseType())
+//			{
+//			case Types.TYPE_REFERENCE:
+//				if (fd.isArray())
+//				{
+//					ret.append("\t\t" + name + " = [ ");
+//					List<Object> vals = (List<Object>) val;
+//					for (int ii = 0; ii < vals.size(); ii++)
+//					{
+//						Entity ee = (Entity) vals.get(ii);
+//						if(ee == null)
+//							ret.append("null");
+//						else
+//							ret.append(ee.getType()+":"+ee.getId() + ",");
+//					}
+//					ret.setLength(ret.length() - 1);
+//					ret.append(" ]");
+//				}
+//				else
+//				{
+//					Entity v = (Entity) val;
+//					ret.append("\t\t" + name + " = " + fd.getReferenceType() + " " + v.getId());
+//				}
+//				break;
+//			default:
+//				ret.append("\t\t" + name + " = " + val);
+//			}
+//		}
 		return ret.toString();
 	}
 
@@ -418,7 +366,6 @@ public class Entity implements Comparable<Entity>
 		e._id = _id;
 		e._attributes = _attributes;
 		e._dirty_attributes = _dirty_attributes;
-		e._entity_definition = _entity_definition;
 		return e;
 	}
 }

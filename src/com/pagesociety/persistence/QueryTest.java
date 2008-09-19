@@ -73,7 +73,7 @@ public class QueryTest {
 		//string_min_test();
 		//string_min_test();
 		//count_test();
-		//single_predicate_test();
+		single_predicate_test();
 		//single_paging_predicate_test();
 		//multi_predicate_test_reference();
 		
@@ -687,7 +687,7 @@ public class QueryTest {
 		for(int i = 0; i< result.size();i++)
 		{
 			Entity e = result.getEntities().get(i);
-			System.out.println("ID: "+e.getId()+" EMAIL: "+e.getAttributeAsString("email")+" ROLE: "+e.getAttributeAsString("role")+" DATE CREATED:"+e.getAttributeAsString("date_created")+" LAST_MODIFIED: "+new Date(Long.MAX_VALUE-((Date)e.getAttribute("last_modified")).getTime()));
+			System.out.println("ID: "+e.getId()+" EMAIL: "+e.getAttribute("email")+" ROLE: "+e.getAttribute("role")+" DATE CREATED:"+e.getAttribute("date_created")+" LAST_MODIFIED: "+new Date(Long.MAX_VALUE-((Date)e.getAttribute("last_modified")).getTime()));
 		}
 	
 		q = new Query("OutstandingEmailConfirmation");
@@ -701,7 +701,7 @@ public class QueryTest {
 		for(int i = 0; i< result.size();i++)
 		{
 			Entity e = result.getEntities().get(i);
-			System.out.println("ID: "+e.getId()+" TYPE: "+e.getAttributeAsString("type")+" UID: "+e.getAttributeAsString("activation_uid")+" TOKEN: "+e.getAttributeAsString("activation_token"));
+			System.out.println("ID: "+e.getId()+" TYPE: "+e.getAttribute("type")+" UID: "+e.getAttribute("activation_uid")+" TOKEN: "+e.getAttribute("activation_token"));
 		}
 		
 		Date d = new Date();
@@ -718,7 +718,7 @@ public class QueryTest {
 		for(int i = 0; i< result.size();i++)
 		{
 			Entity e = result.getEntities().get(i);
-			System.out.println("ID: "+e.getId()+" TYPE: "+e.getAttributeAsString("type")+" UID: "+e.getAttributeAsString("activation_uid")+" TOKEN: "+e.getAttributeAsString("activation_token"));
+			System.out.println("ID: "+e.getId()+" TYPE: "+e.getAttribute("type")+" UID: "+e.getAttribute("activation_uid")+" TOKEN: "+e.getAttribute("activation_token"));
 		}
 
 	}
@@ -2163,8 +2163,8 @@ public class QueryTest {
 				fbid = null;
 			else
 				fbid = String.valueOf(fb.getId());
-			System.out.println(">" + e.getId() + "\t" + e.getAttributeAsString("FirstName") + "\t" + e.getAttributeAsString("LastName") + "\t" + e.getAttributeAsString("Birthday")+"\t FavoriteBook Id:"+fbid
-					+ "\tFAV NUM:" + e.getAttributeAsString("FavoriteNumber") + "\t" + e.getAttributeAsString("Weight") + "\t" + e.getAttributeAsString("WorkflowStatus")+"\t"+e.getAttributeAsString("Owners")+" "+e.getAttributeAsString("Owners2"));
+			System.out.println(">" + e.getId() + "\t" + e.getAttribute("FirstName") + "\t" + e.getAttribute("LastName") + "\t" + e.getAttribute("Birthday")+"\t FavoriteBook Id:"+fbid
+					+ "\tFAV NUM:" + e.getAttribute("FavoriteNumber") + "\t" + e.getAttribute("Weight") + "\t" + e.getAttribute("WorkflowStatus")+"\t"+e.getAttribute("Owners")+" "+e.getAttribute("Owners2"));
 
 		}
 	}
@@ -2173,7 +2173,7 @@ public class QueryTest {
 	{
 		for (Entity e : r.getEntities())
 		{
-			System.out.println(">" + e.getId() +"\t" + e.getAttributeAsString("Title"));
+			System.out.println(">" + e.getId() +"\t" + e.getAttribute("Title"));
 
 		}
 	}
@@ -2188,8 +2188,8 @@ public class QueryTest {
 				fbid = null;
 			else
 				fbid = String.valueOf(fb.getId());
-			System.out.println(">" + e.getId() + "\t" + e.getAttributeAsString("FirstName") + "\t" + e.getAttributeAsString("LastName") + "\t" + e.getAttributeAsString("Birthday")+"\t FavoriteBook Id:"+fbid
-					+ "\tFAV NUM:" + e.getAttributeAsString("FavoriteNumber") + "\t" + e.getAttributeAsString("Weight") + "\t" + e.getAttributeAsString("WorkflowStatus")+"\t"+e.getAttributeAsString("Owners")+" "+e.getAttributeAsString("Owners2"));
+			System.out.println(">" + e.getId() + "\t" + e.getAttribute("FirstName") + "\t" + e.getAttribute("LastName") + "\t" + e.getAttribute("Birthday")+"\t FavoriteBook Id:"+fbid
+					+ "\tFAV NUM:" + e.getAttribute("FavoriteNumber") + "\t" + e.getAttribute("Weight") + "\t" + e.getAttribute("WorkflowStatus")+"\t"+e.getAttribute("Owners")+" "+e.getAttribute("Owners2"));
 			System.out.println(e.getAttribute("Books"));
 		}
 	}

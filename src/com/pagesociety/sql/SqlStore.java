@@ -113,7 +113,7 @@ public class SqlStore implements PersistentStore
 		if (entity.getId() == -1)
 			throw new RuntimeException("SqlStore.saveEntity DONT HANDLE ENTITIES WITH ID=-1");
 		//
-		EntityDefinition entity_def = entity.getEntityDefinition();
+		EntityDefinition entity_def =null;// entity.getEntityDefinition();
 		StringBuffer b = new StringBuffer();
 		b.append("INSERT INTO ");
 		b.append(entity_def.getName());

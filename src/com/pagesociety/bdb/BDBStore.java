@@ -530,6 +530,11 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 					System.err.println(Thread.currentThread().getId()+" FAILING HORRIBLY HERE!!!!!!!!!");
 					throw dbe;
 				}
+			}catch(Exception ee)
+			{
+				abortTxn(parent_txn);
+				ee.printStackTrace();
+				throw new DatabaseException("FAILED SAVING ENTITY DUE TO STRANGE EXCEPTION. SEE LOG.");
 			}
 		}//end while
 

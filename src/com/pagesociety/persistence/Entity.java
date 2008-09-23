@@ -202,6 +202,16 @@ public class Entity implements Comparable<Entity>
 	{
 		return _dirty_attributes;
 	}
+	
+	/**
+	 * Sets a list of dirty attribute field names. Advanced or serialization use only! 
+	 * 
+	 * @return A list of field names
+	 */
+	public void setDirtyAttributes(List<String> attr)
+	{
+		_dirty_attributes = attr;
+	}
 
 	/**
 	 * Clears the list of dirty attributes.

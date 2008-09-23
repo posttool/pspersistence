@@ -83,7 +83,7 @@ public class QueryTest {
 		//range_test();
 		//intersect_test();
 		//union_test();
-		//pssql_test();
+		pssql_test();
 		//concurrency_test();
 		//untyped_reference_test();
 		//simple_freetext_test();
@@ -632,7 +632,7 @@ public class QueryTest {
 	public void pssql_test() throws PersistenceException
 	{
 		insert_entity_instances(500);
-		String pssql = "SELECT * FROM Author;";// WHERE (Weight < 2.0 OR Weight > 5) AND FirstName > 'Ez';";
+		String pssql = "SELECT * FROM Author;";// WHERE (Weight < 2.0 OR Weight > 5) AND FirstName STARTSWITH 'Ez';";
 		QueryResult result =null;
 		
 		t1 = System.currentTimeMillis();

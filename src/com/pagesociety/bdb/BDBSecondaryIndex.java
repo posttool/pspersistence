@@ -141,7 +141,7 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 
 	public void close() throws DatabaseException
 	{
-		logger.info("CLOSING SEC INDEX DB HANDLE FOR IDX "+getName()+" ON ENTITY "+getEntityDefinition().getName());
+		//logger.info("CLOSING SEC INDEX DB HANDLE FOR IDX "+getName()+" ON ENTITY "+getEntityDefinition().getName());
 		db_handle.close();
 		delete_handle.close();
 	}

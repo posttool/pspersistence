@@ -124,7 +124,7 @@ public class BDBPrimaryIndex implements IterableIndex
 
 	protected  void close() throws DatabaseException
 	{
-		logger.info("CLOSING PRIMARY ENTITY DB FOR "+_def.getName());
+		//logger.info("CLOSING PRIMARY ENTITY DB FOR "+_def.getName());
 	
 		_dbh.sync();
 		_dbh.close();

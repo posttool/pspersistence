@@ -91,13 +91,13 @@ public class EntityComparatorFactory
 		{
 			v1 = e1.getAttribute(compare_attribute);
 			v2 = e2.getAttribute(compare_attribute);
-			if(v2.equals(v1))
-				return 0;
+
 			if(v1 == null && v2 != null)
 				return -1;
 			if(v2 == null && v1 != null)
 				return 1;
-
+			if((v1 == null && v2 == null) || v1.equals(v2))
+				return 0;
 			
 			return PASSED_NULL_CHECKS;
 		}

@@ -37,7 +37,7 @@ public class SqlStore implements PersistentStore
 	private Object jdbcClassInstance;
 	private String database = "";
 
-	public void init(HashMap<Object, Object> config) throws PersistenceException
+	public void init(Map<String, Object> config) throws PersistenceException
 	{
 		jdbcClass = (String) config.get(JDBC_CLASS_KEY);
 		jdbcConnectionUrl = (String) config.get(JDBC_CONNECTION_URL_KEY);

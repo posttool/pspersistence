@@ -54,6 +54,8 @@ public class Entity implements Comparable<Entity>
 	private Map<String, Object> _attributes;
 	private List<String> _dirty_attributes;
 	public static final long UNDEFINED = -1;
+	public static final String ID_ATTRIBUTE = "id";
+	
 //	private static final SimpleDateFormat date_format = new SimpleDateFormat("yyyy.MM.dd  HH:mm");
 
 	/**
@@ -79,11 +81,10 @@ public class Entity implements Comparable<Entity>
 
 	private Entity(String type, long id)
 	{
-		_type = type;
-		_id = id;
+		_type 		= type;
 		_attributes = new HashMap<String,Object>();
 		_dirty_attributes = new ArrayList<String>();
-
+		setId(id);
 	}
 
 	/**
@@ -107,6 +108,7 @@ public class Entity implements Comparable<Entity>
 	public void setId(long id)
 	{
 		_id = id;
+		_attributes.put(ID_ATTRIBUTE, id);/* dont want to dirty it */
 	}
 
 	/**
@@ -170,7 +172,7 @@ public class Entity implements Comparable<Entity>
 	 */
 	public void copyAttributes(Entity e)
 	{
-		_id = e._id;
+		setId(e._id);
 		_type = e._type;
 		_attributes = e._attributes;
 		_dirty_attributes = e._dirty_attributes;
@@ -373,7 +375,7 @@ public class Entity implements Comparable<Entity>
 	{
 		Entity e = new Entity();
 		e._type = _type;
-		e._id = _id;
+		e.setId(_id);
 		e._attributes = _attributes;
 		e._dirty_attributes = _dirty_attributes;
 		return e;

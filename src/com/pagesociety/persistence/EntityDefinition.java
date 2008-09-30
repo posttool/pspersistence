@@ -56,6 +56,7 @@ public class EntityDefinition implements java.io.Serializable
 		_name = name;
 		_fields = new ArrayList<FieldDefinition>();
 		_reference_fields = new ArrayList<FieldDefinition>();
+		addField(new FieldDefinition(Entity.ID_ATTRIBUTE,Types.TYPE_LONG).setDefaultValue(Entity.UNDEFINED));
 	}
 
 	/**

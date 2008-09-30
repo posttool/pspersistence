@@ -73,7 +73,7 @@ public class QueryTest {
 		//string_min_test();
 		//string_min_test();
 		//count_test();
-		single_predicate_test();
+		//single_predicate_test();
 		//single_paging_predicate_test();
 		//multi_predicate_test_reference();
 		
@@ -83,7 +83,7 @@ public class QueryTest {
 		//range_test();
 		//intersect_test();
 		//union_test();
-		pssql_test();
+		//pssql_test();
 		//concurrency_test();
 		//untyped_reference_test();
 		//simple_freetext_test();
@@ -93,8 +93,30 @@ public class QueryTest {
 		//relationship_one_to_one_test();
 		//relationship_one_to_many_test();
 		//relationship_many_to_many_test();
-		entity_hash_test();
+		//entity_hash_test();
+		id_index_test();
 	}
+	
+	public void id_index_test() throws PersistenceException
+	{
+		addMultiFieldEntityIndex("Author", new String[]{Entity.ID_ATTRIBUTE,"WorkflowStatus"}, EntityIndex.TYPE_SIMPLE_MULTI_FIELD_INDEX, "byIdByWorkflowStatus",null);	
+		insert_entity_instances(500);
+		Query q;
+		QueryResult result;
+		
+		q = new Query("Author");
+		q.idx("byIdByWorkflowStatus");
+		q.eq(q.list(Query.VAL_GLOB,Query.VAL_GLOB));
+		q.cacheResults(false);
+		t1 = System.currentTimeMillis();
+		result  = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		print(result);
+		System.out.println(" PREDICATE byIdByWorkflowStatus  EQ VAL GLOB,VAL GLOB " + t2 + " RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+
+	
+	}
+	
 	public void dump_table(String entity_name) throws PersistenceException
 	{
 		Query q = new Query(entity_name);

@@ -1,6 +1,6 @@
 package com.pagesociety.bdb.locker;
 
-import java.util.HashMap;
+import java.util.Map;
 
 
 
@@ -40,7 +40,7 @@ public class JavaConcurrencyReentrantReadWriteLocker implements Locker
 		//System.out.println(Thread.currentThread()+" RELEASED WRITE LOCK");
 	}
 
-	public void init(HashMap<Object, Object> config) {
+	public void init(Map<String, Object> config) {
 
 		_lock = new java.util.concurrent.locks.ReentrantReadWriteLock(false);	
 		_read_lock = _lock.readLock();

@@ -1,6 +1,7 @@
 package com.pagesociety.bdb.locker;
 
-import java.util.HashMap;
+
+import java.util.Map;
 
 
 public class AdminLocker implements Locker
@@ -10,7 +11,7 @@ public class AdminLocker implements Locker
 	private int _num_waiting_admin_threads  = 0;
 	private int _num_app_threads 			= 0;
 	
-	public void init(HashMap<Object, Object> config)
+	public void init(Map<String, Object> config)
 	{
 		
 	}

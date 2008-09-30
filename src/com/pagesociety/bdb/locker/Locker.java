@@ -1,10 +1,11 @@
 package com.pagesociety.bdb.locker;
 
-import java.util.HashMap;
+
+import java.util.Map;
 
 public interface Locker 
 {
-	public void init(HashMap<Object, Object> config);
+	public void init(Map<String, Object> config);
 	public void enterAppThread();
 	public void exitAppThread();
 	public void enterLockerThread();

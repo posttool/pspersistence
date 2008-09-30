@@ -58,9 +58,6 @@ public class EntityDefinitionBinding extends TupleBinding
 		for (int i = 0; i < size; i++)
 		{
 			FieldDefinition f = new FieldDefinition(ti.readString(), ti.readInt(),null);
-			/* cant use this. must read self and not set entity def, just set type. then 
-			 * set the def in store set_default_field
-			 */
 			Object default_value = null;
 			if (f.getBaseType() == Types.TYPE_REFERENCE)
 				default_value = read_default_reference_value(ti);

@@ -94,12 +94,12 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	private CheckpointPolicy checkpoint_policy;
 	private Properties _db_env_props;
 	private File _db_env_props_file;
-	private HashMap<Object, Object> _config;
+	private Map<String, Object> _config;
 	
 	/* BEGIN INTERFACE ***************************************************************************/
-	public void init(HashMap<Object, Object> config) throws PersistenceException
+	public void init(Map<String, Object> config) throws PersistenceException
 	{
-		_config = config;
+		_config = config; 
 		
 		entity_primary_indexes_as_map 	 		 = new HashMap<String, BDBPrimaryIndex>();
 		entity_primary_indexes_as_list 	 		 = new ArrayList<BDBPrimaryIndex>();
@@ -149,7 +149,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		});
 	}
 	
-	private void init_locker(HashMap<Object, Object> config)
+	private void init_locker(Map<String, Object> config)
 	{
 		try {
 			_store_locker = (Locker)Class.forName((String)config.get(BDBStoreConfigKeyValues.KEY_STORE_LOCKER_CLASS)).newInstance();
@@ -161,7 +161,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		_store_locker.init(config);
 	}
 	
-	private void init_checkpoint_policy(HashMap<Object,Object> config)
+	private void init_checkpoint_policy(Map<String,Object> config)
 	{
 		try
 		{
@@ -1687,7 +1687,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		return timestamp.format(new Date());
 	}
 	
-	private void init_environment(HashMap<Object, Object> config) throws PersistenceException
+	private void init_environment(Map<String, Object> config) throws PersistenceException
 	{
 		String path = (String)config.get(BDBStoreConfigKeyValues.KEY_STORE_ROOT_DIRECTORY);
 		if(path == null)
@@ -1732,7 +1732,7 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 		}		
 	}
 
-	private void init_entity_definition_db(HashMap<Object,Object> config) throws PersistenceException
+	private void init_entity_definition_db(Map<String,Object> config) throws PersistenceException
 	{
 
 		DatabaseConfig cfg = get_default_primary_db_config();
@@ -1749,7 +1749,7 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 		
 	}
 	
-	private void init_entity_definition_provider(HashMap<Object,Object> config) throws PersistenceException
+	private void init_entity_definition_provider(Map<String,Object> config) throws PersistenceException
 	{
 
 		entity_definition_provider = this;
@@ -1758,7 +1758,7 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 	}
 
 	
-	private void init_entity_secondary_index_db(HashMap<Object,Object> config) throws PersistenceException
+	private void init_entity_secondary_index_db(Map<String,Object> config) throws PersistenceException
 	{
 
 		DatabaseConfig cfg = get_entity_index_db_config();
@@ -1775,7 +1775,7 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 		
 	}
 	
-	private void init_entity_relationship_db(HashMap<Object,Object> config) throws PersistenceException
+	private void init_entity_relationship_db(Map<String,Object> config) throws PersistenceException
 	{
 		DatabaseConfig cfg = get_default_primary_db_config();
 		try{	
@@ -1947,7 +1947,7 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 		FieldBinding.initWithPrimaryIndexMap(entity_primary_indexes_as_map);
 	}
 	
-	private void init_deadlock_resolution_scheme(HashMap<Object,Object> config) throws PersistenceException
+	private void init_deadlock_resolution_scheme(Map<String,Object> config) throws PersistenceException
 	{
 		Integer val = (Integer)config.get(BDBStoreConfigKeyValues.KEY_DEADLOCK_RESOLUTION_SCHEME); 
 		if(val != null && val == BDBStoreConfigKeyValues.VALUE_DEADLOCK_RESOLUTION_SCHEME_MONITOR_DEADLOCKS)

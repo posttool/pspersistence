@@ -1,6 +1,7 @@
 package com.pagesociety.bdb;
 
-import java.util.HashMap;
+
+import java.util.Map;
 
 public class DefaultCheckpointPolicy implements CheckpointPolicy
 {
@@ -10,7 +11,7 @@ public class DefaultCheckpointPolicy implements CheckpointPolicy
 	private long _last_checkpoint;
 	private boolean _use_timeout;
 
-	public void init(HashMap<Object, Object> config)
+	public void init(Map<String, Object> config)
 	{
 		_last_checkpoint = System.currentTimeMillis();
 		_use_timeout = true; // TODO setup in config...

@@ -1,10 +1,11 @@
 package com.pagesociety.bdb;
 
-import java.util.HashMap;
+
+import java.util.Map;
 
 
 public interface CheckpointPolicy
 {
-	public void init(HashMap<Object,Object> config);
+	public void init(Map<String,Object> config);
 	public boolean isCheckpointNecessary();
 }

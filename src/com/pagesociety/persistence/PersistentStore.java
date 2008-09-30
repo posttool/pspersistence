@@ -95,7 +95,7 @@ public interface PersistentStore
 	 *             If the config parameters don't meet the requiremens of the
 	 *             store initialization.
 	 */
-	public abstract void init(HashMap<Object, Object> config) throws PersistenceException;
+	public abstract void init(Map<String, Object> config) throws PersistenceException;
 
 	/**
 	 * Ends the life cycle of the store.

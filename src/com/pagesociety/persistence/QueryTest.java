@@ -1843,7 +1843,7 @@ public class QueryTest {
 	public void init_store() throws PersistenceException
 	{
 		_store = new BDBStore();
-		HashMap<Object, Object> config = new HashMap<Object, Object>();
+		HashMap<String, Object> config = new HashMap<String, Object>();
 		config.put(BDBStoreConfigKeyValues.KEY_STORE_ROOT_DIRECTORY , "C:/eclipse_workspace/PSPersistence/dbEnv");
 		//config.put(BDBStoreConfigKeyValues.KEY_STORE_ROOT_DIRECTORY ,"C:/Users/David/Desktop/ll_080707/app-config/LimeLifeStore");
 

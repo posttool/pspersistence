@@ -11,7 +11,7 @@ public class Test
 {
 	public static void main(String[] args) throws Exception
 	{
-		HashMap<Object, Object> config = new HashMap<Object, Object>();
+		HashMap<String, Object> config = new HashMap<String, Object>();
 		config.put(SqlStore.JDBC_CONNECTION_URL_KEY, "jdbc:mysql://localhost/");
 		config.put(SqlStore.JDBC_CLASS_KEY, "com.mysql.jdbc.Driver");
 		config.put(SqlStore.SQL_USER_KEY, "root");

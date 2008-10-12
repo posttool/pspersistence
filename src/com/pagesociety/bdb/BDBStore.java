@@ -451,18 +451,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	{	
 
 		_store_locker.enterAppThread();
-		try{
-			//if(!e.isDirty())
-			//{
-			//	try{
-			//		_store_locker.exitAppThread();
-			//		throw new Exception("WARNING: SAVING UNDIRTY ENTITY");
-			//	}catch(Exception ee)
-			//	{
-			//		logger.error("saveEntity(Entity)", ee);
-			//	}
-			//	return e;
-			//}
+		try
+		{
 			String entity_type 		  = e.getType();
 			BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(entity_type);
 			if(pi == null)
@@ -470,6 +460,21 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				_store_locker.exitAppThread();
 				throw new PersistenceException("ENTITY OF TYPE "+entity_type+" DOES NOT EXIST");
 			}
+			// ADDED oct 11 ... feel free to massage at will
+			EntityDefinition def = do_get_entity_definition(e.getType());
+			List<FieldDefinition> fields = def.getFields();
+			int s = fields.size();
+			for (int i=0; i<s; i++)
+			{
+				FieldDefinition field = fields.get(i);
+				Object o = e.getAttribute(field.getName());
+				if (!field.isValidValue(o))
+				{
+					_store_locker.exitAppThread();
+					throw new PersistenceException("Field "+field.getName()+" requires a value of type ["+FieldDefinition.typeAsString(field.getBaseType())+"]. Not "+o.getClass());
+				}
+			}
+			//
 			do_save_entity(null,pi,e,true);
 		}
 		catch(DatabaseException dbe)

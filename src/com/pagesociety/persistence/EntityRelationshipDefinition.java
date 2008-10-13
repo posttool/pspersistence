@@ -183,4 +183,20 @@ public class EntityRelationshipDefinition implements java.io.Serializable
 		}
 		return new EntityRelationshipDefinition(_target_entity, _target_entity_field, type, _originating_entity, _originating_entity_field);
 	}
+
+
+	public boolean equals(Object o)
+	{
+		if(o == null)
+			return false;
+		EntityRelationshipDefinition d = (EntityRelationshipDefinition) o;
+		return (_type==d._type
+				&& _originating_entity.equals(d._originating_entity)
+				&& _originating_entity_field.equals(d._originating_entity_field)		
+				&& _target_entity.equals(d._target_entity)
+				&& _target_entity_field.equals(d._target_entity_field));
+	}
+	
+
+
 }

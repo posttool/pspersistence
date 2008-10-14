@@ -1259,6 +1259,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			return indices;
 		}catch(Exception e)
 		{
+			e.printStackTrace();
 			throw new PersistenceException("PROBLEM GETTING INDICES FOR "+entity);
 		}
 		finally

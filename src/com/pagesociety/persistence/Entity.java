@@ -375,7 +375,7 @@ public class Entity implements Comparable<Entity>
 	{
 		Entity e = new Entity();
 		e._type = _type;
-		e.setId(_id);
+		e.setId(UNDEFINED);
 		e._attributes = _attributes;
 		e._dirty_attributes = _dirty_attributes;
 		return e;

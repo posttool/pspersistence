@@ -988,7 +988,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 
 	private void expand_entity(Transaction ptxn, BDBPrimaryIndex pidx,Entity entity) throws DatabaseException
 	{
-		if (!entity.getAttributes().isEmpty())
+		if (entity.getAttributes().size()!=1) // THERE IS ALWAYS 1 attribute ("id") in lightly filled references
 			return;
 		if (entity.getId()==Entity.UNDEFINED)
 			throw new DatabaseException("INTEGRITY PROBLEM - all remove & added children is relationships have to be weakly filled at least");

@@ -380,4 +380,9 @@ public class Entity implements Comparable<Entity>
 		e._dirty_attributes = _dirty_attributes;
 		return e;
 	}
+
+	public boolean isLightReference()
+	{
+		return (_attributes.size() == 1);
+	}
 }

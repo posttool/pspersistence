@@ -60,7 +60,7 @@ public class EntityDefinitionBinding extends TupleBinding
 			FieldDefinition f = new FieldDefinition(ti.readString(), ti.readInt(),null);
 			Object default_value = null;
 			if (f.getBaseType() == Types.TYPE_REFERENCE)
-				default_value = read_default_reference_value(ti);
+				default_value = read_default_reference_value(f,ti);
 			else
 				default_value = FieldBinding.readValueFromTuple(ti, f);
 			
@@ -161,7 +161,7 @@ public class EntityDefinitionBinding extends TupleBinding
 			return null;
 		else
 		{
-			int size 		= ti.readFast();
+			int size 		= ti.readInt();
 			List<Entity> ee = new ArrayList<Entity>(size);
 			for(int i = 0;i<size;i++)
 			{

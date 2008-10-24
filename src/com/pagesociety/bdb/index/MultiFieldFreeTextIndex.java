@@ -81,6 +81,7 @@ public class MultiFieldFreeTextIndex extends AbstractMultiFieldIndex
 	//q.containsAny(q.list(q.list("title","summary"),q.list("Adventures","Huckleberry")));
 	//q.containsAll(q.list(q.list("title","summary"),q.list("Adventures","Huckleberry")));
 	//q.containsPhrase(q.list(q.list("title","summary"),q.list("Adventures","of","Huckleberry"),PUBLISHED));
+	//q.containsPhrase(q.list(q.VAL_GLOB,q.list("Adventures","of","Huckleberry"),PUBLISHED));
 	public List<List<DatabaseEntry>> getQueryKeys(List<Object> vals) throws DatabaseException
 	{
 		
@@ -245,9 +246,9 @@ public class MultiFieldFreeTextIndex extends AbstractMultiFieldIndex
 	
 	private void put_row(Transaction parent_txn,Entity e,DatabaseEntry key,DatabaseEntry row) throws DatabaseException
 	{
-		String K = new String(key.getData());
-		long ID  = LongBinding.entryToLong(new DatabaseEntry(row.getData(),0,8));
-		int C 	 = IntegerBinding.entryToInt(new DatabaseEntry(row.getData(),8,12));
+		//String K = new String(key.getData());
+		//long ID  = LongBinding.entryToLong(new DatabaseEntry(row.getData(),0,8));
+		//int C 	 = IntegerBinding.entryToInt(new DatabaseEntry(row.getData(),8,12));
 		//System.out.println("FREE TEXT INDEX PUTTING ROW "+K+" | "+ID+":"+C );
 		
 		Transaction txn 	= null;

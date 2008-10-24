@@ -39,6 +39,7 @@ public class QueryCacheManager
 
 	public ConcurrentLRUCache<String, Object> getQueryCache(String entity_name)
 	{
+		try{
 		if(_entity_query_caches.putIfAbsent(entity_name,_next_entity_cache)== null)
 		{
 			_next_entity_cache = new ConcurrentLRUCache<String, Object>(_initial_lru_cache_size,
@@ -47,6 +48,11 @@ public class QueryCacheManager
 																			new JavaConcurrencyReentrantReadWriteLocker());
 		}
 		return _entity_query_caches.get(entity_name);
+		}catch(NullPointerException npe)//this try/catch is just for debugging to track down
+		{								//password cleaner bug.
+			System.out.println("ENTITY_NAME WAS "+entity_name);
+			throw npe;
+		}
 	}
 
 	public void clearQueryCache(String entity_name)

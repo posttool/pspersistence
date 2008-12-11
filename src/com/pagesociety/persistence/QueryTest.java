@@ -94,7 +94,8 @@ public class QueryTest {
 		//relationship_one_to_many_test();
 		//relationship_many_to_many_test();
 		//entity_hash_test();
-		id_index_test();
+		//id_index_test();
+		weird_range_test();
 	}
 	
 	public void id_index_test() throws PersistenceException
@@ -1657,12 +1658,27 @@ public class QueryTest {
 
 			
 	}
-	
+	public void weird_range_test() throws PersistenceException
+	{
+		insert_entity_instances(500);
+		addMultiFieldEntityIndex("Author",new String[]{ "FirstName","LastName"}, EntityIndex.TYPE_SIMPLE_MULTI_FIELD_INDEX, "byFirstNameByLastName", null);
+		Query q = new Query("Author");
+		q.pageSize(Query.ALL_RESULTS);
+		q.idx("byFirstNameByLastName");
+		q.between(q.list(Query.VAL_MIN,Query.VAL_MIN),q.list(Query.VAL_MAX,Query.VAL_MAX));
+		QueryResult result;
+		t1 = System.currentTimeMillis();
+		result = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		print(result);
+		System.out.println("BETWEEN INCLUSIVE FIRST NAME,LAST NAME MIN,GLOB MAX,GLOB " + t2 + " RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+	}
 	
 	public void range_test() throws PersistenceException
 	{
 		insert_entity_instances(500);
 		addSingleFieldEntityIndex("Author", "FirstName", EntityIndex.TYPE_SIMPLE_SINGLE_FIELD_INDEX, "byFirstName", null);
+
 		t1 = System.currentTimeMillis();	
 
 		Query q = new Query("Author");

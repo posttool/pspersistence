@@ -99,6 +99,10 @@ public class MultiFieldFreeTextIndex extends AbstractMultiFieldIndex
 				for(int i = 0;i < s;i++)
 					fieldnames.add(_string_fields.get(i).getName());
 			}
+			else
+			{
+				throw new DatabaseException("QUERY FIELDNAMES SHOULD BE A LIST PARAMETER OR Query.VAL_GLOB FOR ALL FIELDS.");
+			}
 		}
 		List<String> words				= (List<String>)vals.get(1);
 		

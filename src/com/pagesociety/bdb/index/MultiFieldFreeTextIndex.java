@@ -69,7 +69,7 @@ public class MultiFieldFreeTextIndex extends AbstractMultiFieldIndex
 
 	}
 	
-	//private static int num_insert_keys_requested = 0;
+
 	public void getInsertKeys(Entity e,Set<DatabaseEntry> result) throws DatabaseException
 	{
 
@@ -104,8 +104,8 @@ public class MultiFieldFreeTextIndex extends AbstractMultiFieldIndex
 				throw new DatabaseException("QUERY FIELDNAMES SHOULD BE A LIST PARAMETER OR Query.VAL_GLOB FOR ALL FIELDS.");
 			}
 		}
-		List<String> words				= (List<String>)vals.get(1);
-		
+
+		List<List<DatabaseEntry>> ll = new ArrayList<List<DatabaseEntry>>(); 
 		/* gen the equality part of the key */
 		TupleOutput eq_output = new TupleOutput();
 		int vs = vals.size();
@@ -115,10 +115,35 @@ public class MultiFieldFreeTextIndex extends AbstractMultiFieldIndex
 		}
 	
 		
+		//The idea here is that someone may make a multi freetext index and want to 
+		//ignore the freetext part of the index when querying. this is accomplised because
+		//on insert every entity is indexed as   KEY<null,null,equality_parts>:DATA<id,0>
+		//query.setContainsAny(Query.VAL_GLOB,Query.VAL_GLOB,PUBLISHED);
+		List<String> words	= null;
+		try{
+			words = (List<String>)vals.get(1);
+		}catch(Exception e)
+		{
+			Object o = (Object)vals.get(0);
+			if(o == Query.VAL_GLOB)
+			{
+				List<DatabaseEntry> l = new ArrayList<DatabaseEntry>(1);
+				ll.add(l);
+				TupleOutput tto = new TupleOutput();
+				tto.writeString((String)null);
+				tto.writeString((String)null);
+				tto.writeFast(eq_output.toByteArray());
+				l.add(new DatabaseEntry(tto.toByteArray()));
+				return ll;
+			}
+		}
+		
+
+		
 		/*make a set for each word combined with fieldname */
 		int sf = fieldnames.size();
 		int sw = words.size();
-		List<List<DatabaseEntry>> ll = new ArrayList<List<DatabaseEntry>>(); 
+
 		for(int i = 0;i < sf;i++)
 		{
 			String fieldname = fieldnames.get(i).toLowerCase();
@@ -187,15 +212,20 @@ public class MultiFieldFreeTextIndex extends AbstractMultiFieldIndex
 			FieldBinding.writeValueToTuple(f, e.getAttribute(f.getName()), eq_tuple_output);
 		}
 		
+		//every record gets a row that ignores the free text indexing
+		//so that someone could also use the multi index without a freetext
+		//query where all records are considered
+		//q.setContainsAny(Query.VAL_GLOB,Query.VAL_GLOB,PUBLISHED);
+		write_index_row(parent_txn, e, null,null, eq_tuple_output, data,0 );
 		for(int i = 0;i < _string_fields.size();i++)
 		{
-			FieldDefinition f = _string_fields.get(i);
-			String fieldname = f.getName();
+			FieldDefinition f   = _string_fields.get(i);
+			String fieldname    = f.getName();
 			String s 			= (String)e.getAttribute(fieldname);
 			
 			if(s == null)
 			{
-				write_index_row(parent_txn, e, fieldname,s, eq_tuple_output, data,0 );
+				write_index_row(parent_txn, e, fieldname.toLowerCase(),s, eq_tuple_output, data,0 );
 			}
 			else
 			{
@@ -229,7 +259,7 @@ public class MultiFieldFreeTextIndex extends AbstractMultiFieldIndex
 		DatabaseEntry ddata;
 		/*key*/
 		TupleOutput to = new TupleOutput();
-		to.writeString(fieldname.toLowerCase());
+		to.writeString(fieldname);
 		to.writeString(word);
 		to.writeFast(eq_tuple_output.toByteArray());
 		key = new DatabaseEntry(to.toByteArray());

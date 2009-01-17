@@ -89,13 +89,14 @@ public class QueryTest {
 		//simple_freetext_test();
 		//multi_freetext_test();
 		//multi_freetext_globbing_test();
+		multi_freetext_globbing_test2();
 		//default_value_test();
 		//relationship_one_to_one_test();
 		//relationship_one_to_many_test();
 		//relationship_many_to_many_test();
 		//entity_hash_test();
 		//id_index_test();
-		weird_range_test();
+		//weird_range_test();
 	}
 	
 	public void id_index_test() throws PersistenceException
@@ -501,6 +502,36 @@ public class QueryTest {
 		}
 		System.out.println("TIME "+t2+"(ms) INSERT_C:"+INSERTC+" RESULT SIZE IS "+result.size()+" RPS IS "+((float)1000/t2*result.size()));
 	}
+	public void multi_freetext_globbing_test2() throws PersistenceException
+	{
+		Random RR = new Random();
+		Entity[] books = new Entity[500];
+		for(int i = 0;i < books.length;i++)
+		{
+			Entity b = _store.getEntityDefinition("Book").createInstance();
+			b.setAttribute("Title", R(titles));
+			b.setAttribute("Summary", R(summaries));
+			int status = (RR.nextBoolean())?1:0;
+			b.setAttribute("Status", status);
+			b = _store.saveEntity(b);
+			books[i] = b;
+			
+		//	System.out.println("BOOK "+i+" IS "+b);
+		}
+		addMultiFieldEntityIndex("Book", new String[]{"Title","Summary","Status"}, EntityIndex.TYPE_MULTI_FIELD_FREETEXT_INDEX, "BookFreeText", null);
+		Query q = new Query("Book");
+		q.idx("BookFreeText");
+		q.textContainsAny(q.list(Query.VAL_GLOB,Query.VAL_GLOB,Query.VAL_GLOB));
+		t1 = System.currentTimeMillis();
+		QueryResult result = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		for (Entity e : result.getEntities())
+		{
+			System.out.println(e);
+		}
+		System.out.println("TIME "+t2+"(ms) RESULT SIZE IS "+result.size()+" RPS IS "+((float)1000/t2*result.size()));
+	}
+	
 	public void untyped_reference_test() throws PersistenceException
 	{
 		EntityDefinition def;
@@ -1858,13 +1889,12 @@ public class QueryTest {
 		System.out.println("MULTI ARRAY MEMBERSHIP CONTAINS ANY(Joyce,Baker,Wright),GLOB " + t2 + " RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
 		*/
 
-		qset.add(owners);
-		qset.add(Query.VAL_GLOB);//"Published");
+
 		t1 = System.currentTimeMillis();	
 		q = new Query("Author");
 		q.pageSize(Query.ALL_RESULTS);
 		q.idx("byOwnersByWorkflowStatus");
-		q.setContainsAll(qset);
+		q.setContainsAll(q.list(owners,Query.VAL_GLOB));
 		q.ret();
 		t2 = System.currentTimeMillis()-t1;
 		System.out.println("QUERY COMPILE TOOK "+(t2));

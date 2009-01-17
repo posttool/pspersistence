@@ -1244,11 +1244,14 @@ public class QueryExecutor
 						copy.remove(last--);						
 					}
 					while(last >= 0 && copy.get(last) == Query.VAL_GLOB);
+				
 					globbing = true;
 					
 					if(last == 0 && copy.get(0) == Query.VAL_GLOB )
-						copy.add(null);
-					
+					{
+						throw new PersistenceException("UNSUPPORTED SET QUERY TYPE. THERE IS NO ALL GLOBBING QUERY FOR SET QUERY RIGHT NOW.");
+						//copy.add(null);
+					}
 					list_param = ((MultiFieldArrayMembershipIndex)idx).getQueryKeys((List<Object>)copy);
 					//System.out.println("LIST PARAM IS "+list_param);
 				}
@@ -1328,14 +1331,20 @@ public class QueryExecutor
 					{
 						copy.remove(last--);						
 					}
-					while(last >= 0 && copy.get(last) == Query.VAL_GLOB);
+					while(last >= 2 && copy.get(last) == Query.VAL_GLOB);
 					globbing = true;
-					
-					if(last == 0 && copy.get(0) == Query.VAL_GLOB )
-						copy.add(null);
-					
 					multi_list_param = ((MultiFieldFreeTextIndex)idx).getQueryKeys((List<Object>)copy);
-					//System.out.println("LIST PARAM IS "+list_param);
+
+				}
+				else if(user_list_param.get(0) == Query.VAL_GLOB 
+						&& user_list_param.get(1) == Query.VAL_GLOB)
+				{
+					//This is for the special case where you want to ignore the freetext
+					//part of the index on a multi freetext index and just don an equality
+					//query on the rest of the index
+					//q.setContainsAny(Query.VAL_GLOB,Query.VAL_GLOB,PUBLISHED)
+					globbing = true;
+					multi_list_param = ((MultiFieldFreeTextIndex)idx).getQueryKeys((List<Object>)user_list_param);
 				}
 				else
 				{

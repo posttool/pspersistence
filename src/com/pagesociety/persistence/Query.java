@@ -86,6 +86,8 @@ public class Query
 	public static final Object VAL_MIN  = new Object();
 	public static final Object VAL_MAX  = new Object();
 	public static final Object VAL_GLOB = new Object();
+	public static final Object FREETEXT_ALL_FIELDS = VAL_GLOB;
+	public static final Object FREETEXT_ALL_VALUES = VAL_GLOB;
 	public static final String PRIMARY_IDX = new String("_byId_");
 	public static final int ASC			   = 0x00;
 	public static final int DESC		   = 0x01;

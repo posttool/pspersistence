@@ -521,7 +521,7 @@ public class QueryTest {
 		addMultiFieldEntityIndex("Book", new String[]{"Title","Summary","Status"}, EntityIndex.TYPE_MULTI_FIELD_FREETEXT_INDEX, "BookFreeText", null);
 		Query q = new Query("Book");
 		q.idx("BookFreeText");
-		q.textContainsAny(q.list(Query.VAL_GLOB,Query.VAL_GLOB,Query.VAL_GLOB));
+		q.textContainsAny(q.list(Query.FREETEXT_ALL_FIELDS,Query.FREETEXT_ALL_VALUES,Query.VAL_GLOB));
 		t1 = System.currentTimeMillis();
 		QueryResult result = _store.executeQuery(q);
 		t2 = System.currentTimeMillis()-t1;

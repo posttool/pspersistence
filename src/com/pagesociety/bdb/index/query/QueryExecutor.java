@@ -81,6 +81,9 @@ public class QueryExecutor
 			case Query.NODE_TYPE_UNION:
 				return do_union(node);
 			case Query.NODE_TYPE_ITER:
+				//TODO: we would probably cache on this level
+				//need to review cache keys and how this would
+				//work for simple and complex queries
 				return do_iter(node);
 			default:
 					throw new PersistenceException("UNKNOWN NODE TYPE IN QUERY: "+node.type);

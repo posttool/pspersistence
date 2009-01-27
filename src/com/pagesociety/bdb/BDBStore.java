@@ -1528,6 +1528,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		try
 		{
 			do_checkpoint();
+			//environment.resetLogSequenceNumber(filename, encrypted)
 			File[] archive_dbs = environment.getArchiveDatabases();
 			File[] archive_logs = environment.getArchiveLogFiles(true);
 			for (int i=0; i<archive_dbs.length; i++)
@@ -3074,7 +3075,7 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 	               return;
                ref_pidx = entity_primary_indexes_as_map.get(ref.getType());
                if (ref_pidx==null)
-            	   throw new PersistenceException("STORE DOES NOT RECOGNIZE REFERENCE TYPE "+f.getReferenceType());
+            	   throw new PersistenceException("STORE DOES NOT RECOGNIZE REFERENCE TYPE "+ref.getType()+" "+f.getReferenceType());
 	           e.getAttributes().put(f.getName(),ref_pidx.getById(null,ref.getId()));
 	       }
 		}catch(DatabaseException de)

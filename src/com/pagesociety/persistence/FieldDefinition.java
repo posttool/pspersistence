@@ -22,10 +22,13 @@ public class FieldDefinition implements java.io.Serializable
 	public static final String REF_TYPE_UNTYPED_ENTITY = "*";
 	// !!!!!! REMEMBER TO UPDATE CLONE METHOD IF YOU ADD OR REMOVE FIELDS
 	// !!!!!!!//
-	private String _name;
-	private int _type;
-	private String _ref_type;
-	private Object _default_value;
+	private String 	_name;
+	private int 	_type;
+	private String 	_ref_type;
+	private Object 	_default_value;
+	private boolean _cascade_on_delete;
+	private boolean _required;
+	private String  _comment;
 
 	// private int _array_dimensionality;
 	/**
@@ -49,10 +52,13 @@ public class FieldDefinition implements java.io.Serializable
 	{
 		if ((type & ~Types.TYPE_ARRAY) == Types.TYPE_REFERENCE)
 			throw new RuntimeException("Field " + name + " must be defined with a reference type.");
-		_name = name;
-		_type = type;
-		_default_value = null;
-		_ref_type = null;
+		_name 			   = name;
+		_type 			   = type;
+		_default_value 	   = null;
+		_ref_type 		   = null;
+		_required 		   = false;
+		_cascade_on_delete = false;
+		_comment 		   = null;
 		// _array_dimensionality = 0;
 	}
 
@@ -72,6 +78,9 @@ public class FieldDefinition implements java.io.Serializable
 		_type = type;
 		_ref_type = ref_type;
 		_default_value = null;
+		_required 		   = false;
+		_cascade_on_delete = false;
+		_comment 		   = null;
 		// _array_dimensionality = 0;
 	}
 
@@ -152,12 +161,16 @@ public class FieldDefinition implements java.io.Serializable
 	{
 		if (b)
 		{
+			if(isArray())
+				return;
 			_type = _type | Types.TYPE_ARRAY;
 			// default to 1
 			// _array_dimensionality = 1;
 		}
 		else
 		{
+			if(!isArray())
+				return;
 			_type = _type & ~Types.TYPE_ARRAY;
 			// _array_dimensionality = 0;
 		}
@@ -202,36 +215,49 @@ public class FieldDefinition implements java.io.Serializable
 		return _default_value;
 	}
 
-	// /**
-	// * Gets the array dimensionality. Currently only 1 dimensional arrays are
-	// * supported.
-	// *
-	// * @return The array dimensionality (1).
-	// */
-	// public int getArrayDimensionality()
-	// {
-	// return _array_dimensionality;
-	// }
-	// /**
-	// * Sets the array dimensionality. Currently only 1 dimensional arrays are
-	// * supported.
-	// *
-	// * @param d
-	// */
-	// public void setArrayDimensionality(int d)
-	// {
-	// _array_dimensionality = d;
-	// }
+	public boolean doesCascadeOnDelete()
+	{
+		return _cascade_on_delete;
+	}
+	
+	public void setCascadeOnDelete(boolean b)
+	{
+		_cascade_on_delete = b;
+	}
+	
+	public boolean isRequired()
+	{
+		return _cascade_on_delete;
+	}
+	
+	public void setRequired(boolean b)
+	{
+		_required = b;
+	}
+
+	public String getComment()
+	{
+		return _comment;
+	}
+	
+	public void setComment(String comment)
+	{
+		_comment = comment;
+	}
+	
 	/**
 	 * Creates a clone of the field definition, copying all fields.
 	 */
 	public FieldDefinition clone()
 	{
 		FieldDefinition f = new FieldDefinition();
-		f._name = _name;
-		f._type = _type;
-		f._ref_type = _ref_type;
-		f._default_value = _default_value;
+		f._name 			 = _name;
+		f._type 			 = _type;
+		f._ref_type 		 = _ref_type;
+		f._default_value 	 = _default_value;
+		f._required 		 = _required;
+		f._cascade_on_delete = _cascade_on_delete;
+		f._comment			 = _comment;
 		// f._array_dimensionality = _array_dimensionality;
 		return f;
 	}
@@ -244,19 +270,15 @@ public class FieldDefinition implements java.io.Serializable
 		if (!(o instanceof FieldDefinition))
 			return false;
 		FieldDefinition f = (FieldDefinition) o;
-		if (!_name.equals(f._name))
-			return false;
-		if (_type != f._type)
-			return false;
-		if (_ref_type == null && f._ref_type != null)
-			return false;
-		if (_ref_type != null && !_ref_type.equals(f._ref_type))
-			return false;
-		if (_default_value != null && !_default_value.equals(f._default_value))
-			return false;
-		// if (_array_dimensionality != f._array_dimensionality)
-		// return false;
-		return true;
+		return  (
+				(_name.equals(f._name)) &&
+				(_type == f._type) &&
+				(_cascade_on_delete == f._cascade_on_delete) &&
+				(_required == f._required) &&
+				(_ref_type == f._ref_type || _ref_type.equals(f._ref_type)) &&
+				(_default_value == f._default_value || _default_value.equals(f._default_value)) &&
+				(_comment == f._comment || _comment.equals(f._comment))
+				);		
 	}
 
 	/**
@@ -389,94 +411,4 @@ public class FieldDefinition implements java.io.Serializable
 		return false;
 	}
 
-	public Object coerceValue(Object o) throws Exception
-	{
-		if (o == null)
-			return null; // return false, 0 for boolean, numbers?
-		if (isValidValue(o))
-			return o;
-		switch (_type)
-		{
-		case Types.TYPE_BOOLEAN:
-			if (o instanceof Number)
-			{
-				Number n = (Number) o;
-				return n.intValue() != 0;
-			}
-			if (o instanceof String)
-			{
-				String s = (String) o;
-				return s.toLowerCase().equals("true") || s.toLowerCase().equals("yes");
-			}
-			break;
-		case Types.TYPE_INT:
-			if (o instanceof Number)
-			{
-				Number n = (Number) o;
-				return n.intValue();
-			}
-			if (o instanceof String)
-			{
-				return Integer.parseInt(o.toString());
-			}
-			break;
-		case Types.TYPE_LONG:
-			if (o instanceof Number)
-			{
-				Number n = (Number) o;
-				return n.longValue();
-			}
-			if (o instanceof String)
-			{
-				return Long.parseLong(o.toString());
-			}
-			break;
-		case Types.TYPE_DOUBLE:
-			if (o instanceof Number)
-			{
-				Number n = (Number) o;
-				return n.doubleValue();
-			}
-			if (o instanceof String)
-			{
-				return Double.parseDouble(o.toString());
-			}
-			break;
-		case Types.TYPE_FLOAT:
-			if (o instanceof Number)
-			{
-				Number n = (Number) o;
-				return n.floatValue();
-			}
-			if (o instanceof String)
-			{
-				return Float.parseFloat(o.toString());
-			}
-			break;
-		case Types.TYPE_STRING:
-		case Types.TYPE_TEXT:
-			return o.toString();
-		case Types.TYPE_DATE:
-			if (o instanceof Number)
-			{
-				Number n = (Number) o;
-				return new Date(n.longValue());
-			}
-			if (o instanceof String)
-			{
-				String s = (String) o;
-				return new Date(Long.parseLong(s));
-			}
-			break;
-		case Types.TYPE_BLOB:
-			// ?
-			break;
-		case Types.TYPE_ARRAY:
-			// ?
-			break;
-		default:
-			break;
-		}
-		throw new Exception("Cannot coerce value " + o + " to type " + typeAsString(_type));
-	}
 }

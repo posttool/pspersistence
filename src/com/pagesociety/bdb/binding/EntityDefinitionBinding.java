@@ -43,8 +43,12 @@ public class EntityDefinitionBinding extends TupleBinding
 				FieldBinding.writeValueToTuple(f, f.getDefaultValue(),to);
 				}catch(DatabaseException dbe){};/*we can ignore this since it will never happen as we are never saving reference types here */
 			}
-				if (f.getBaseType() == Types.TYPE_REFERENCE)
-					to.writeString(f.getReferenceType());
+			if (f.getBaseType() == Types.TYPE_REFERENCE)
+				to.writeString(f.getReferenceType());
+		
+			to.writeBoolean(f.isRequired());
+			to.writeBoolean(f.doesCascadeOnDelete());
+			to.writeString(f.getComment());
 		}
 
 	}
@@ -67,6 +71,10 @@ public class EntityDefinitionBinding extends TupleBinding
 			f.setDefaultValue(default_value);
 			if (f.getBaseType() == Types.TYPE_REFERENCE)
 				f.setReferenceType(ti.readString());
+			
+			f.setRequired(ti.readBoolean());
+			f.setCascadeOnDelete(ti.readBoolean());
+			f.setComment(ti.readString());
 			entity_def.addField(f);
 		}
 

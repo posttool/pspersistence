@@ -3,6 +3,7 @@ package com.pagesociety.bdb;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -51,10 +52,14 @@ import com.sleepycat.db.Transaction;
 
 public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 {
+	private final int store_major_version = 1;
+	private final int store_minor_version = 0;
+	
 	private static final Logger logger = Logger.getLogger(BDBStore.class);
 	//environment
 	private Environment 				environment;
 	// entity def db and binding
+	private Database 					version_db;
 	private Database 					entity_def_db;
 	private Database 					entity_index_db;
 	private Database 					entity_relationship_db; 
@@ -99,6 +104,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	/* BEGIN INTERFACE ***************************************************************************/
 	public void init(Map<String, Object> config) throws PersistenceException
 	{
+		logger.info("Initializing BDBStore V"+store_major_version+"."+store_minor_version);
 		_config = config; 
 		
 		entity_primary_indexes_as_map 	 		 = new HashMap<String, BDBPrimaryIndex>();
@@ -109,10 +115,16 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		entity_binding					 		 = new EntityBinding(); 
 		
 		/* order is important */
+
 		init_shutdown_hook();
 		init_locker(config);
 		init_checkpoint_policy(config);
 		init_environment(config);
+
+		/* check the version of data vs version of code*/
+		setup_version_file(config);
+		verify_version(config);
+		
 		init_entity_definition_db(config);
 		init_entity_definition_provider(config);
 		init_entity_secondary_index_db(config);
@@ -1720,7 +1732,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		if(!db_env_home.isDirectory())
 			throw new PersistenceException("INVALID BASE_DB_ENV. "+db_env_home+" NOT A DIRECTORY");
 		
-logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMENTntPATH=" + db_env_home + "n");		
+		logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMENTntPATH=" + db_env_home + "n");		
 		try
 		{
 			EnvironmentConfig env_cfg = get_tds_default_config();
@@ -1739,6 +1751,49 @@ logger.debug("init_environment(HashMap<Object,Object>) - INITIALIZING ENVIRONMEN
 		}		
 	}
 
+	private void setup_version_file(Map<String,Object> config) throws PersistenceException
+	{
+		String path = (String)config.get(BDBStoreConfigKeyValues.KEY_STORE_ROOT_DIRECTORY);
+		File f = new File(path+File.separator+BDBConstants.STORE_VERSION_FILENAME);
+		if(!f.exists())
+		{
+			String active_env_path =  _db_env_props.getProperty(BDBConstants.KEY_ACTIVE_ENVIRONMENT);
+			File def_db = new File(path+File.separator+active_env_path+File.separator+BDBConstants.ENTITY_DEFINITION_DB_NAME);
+			if(def_db.exists())
+				throw new PersistenceException("PLEASE MIGRATE STORE FROM VERSION 0 TO VERSION "+store_major_version);
+	
+			try{
+				FileOutputStream fos = new FileOutputStream(f);
+				fos.write(store_major_version);
+				fos.write(store_minor_version);
+				fos.close();
+			}catch(IOException e)
+			{
+				logger.error(e);
+				throw new PersistenceException("UNABLE TO SETUP VERSION FILE FOR DB DUE TO IO EXCEPTION.");
+			}
+		}
+	}
+		
+	private void verify_version(Map<String,Object> config) throws PersistenceException
+	{
+		String path = (String)config.get(BDBStoreConfigKeyValues.KEY_STORE_ROOT_DIRECTORY);
+		File f = new File(path+File.separator+BDBConstants.STORE_VERSION_FILENAME);
+		try{
+			FileInputStream fis = new FileInputStream(f);
+			int disk_major_version = fis.read();
+			int disk_minor_version = fis.read();
+			fis.close();
+			if(disk_major_version != store_major_version)
+				throw new PersistenceException("VERSION OF DATA ON DISK DOES NOT MATCH STORE VERSION. STORE VERSION IS "+store_major_version+"."+store_minor_version+" AND DATA IS IN FORMAT FOR VERSION "+disk_major_version+"."+disk_minor_version+". PLEASE RUN MIGRATION PROGRAM.");
+			logger.info("VERSION OF DATA ON DISK IS VERSION "+disk_major_version+"."+disk_minor_version);
+		}catch(IOException e)
+		{
+			logger.error(e);
+			throw new PersistenceException("UNABLE TO VERIFY VERSION FOR DB DUE TO IO EXCEPTION.");
+		}
+	}
+	
 	private void init_entity_definition_db(Map<String,Object> config) throws PersistenceException
 	{
 

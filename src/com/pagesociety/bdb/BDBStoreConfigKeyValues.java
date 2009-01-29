@@ -12,5 +12,5 @@ public class BDBStoreConfigKeyValues
 	public static final String KEY_STORE_LOCKER_CLASS = "store-locker-class";
 	public static final String KEY_STORE_CHECKPOINT_POLICY_CLASS = "check-point-policy-class";
 	public static final int VALUE_DEADLOCK_RESOLUTION_SCHEME_ALWAYS_CRAWL_LOCKTABLE = 0x01;
-	public static final int VALUE_DEADLOCK_RESOLUTION_SCHEME_MONITOR_DEADLOCKS = 0x02;
+	public static final int VALUE_DEADLOCK_RESOLUTION_SCHEME_MONITOR_DEADLOCKS 		= 0x02;
 }

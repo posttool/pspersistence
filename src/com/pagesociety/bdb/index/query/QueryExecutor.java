@@ -75,6 +75,9 @@ public class QueryExecutor
 		switch(node.type)
 		{
 			case 0: //root node 
+// FIXME
+//				if (node.children.size()==0)
+//					throw new RuntimeException("QueryExecutor: THERE MUST BE AT LEAST ONE CHILD OF "+node.type);
 				return eval(node.children.get(0));		
 			case Query.NODE_TYPE_INTERSECTION:
 				return do_intersection(node);

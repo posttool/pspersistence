@@ -215,12 +215,12 @@ public class FieldDefinition implements java.io.Serializable
 		return _default_value;
 	}
 
-	public boolean doesCascadeOnDelete()
+	public boolean isCascadeOnDelete()
 	{
 		return _cascade_on_delete;
 	}
 	
-	public void setCascadeOnDelete(boolean b)
+	public void setIsCascadeOnDelete(boolean b)
 	{
 		_cascade_on_delete = b;
 	}
@@ -230,7 +230,7 @@ public class FieldDefinition implements java.io.Serializable
 		return _cascade_on_delete;
 	}
 	
-	public void setRequired(boolean b)
+	public void setIsRequired(boolean b)
 	{
 		_required = b;
 	}

@@ -47,7 +47,7 @@ public class EntityDefinitionBinding extends TupleBinding
 				to.writeString(f.getReferenceType());
 		
 			to.writeBoolean(f.isRequired());
-			to.writeBoolean(f.doesCascadeOnDelete());
+			to.writeBoolean(f.isCascadeOnDelete());
 			to.writeString(f.getComment());
 		}
 
@@ -72,8 +72,8 @@ public class EntityDefinitionBinding extends TupleBinding
 			if (f.getBaseType() == Types.TYPE_REFERENCE)
 				f.setReferenceType(ti.readString());
 			
-			f.setRequired(ti.readBoolean());
-			f.setCascadeOnDelete(ti.readBoolean());
+			f.setIsRequired(ti.readBoolean());
+			f.setIsCascadeOnDelete(ti.readBoolean());
 			f.setComment(ti.readString());
 			entity_def.addField(f);
 		}

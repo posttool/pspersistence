@@ -5,10 +5,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import com.pagesociety.bdb.BDBConstants;
-import com.pagesociety.bdb.binding.EntityDefinitionBinding;
 import com.pagesociety.bdb.binding.FieldBinding;
 import com.pagesociety.persistence.EntityDefinition;
 import com.pagesociety.persistence.PersistenceException;
@@ -45,7 +43,7 @@ public class Main {
 		for(int i = 0;i < bdb_envs.length;i++)
 		{
 			File bdb_env = bdb_envs[i];
-			if(bdb_env.isDirectory())
+			if(bdb_env.isDirectory() && !bdb_env.getName().startsWith("."))
 				migrate_entity_definitions(bdb_env);
 		}
 		update_version_file(path_to_base_env);
@@ -54,7 +52,7 @@ public class Main {
 	
 	public static void migrate_entity_definitions(File bdb_env)
 	{
-		System.out.println("MIGRATING ENTITY DEFINITIONS");
+		System.out.println("MIGRATING ENTITY DEFINITIONS "+bdb_env.getAbsolutePath());
 		Environment env    = open_environment(bdb_env);
 		DatabaseConfig cfg = get_primary_db_config_btree();
 		try{
@@ -187,20 +185,38 @@ public class Main {
 	private static  EnvironmentConfig get_migration_env_config()
 	{
 		EnvironmentConfig env_cfg = new EnvironmentConfig();
-		env_cfg.setAllowCreate(false);
-		env_cfg.setRunRecovery(false);
+//		env_cfg.setAllowCreate(false);
+//		env_cfg.setRunRecovery(false);
+//		env_cfg.setTransactional(true);
+//		env_cfg.setErrorStream(System.err);		
+//		//1 megabytes = 1 048 576 bytes
+//		env_cfg.setCacheSize(1048576 * 500);
+//		// we need enough transactions for the number of 
+//		// simultaneous threads per environment
+//		env_cfg.setTxnMaxActive(1);
+//		// locks
+//		env_cfg.setMaxLocks(200);
+//		env_cfg.setMaxLockObjects(200);
+//		env_cfg.setMaxLockers(20);
+
+		env_cfg.setAllowCreate(true);
+		env_cfg.setInitializeCache(true);
+		env_cfg.setInitializeLocking(true);
+		env_cfg.setInitializeLogging(true);
+		env_cfg.setRunRecovery(true);
 		env_cfg.setTransactional(true);
 		env_cfg.setErrorStream(System.err);		
 		//1 megabytes = 1 048 576 bytes
 		env_cfg.setCacheSize(1048576 * 500);
 		// we need enough transactions for the number of 
 		// simultaneous threads per environment
-		env_cfg.setTxnMaxActive(1);
+		env_cfg.setTxnMaxActive(1000);
 		// locks
-		env_cfg.setMaxLocks(200);
-		env_cfg.setMaxLockObjects(200);
-		env_cfg.setMaxLockers(20);
-
+		env_cfg.setMaxLocks(2000);
+		env_cfg.setMaxLockObjects(2000);
+		env_cfg.setMaxLockers(2000);		
+		
+		
 		return env_cfg;
 	}
 

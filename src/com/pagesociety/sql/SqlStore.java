@@ -527,4 +527,32 @@ public class SqlStore implements PersistentStore
 		throw new PersistenceException("SqlStore.fillReferenceFields NOT IMPLEMENTED");
 	}
 
+
+
+
+	@Override
+	public void checkpoint() throws PersistenceException {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+
+
+	@Override
+	public void insertEntities(List<Entity> entities)
+			throws PersistenceException {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+
+
+	@Override
+	public void insertEntity(Entity e) throws PersistenceException {
+		// TODO Auto-generated method stub
+		
+	}
+
 }

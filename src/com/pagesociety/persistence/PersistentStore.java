@@ -327,6 +327,20 @@ public interface PersistentStore
 	 * @see Entity
 	 */
 	public abstract Entity saveEntity(Entity e) throws PersistenceException;
+	/**
+	 * Used for inserts of existing data as in a bulk restore. an entity. 
+	 * If <code>entity.id == Entity.UNDEFINED</code>, it fails. Otherwise it
+	 * inserts the entity with whatever id is set. Relatoinship side-fx are not resolved
+	 * by this method.
+	 * 
+	 * @param e
+	 *            The entity to save.
+	 * @return The saved entity.
+	 * @throws PersistenceException
+	 * @see Entity
+	 */
+	public abstract void insertEntity(Entity e) throws PersistenceException;
+	public abstract void insertEntities(List<Entity> entities) throws PersistenceException;
 
 	/**
 	 * Restores an entity by its id. If the id does not exist the method returns
@@ -467,4 +481,8 @@ public interface PersistentStore
 	 * @throws PersistenceException
 	 */
 	public abstract int count(Query q) throws PersistenceException;
+
+
+	public void checkpoint() throws PersistenceException;
+
 }

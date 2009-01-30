@@ -37,6 +37,7 @@ import com.pagesociety.persistence.PersistentStore;
 import com.pagesociety.persistence.Query;
 import com.pagesociety.persistence.QueryResult;
 import com.pagesociety.persistence.Types;
+import com.sleepycat.bind.tuple.LongBinding;
 import com.sleepycat.db.Cursor;
 import com.sleepycat.db.Database;
 import com.sleepycat.db.DatabaseConfig;
@@ -459,6 +460,75 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	}
 	
 	
+	
+	public void insertEntities(List<Entity> entities) throws PersistenceException
+	{
+		_store_locker.enterAppThread();
+		try
+		{
+			for(int i = 0;i < entities.size();i++)
+			{
+				Entity e = entities.get(i);
+				String entity_type 		  = e.getType();
+				BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(entity_type);
+				if(pi == null)
+					throw new PersistenceException("ENTITY OF TYPE "+entity_type+" DOES NOT EXIST");
+				validate_entity(e);
+				if(e.getId() == Entity.UNDEFINED)
+					throw new PersistenceException("CANNOT USE insertEntity TO INSERT AN ENTITY WITH AN ID OF "+Entity.UNDEFINED);
+				do_insert_entity(null,pi,e);
+			}
+		}
+		
+		catch(PersistenceException pe)
+		{
+			logger.error(pe);
+			throw pe;
+		}
+		catch(DatabaseException dbe)
+		{
+			logger.error(dbe);
+			throw new PersistenceException("SAVE OF ENTITY FAILED. TRY AGAIN.\n");	
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}	
+	}
+	
+	public void insertEntity(Entity e) throws PersistenceException
+	{
+		_store_locker.enterAppThread();
+		try
+		{
+			String entity_type 		  = e.getType();
+			BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(entity_type);
+			if(pi == null)
+				throw new PersistenceException("ENTITY OF TYPE "+entity_type+" DOES NOT EXIST");
+			validate_entity(e);
+			if(e.getId() == Entity.UNDEFINED)
+				throw new PersistenceException("CANNOT USE insertEntity TO INSERT AN ENTITY WITH AN ID OF "+Entity.UNDEFINED);
+			do_insert_entity(null,pi,e);
+		}
+		
+		catch(PersistenceException pe)
+		{
+			logger.error(pe);
+			throw pe;
+		}
+		catch(DatabaseException dbe)
+		{
+			logger.error(dbe);
+			throw new PersistenceException("SAVE OF ENTITY FAILED. TRY AGAIN.\n"+e);	
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}	
+
+	}
+	
+	
 	public Entity saveEntity(Entity e) throws PersistenceException
 	{	
 
@@ -468,30 +538,19 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			String entity_type 		  = e.getType();
 			BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(entity_type);
 			if(pi == null)
-			{
-				_store_locker.exitAppThread();
 				throw new PersistenceException("ENTITY OF TYPE "+entity_type+" DOES NOT EXIST");
-			}
-			// ADDED oct 11 ... feel free to massage at will
-			EntityDefinition def = do_get_entity_definition(e.getType());
-			List<FieldDefinition> fields = def.getFields();
-			int s = fields.size();
-			for (int i=0; i<s; i++)
-			{
-				FieldDefinition field = fields.get(i);
-				Object o = e.getAttribute(field.getName());
-				if (!field.isValidValue(o))
-				{
-					_store_locker.exitAppThread();
-					throw new PersistenceException("Field "+field.getName()+" requires a value of type ["+FieldDefinition.typeAsString(field.getBaseType())+"]. Not "+o.getClass());
-				}
-			}
-			//
+
+			validate_entity(e);
 			do_save_entity(null,pi,e,true);
+		}
+		catch(PersistenceException pe)
+		{
+			logger.error(pe);
+			throw pe;
 		}
 		catch(DatabaseException dbe)
 		{
-			dbe.printStackTrace();
+			logger.error(dbe);
 			throw new PersistenceException("SAVE OF ENTITY FAILED. TRY AGAIN.\n"+e);	
 		}
 		finally
@@ -500,11 +559,28 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}	
 		return e;
 	}
+
+	private void validate_entity(Entity e) throws PersistenceException
+	{
+		// ADDED oct 11 ... feel free to massage at will
+		EntityDefinition def = do_get_entity_definition(e.getType());
+		List<FieldDefinition> fields = def.getFields();
+		int s = fields.size();
+		for (int i=0; i<s; i++)
+		{
+			FieldDefinition field = fields.get(i);
+			Object o = e.getAttribute(field.getName());
+			if (!field.isValidValue(o))
+				throw new PersistenceException("Field "+field.getName()+" requires a value of type ["+FieldDefinition.typeAsString(field.getBaseType())+"]. Not "+o.getClass());
+		}
+		//		
+	}
 	protected Entity do_save_entity(Transaction parent_txn,Entity e,boolean resolve_relations) throws DatabaseException
 	{
 		BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(e.getType());
 		return do_save_entity(parent_txn, pi, e,resolve_relations);
 	}
+
 	
 	protected Entity do_save_entity(Transaction parent_txn,BDBPrimaryIndex pi,Entity e, boolean resolve_relations) throws DatabaseException
 	{
@@ -519,16 +595,17 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		{
 			try{
 				parent_txn = environment.beginTransaction(parent_txn, null);			
-				/* resolve side effects first so we still have handle to old value */
+
+
 				if (update)
 				{
+					/* resolve side effects first so we still have handle to old value */
 					if(resolve_relations)
 						resolve_relationship_sidefx(parent_txn,e, UPDATE);
 					pkey = pi.saveEntity(parent_txn,e);
 				} 
 				else 
-				{
-					
+				{					
 					set_default_values(parent_txn, e);
 					pkey = pi.saveEntity(parent_txn,e);
 					if(resolve_relations)
@@ -563,7 +640,20 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	
 		return e;
 		
+	}
 	
+	
+	protected Entity do_insert_entity(Transaction parent_txn,BDBPrimaryIndex pi,Entity e) throws DatabaseException
+	{
+		DatabaseEntry pkey 	= new DatabaseEntry();
+		long eid = e.getId();	
+		LongBinding.longToEntry(eid, pkey);
+		Transaction txn = environment.beginTransaction(parent_txn, null);
+		pi.insertEntity(txn,pkey,e);
+		save_to_secondary_indexes(txn, pkey, e, false);
+		txn.commitNoSync();
+		e.undirty();
+		return e;	
 	}
 	
 	private void set_default_values(Transaction txn,Entity e) throws DatabaseException

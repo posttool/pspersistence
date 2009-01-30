@@ -152,7 +152,6 @@ public class BDBPrimaryIndex implements IterableIndex
 		int retry_count = 0;
 		Transaction txn = null;		
 
-
 		/* THIS IS WHERE WE DECIDE TO DO AN UPDATE INSTEAD OF AN INSERT */
 			long entity_id = e.getId();
 			if(entity_id == Entity.UNDEFINED)
@@ -165,7 +164,6 @@ public class BDBPrimaryIndex implements IterableIndex
 			{
 				seqnum = entity_id;
 				LongBinding.longToEntry(seqnum, pkey);//we dont use valueToEntry because we dont want the
-				//FieldBinding.valueToEntry(Types.TYPE_LONG,seqnum,pkey);
 				retry_count = 0;
 				Transaction delete_txn = null;
 				while(retry_count < BDBStore.MAX_DEADLOCK_RETRIES)
@@ -198,8 +196,15 @@ public class BDBPrimaryIndex implements IterableIndex
 					}
 				}
 			}
-		retry_count = 0;
-		
+			
+			return insertEntity(parent_txn,pkey, e);
+	}
+	
+	protected DatabaseEntry insertEntity(Transaction parent_txn,DatabaseEntry pkey,Entity e) throws DatabaseException
+	{
+
+		Transaction txn = null;
+		int retry_count = 0;	
 		while (retry_count < BDBStore.MAX_DEADLOCK_RETRIES) 
 		{
 			try{
@@ -222,8 +227,7 @@ public class BDBPrimaryIndex implements IterableIndex
 				_dbh.put(txn, pkey, data);
 				txn.commitNoSync();
 				//System.out.println(">>> LOW LEVEL SAVE OF ENTITY "+e);
-				e.setId(seqnum);
-				return pkey;
+				break;
 			}
 			catch (DeadlockException de) {
 					txn.abort();
@@ -235,10 +239,7 @@ public class BDBPrimaryIndex implements IterableIndex
 					}
 			}	 
 		}//end while loop
-		
-	logger.error("112 SHOULD NOT BE HERE IN SAVE ENTITY!!");
-	//SHOULD NEVER GET HERE SINCE WE ALWAYS THROW AN EXCEPTION OR RETURN FROM WHILE LOOP!!!
-	return pkey;
+		return pkey;
 	}
 	
 	protected DatabaseEntry deleteEntity(Transaction parent_txn,Entity e) throws PersistenceException

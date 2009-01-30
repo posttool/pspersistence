@@ -510,7 +510,6 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				throw new PersistenceException("CANNOT USE insertEntity TO INSERT AN ENTITY WITH AN ID OF "+Entity.UNDEFINED);
 			do_insert_entity(null,pi,e);
 		}
-		
 		catch(PersistenceException pe)
 		{
 			logger.error(pe);
@@ -531,7 +530,6 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	
 	public Entity saveEntity(Entity e) throws PersistenceException
 	{	
-
 		_store_locker.enterAppThread();
 		try
 		{
@@ -562,7 +560,6 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 
 	private void validate_entity(Entity e) throws PersistenceException
 	{
-		// ADDED oct 11 ... feel free to massage at will
 		EntityDefinition def = do_get_entity_definition(e.getType());
 		List<FieldDefinition> fields = def.getFields();
 		int s = fields.size();

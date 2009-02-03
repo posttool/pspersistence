@@ -1,6 +1,7 @@
 package com.pagesociety.bdb.binding;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
@@ -42,7 +43,7 @@ public class EntityBinding
 			to.writeFast(FieldBinding.NULL_FLAG_VAL_NOT_NULL);
 //			EntityDefinition ed = entity.getEntityDefinition();
 			EntityDefinition ed = _def_provider.provideEntityDefinition(entity.getType());
-			ArrayList<FieldDefinition> fields = ed.getFields();
+			List<FieldDefinition> fields = ed.getFields();
 			for (int i = 0; i < fields.size(); i++)
 			{
 				FieldDefinition field = fields.get(i);
@@ -61,7 +62,7 @@ public class EntityBinding
 			return null;
 		
 		Entity entity = ed.createInstance();
-		ArrayList<FieldDefinition> fields = ed.getFields();
+		List<FieldDefinition> fields = ed.getFields();
 		Map<String,Object> attr = entity.getAttributes();
 		
 		FieldDefinition field;

@@ -331,7 +331,7 @@ public interface PersistentStore
 	 * Used for inserts of existing data as in a bulk restore. an entity. 
 	 * If <code>entity.id == Entity.UNDEFINED</code>, it fails. Otherwise it
 	 * inserts the entity with whatever id is set. Relatoinship side-fx are not resolved
-	 * by this method.
+	 * by this method.Make sure you call checkpoint after using this method.
 	 * 
 	 * @param e
 	 *            The entity to save.

@@ -3,6 +3,7 @@ package com.pagesociety.persistence;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * <p>
@@ -41,9 +42,10 @@ import java.util.List;
 public class EntityDefinition implements java.io.Serializable
 {
 	private String _name;
-	private ArrayList<FieldDefinition> _fields;//all fields for this entity
-	private ArrayList<FieldDefinition> _reference_fields;//cache of reference fields for this entity
-	private HashMap<String, FieldDefinition> _fields_cache = new HashMap<String, FieldDefinition>();
+	private List<FieldDefinition> _fields;//all fields for this entity
+	private List<String> _field_names;//all fields for this entity
+	private List<FieldDefinition> _reference_fields;//cache of reference fields for this entity
+	private Map<String, FieldDefinition> _fields_cache = new HashMap<String, FieldDefinition>();
 
 	/**
 	 * Constructs a new entity definition with a name and no fields.
@@ -55,6 +57,7 @@ public class EntityDefinition implements java.io.Serializable
 	{
 		_name = name;
 		_fields = new ArrayList<FieldDefinition>();
+		_field_names = new ArrayList<String>();
 		_reference_fields = new ArrayList<FieldDefinition>();
 		addField(new FieldDefinition(Entity.ID_ATTRIBUTE,Types.TYPE_LONG).setDefaultValue(Entity.UNDEFINED));
 	}
@@ -71,6 +74,7 @@ public class EntityDefinition implements java.io.Serializable
 		if (getField(f.getName()) == null)
 		{
 			_fields.add(f);
+			_field_names.add(f.getName());
 			if((f.getBaseType() & Types.TYPE_REFERENCE) == Types.TYPE_REFERENCE)
 				_reference_fields.add(f);
 		}
@@ -91,7 +95,7 @@ public class EntityDefinition implements java.io.Serializable
 	 *
 	 * @return A list of all field definitions.
 	 */
-	public ArrayList<FieldDefinition> getFields()
+	public List<FieldDefinition> getFields()
 	{
 		return _fields;
 	}
@@ -101,7 +105,7 @@ public class EntityDefinition implements java.io.Serializable
 	 *
 	 * @return A list of all the reference field definitions.
 	 */
-	public ArrayList<FieldDefinition> getReferenceFields()
+	public List<FieldDefinition> getReferenceFields()
 	{
 		return _reference_fields;
 	}
@@ -113,7 +117,7 @@ public class EntityDefinition implements java.io.Serializable
 	 */
 	public List<String> getFieldNames()
 	{
-		return new ArrayList<String>(_fields_cache.keySet());
+		return _field_names;
 	}
 
 	

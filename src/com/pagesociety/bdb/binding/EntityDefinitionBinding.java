@@ -28,7 +28,7 @@ public class EntityDefinitionBinding extends TupleBinding
 	{
 		EntityDefinition entity_def = (EntityDefinition) object;
 		to.writeString(entity_def.getName());
-		ArrayList<FieldDefinition> fields = entity_def.getFields();
+		List<FieldDefinition> fields = entity_def.getFields();
 		to.writeInt(fields.size());
 		for (int i = 0; i < fields.size(); i++)
 		{

@@ -476,10 +476,10 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				validate_entity(e);
 				if(e.getId() == Entity.UNDEFINED)
 					throw new PersistenceException("CANNOT USE insertEntity TO INSERT AN ENTITY WITH AN ID OF "+Entity.UNDEFINED);
-				do_insert_entity(null,pi,e);
+				do_insert_entity(null,pi,e,true,false);
 			}
+			do_checkpoint();
 		}
-		
 		catch(PersistenceException pe)
 		{
 			logger.error(pe);
@@ -508,7 +508,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			validate_entity(e);
 			if(e.getId() == Entity.UNDEFINED)
 				throw new PersistenceException("CANNOT USE insertEntity TO INSERT AN ENTITY WITH AN ID OF "+Entity.UNDEFINED);
-			do_insert_entity(null,pi,e);
+			do_insert_entity(null,pi,e,true,true);
 		}
 		catch(PersistenceException pe)
 		{
@@ -610,6 +610,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				}
 				save_to_secondary_indexes(parent_txn, pkey, e, update);						
 				e.undirty();
+				e.setId(LongBinding.entryToLong(pkey));
 				parent_txn.commitNoSync();
 				break;
 			}catch(DatabaseException dbe)
@@ -640,7 +641,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	}
 	
 	
-	protected Entity do_insert_entity(Transaction parent_txn,BDBPrimaryIndex pi,Entity e) throws DatabaseException
+	protected Entity do_insert_entity(Transaction parent_txn,BDBPrimaryIndex pi,Entity e,boolean blow_cache,boolean checkpoint) throws DatabaseException
 	{
 		DatabaseEntry pkey 	= new DatabaseEntry();
 		long eid = e.getId();	
@@ -649,7 +650,13 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		pi.insertEntity(txn,pkey,e);
 		save_to_secondary_indexes(txn, pkey, e, false);
 		txn.commitNoSync();
+		e.setId(LongBinding.entryToLong(pkey));
 		e.undirty();
+		//we might want a more elaborate policy here//
+		if(blow_cache)
+			clean_query_cache(e.getType());
+		if(checkpoint)
+			do_checkpoint();
 		return e;	
 	}
 	
@@ -728,7 +735,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			dirty_fields = e.getDirtyAttributes();
 		else
 		{
-			//TODO: i dont like the fact that getFieldNames calls keySet();
+			//get all the fields on insert//
 			dirty_fields = getEntityDefinitionProvider().provideEntityDefinition(e).getFieldNames();
 		}
 		
@@ -777,8 +784,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	 */
 	private void resolve_relationship_sidefx(Transaction parent_txn,Entity e,int operation) throws DatabaseException
 	{
-		// TODO get references only
-		List<String> dirty_fields = operation == DELETE ? getEntityDefinitionProvider().provideEntityDefinition(e).getFieldNames() : e.getDirtyAttributes();
+		// TODO: get references only
+		List<String> dirty_fields = (operation == DELETE )? getEntityDefinitionProvider().provideEntityDefinition(e).getFieldNames() : e.getDirtyAttributes();
 		int s = dirty_fields.size();
 		
 		String dirty_fieldname = null;
@@ -2305,7 +2312,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		
 		EntityDefinition new_def = old_def.clone();
 		/* remove field from cloned def */
-		ArrayList<FieldDefinition> fields =  new_def.getFields();
+		List<FieldDefinition> fields =  new_def.getFields();
 		f = null;
 		int s = fields.size();
 		for(int i = 0; i < s;i++)
@@ -2404,7 +2411,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			throw new PersistenceException("RENAME ENTITY FIELD: FIELD "+new_field_name+" ALREADY EXISTS IN ENTITY");
 		
 		EntityDefinition new_def 			= old_def.clone();
-		ArrayList<FieldDefinition> fields 	= new_def.getFields();
+		List<FieldDefinition> fields 	= new_def.getFields();
 		int s 				= fields.size();
 		FieldDefinition f 	= null;
 		for(int i = 0;i < s;i++)

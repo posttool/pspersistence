@@ -196,7 +196,8 @@ public class BDBPrimaryIndex implements IterableIndex
 					}
 				}
 			}
-			
+			e.setId(seqnum); //TODO TOPH! i don't know where this should be in the call stack, but it needs
+			// to be somewhere for creates!!!
 			return insertEntity(parent_txn,pkey, e);
 	}
 	

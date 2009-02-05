@@ -610,7 +610,6 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				}
 				save_to_secondary_indexes(parent_txn, pkey, e, update);						
 				e.undirty();
-				e.setId(LongBinding.entryToLong(pkey));
 				parent_txn.commitNoSync();
 				break;
 			}catch(DatabaseException dbe)
@@ -650,7 +649,6 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		pi.insertEntity(txn,pkey,e);
 		save_to_secondary_indexes(txn, pkey, e, false);
 		txn.commitNoSync();
-		e.setId(LongBinding.entryToLong(pkey));
 		e.undirty();
 		//we might want a more elaborate policy here//
 		if(blow_cache)

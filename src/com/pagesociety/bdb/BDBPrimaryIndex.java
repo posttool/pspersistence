@@ -239,6 +239,7 @@ public class BDBPrimaryIndex implements IterableIndex
 					}
 			}	 
 		}//end while loop
+		e.setId(LongBinding.entryToLong(pkey));
 		return pkey;
 	}
 	

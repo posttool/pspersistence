@@ -910,7 +910,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				}
 				/* add e to the new relation */
 				new_fathers_children.add(e);
-				father_pidx.saveEntity(ptxn,new_father);
+				do_save_entity(ptxn,father_pidx, new_father,false);
+				//father_pidx.saveEntity(ptxn,new_father);
 			}
 		}
 	}

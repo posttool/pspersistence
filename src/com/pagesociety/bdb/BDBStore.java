@@ -152,7 +152,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			public void run()
 			{
 				try{
-					System.out.println("SHUTDOWN HOOK IS RUNNING");
+					logger.info("SHUTDOWN HOOK IS RUNNING");
 					close();
 				}catch(Exception e)
 				{
@@ -618,7 +618,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				retry_count++;
 				if(retry_count >= BDBStore.MAX_DEADLOCK_RETRIES)
 				{
-					System.err.println(Thread.currentThread().getId()+" FAILING HORRIBLY HERE!!!!!!!!!");
+					logger.error(Thread.currentThread().getId()+" FAILING HORRIBLY HERE!!!!!!!!!");
 					throw dbe;
 				}
 			}catch(Exception ee)
@@ -1744,8 +1744,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	private boolean _closed = false;
 	private synchronized void do_close() throws PersistenceException
 	{
-		System.err.println("ENTER CLOSE");
-		System.err.flush();
+		logger.info("ENTER CLOSE");
+		
 		if(_closed)
 			return;
 		
@@ -1790,7 +1790,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 
 		
 
-		System.out.println("BDBStore - do_close() - CLOSED EVERYTHING IN " + (System.currentTimeMillis() - t) + " MS");		
+		logger.info("BDBStore - do_close() - CLOSED EVERYTHING IN " + (System.currentTimeMillis() - t) + " MS");		
 	}
 
 	/******************SUPPORT FUNCTIONS**************************************************/

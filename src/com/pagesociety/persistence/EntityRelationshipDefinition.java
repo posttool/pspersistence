@@ -141,10 +141,12 @@ public class EntityRelationshipDefinition implements java.io.Serializable
 			return "1 to 1";
 		case TYPE_ONE_TO_MANY:
 			return "1 to Many";
+		case TYPE_MANY_TO_ONE:
+			return "Many to 1";
 		case TYPE_MANY_TO_MANY:
 			return "Many To Many";
 		default:
-			return "Unknown Type";
+			return "Unknown Type ("+type+")";
 		}
 	}
 

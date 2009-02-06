@@ -152,7 +152,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			public void run()
 			{
 				try{
-					logger.info("SHUTDOWN HOOK IS RUNNING");
+					System.out.println("SHUTDOWN HOOK IS RUNNING");
 					close();
 				}catch(Exception e)
 				{
@@ -811,34 +811,35 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	 * @param ptxn
 	 * @param e The entity that has just be operated on.
 	 * @param dirty_field The name of a field in the entity that has already been modified (but not saved yet if the operation is UPDATE).
-	 * @param opertation INSERT, UPDATE, or DELETE
+	 * @param operation INSERT, UPDATE, or DELETE
 	 * @param relationship The dirty field is a part of this relationship.
 	 * @throws DatabaseException
 	 */
-	public void resolve_relationship_sidefekt(Transaction ptxn,Entity e,String dirty_field,int opertation,EntityRelationshipDefinition relationship) throws DatabaseException
+	public void resolve_relationship_sidefekt(Transaction ptxn,Entity e,String dirty_field,int operation,EntityRelationshipDefinition relationship) throws DatabaseException
 	{
 		
-		if (e.getType().equals(relationship.getTargetEntity()) && dirty_field.equals(relationship.getTargetEntityField())) 
+		if (e.getType().equals(relationship.getTargetEntity()) 
+			&& dirty_field.equals(relationship.getTargetEntityField())) 
 		{
 			relationship = relationship.flip();
 		}
-		
-		String relation = relationship.getTargetEntity();
+
+		String relation 		   = relationship.getTargetEntity();
 		String relation_field_to_e = relationship.getTargetEntityField();
 				
 		switch(relationship.getType())
 		{
 			case EntityRelationshipDefinition.TYPE_ONE_TO_ONE:
-				resolve_one_to_one(ptxn, opertation, e, dirty_field, relation, relation_field_to_e);
+				resolve_one_to_one(ptxn, operation, e, dirty_field, relation, relation_field_to_e);
 				break;
 			case EntityRelationshipDefinition.TYPE_ONE_TO_MANY:
-				resolve_one_to_many(ptxn, opertation, e, dirty_field, relation, relation_field_to_e);
+				resolve_one_to_many(ptxn, operation, e, dirty_field, relation, relation_field_to_e);
 				break;
 			case EntityRelationshipDefinition.TYPE_MANY_TO_ONE:
-				resolve_many_to_one(ptxn, opertation, e, dirty_field, relation, relation_field_to_e);
+				resolve_many_to_one(ptxn, operation, e, dirty_field, relation, relation_field_to_e);
 				break;
 			case EntityRelationshipDefinition.TYPE_MANY_TO_MANY:
-				resolve_many_to_many(ptxn, opertation, e, dirty_field, relation, relation_field_to_e);
+				resolve_many_to_many(ptxn, operation, e, dirty_field, relation, relation_field_to_e);
 				break;
 			default:
 				throw new DatabaseException("UNIMPLEMENTED ");
@@ -887,10 +888,11 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		{
 			Entity old_child_record = /* fill e */ (Entity)child_pidx.getById(ptxn,e.getId());
 			Entity old_father = (Entity)old_child_record.getAttribute(dirty_field);
+			
 			if(old_father != null)
 			{
 				/* remove e from the old father */
-				old_father = /* fill */ father_pidx.getById(ptxn, old_father.getId());
+				old_father = /* fill */ father_pidx.getById(ptxn, old_father.getId());	
 				List<Entity> old_fathers_children = (List<Entity>)old_father.getAttribute(relation_field_to_e);
 				if (old_fathers_children==null)
 					throw new DatabaseException("RESOLVE RELATIONSHIP INTEGRITY ERROR resolve_one_to_many - father of child must have children");
@@ -927,21 +929,23 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		BDBPrimaryIndex father_pidx = entity_primary_indexes_as_map.get(e.getType());
 		BDBPrimaryIndex child_pidx = entity_primary_indexes_as_map.get(relation);
 
-		Map<Long,Entity> removed_children_map = new HashMap<Long,Entity>();
-		List<Entity> added_children = new ArrayList<Entity>();
-		calc_added_and_removed(ptxn, e, dirty_field, father_pidx, child_pidx, operation, added_children, removed_children_map);
+		List<Entity> removed_children = new ArrayList<Entity>();
+		List<Entity> added_children   = new ArrayList<Entity>();
+		calc_added_and_removed(ptxn, e, dirty_field, father_pidx, child_pidx, operation, added_children, removed_children);
 		
-		if (operation==UPDATE || operation==DELETE)
+		if (operation==DELETE || operation==UPDATE)
 		{
-			Iterator<Entity> i = removed_children_map.values().iterator();
-			while (i.hasNext())
+			//DEAL WITH DELETE LIST
+			int s = removed_children.size();
+			for(int i = 0;i < s;i++)
 			{
-				Entity c = i.next();
-				c.getAttributes().put(relation_field_to_e, null);
+				Entity c = removed_children.get(i);
+				c.setAttribute(relation_field_to_e, null);
 				do_save_entity(ptxn,child_pidx, c,false);				
 			}
-			
-			int s = added_children.size();
+		
+			/*
+			s = added_children.size();
 			for(int j = 0; j < s;j++)
 			{
 				Entity c = added_children.get(j);
@@ -953,10 +957,12 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 					do_save_entity(ptxn,father_pidx, old_father,false);
 				}
 			}
+			*/
 		}
 	
 		if (operation==INSERT || operation==UPDATE)
 		{
+			//DEAL WITH ADD LIST
 			int s = added_children.size();
 			for(int i = 0; i < s;i++)
 			{
@@ -976,35 +982,23 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		BDBPrimaryIndex orig_pidx = entity_primary_indexes_as_map.get(e.getType());
 		BDBPrimaryIndex targ_pidx = entity_primary_indexes_as_map.get(relation);
 		
-		Map<Long,Entity> removed_children_map = new HashMap<Long,Entity>();
+		List<Entity> removed_children = new ArrayList<Entity>();
 		List<Entity> added_children = new ArrayList<Entity>();
-		calc_added_and_removed(ptxn, e, dirty_field, orig_pidx, targ_pidx, operation, added_children, removed_children_map);
+		calc_added_and_removed(ptxn, e, dirty_field, orig_pidx, targ_pidx, operation, added_children, removed_children);
 		
-		if (operation==DELETE)
+		
+		if (operation == DELETE || operation==UPDATE )
 		{
-			int s = added_children.size();
+			int s = removed_children.size();
 			for(int j = 0; j < s;j++)
 			{
-				Entity c = added_children.get(j);
+				Entity c = removed_children.get(j);
 				List<Entity> old_fathers = (List<Entity>)c.getAttribute(relation_field_to_e);
 				old_fathers.remove(e);
-				do_save_entity(ptxn,targ_pidx, c,false);
-				
+				do_save_entity(ptxn,targ_pidx, c,false);	
 			}
 		}
-		
-		if (operation==UPDATE )
-		{
-			Iterator<Entity> i = removed_children_map.values().iterator();
-			while (i.hasNext())
-			{
-				Entity t = i.next();
-				List<Entity> tc = (List<Entity>)t.getAttribute(relation_field_to_e);
-				tc.remove(e); //satisfies condition because entity equals method matches by type & id (not field vals)
-				do_save_entity(ptxn,targ_pidx, t,false);			
-			}			
-		}
-	
+
 		if (operation==INSERT || operation==UPDATE)
 		{
 			int s = added_children.size();
@@ -1053,20 +1047,25 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	}
 	
 	@SuppressWarnings("unchecked")
-	private void calc_added_and_removed(Transaction ptxn, Entity e, String dirty_field, BDBPrimaryIndex father_pidx, BDBPrimaryIndex child_pidx, int op, List<Entity> added_children, Map<Long, Entity> removed_children_map) throws DatabaseException
+	private void calc_added_and_removed(Transaction ptxn, Entity e, String dirty_field, BDBPrimaryIndex father_pidx, BDBPrimaryIndex child_pidx, int op, List<Entity> added_children, List<Entity> removed_children) throws DatabaseException
 	{
 		// e is originating
 		Entity old_orig = (Entity)father_pidx.getById(ptxn, e.getId());
 		List<Entity> old_children = (List<Entity>)old_orig.getAttribute(dirty_field);
 		List<Entity> new_children = (List<Entity>)e.getAttribute(dirty_field);//must already filled
-		if (op==DELETE || op==INSERT)
+		if(op == INSERT)
 		{
-			// in the case of a delete the added children act as all remove
+			if(new_children != null)
+				added_children.addAll(new_children);
+		}
+		else if (op==DELETE)
+		{
 			if (old_children!=null)
-				added_children.addAll(old_children);
+				removed_children.addAll(old_children);
 		}
 		else if (op==UPDATE)
 		{
+			Map<Long,Entity> removed_children_map = new HashMap<Long, Entity>();
 			// compare the old & new lists to determine what has been added & removed
 			get_map_from_list(old_children,removed_children_map);
 			if (new_children!=null)
@@ -1079,18 +1078,25 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 					else 
 						added_children.add(c);
 				}
+
 			}
+			Iterator<Entity> i = removed_children_map.values().iterator();
+			while(i.hasNext())
+				removed_children.add(i.next());
 		}
+
 		// fill the attributes of relevant info
+		//TODO: why do we do this???//
 		for (int i=0; i<added_children.size(); i++)
 		{
 			expand_entity(ptxn, child_pidx, added_children.get(i));
 		}
-		Iterator<Long> i=removed_children_map.keySet().iterator();
-		while(i.hasNext())
+		
+		for (int i=0; i < removed_children.size(); i++)
 		{
-			expand_entity(ptxn, child_pidx, removed_children_map.get(i.next()));
+			expand_entity(ptxn, child_pidx, removed_children.get(i));
 		}
+
 	}
 
 	private void expand_entity(Transaction ptxn, BDBPrimaryIndex pidx,Entity entity) throws DatabaseException

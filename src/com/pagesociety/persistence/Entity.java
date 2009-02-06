@@ -2,6 +2,7 @@ package com.pagesociety.persistence;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -214,6 +215,19 @@ public class Entity implements Comparable<Entity>
 	{
 		_dirty_attributes = attr;
 	}
+	
+	public void dirtyAllAttributes()
+	{
+		List<String> all_attributes = new ArrayList<String>();
+		Iterator<String> i = _attributes.keySet().iterator();
+		while(i.hasNext())
+		{
+			String a = i.next();
+			if(!a.equals(ID_ATTRIBUTE))
+				all_attributes.add(a);
+		}
+		_dirty_attributes = all_attributes;
+	}
 
 	/**
 	 * Clears the list of dirty attributes.
@@ -263,12 +277,61 @@ public class Entity implements Comparable<Entity>
 	public String toString()
 	{
 		StringBuffer ret = new StringBuffer();
-		ret.append("ENTITY ");
+		ret.append("ENTITY: ");
 		ret.append(getType());
 		ret.append(" ");
-		ret.append(getId());
-		ret.append(" ");
-		ret.append(getAttributes());
+		ret.append(getId()+"\n");
+
+		Map<String,Object> att = getAttributes();
+		Iterator<String> i = att.keySet().iterator();
+		while(i.hasNext())
+		{
+			String att_name = i.next();
+			Object o = getAttribute(att_name);
+			if(o == null)
+			{
+				ret.append(att_name+": null");
+				ret.append('\n');
+			}
+			else if(o instanceof Entity)
+			{
+				Entity e = (Entity)o;
+				ret.append(att_name+": {"+e.getType()+":"+e.getId()+"}");
+				ret.append('\n');
+			}
+			else if(o instanceof List)
+			{
+				List<?> ll = (List<?>)o;
+				if(ll.size() == 0)
+				{
+					ret.append(att_name+": []");
+					ret.append('\n');
+				}
+				else if(ll.get(0) instanceof Entity)
+				{
+					ret.append(att_name+": [");
+					for(int j = 0;j < ll.size();j++)
+					{
+						Entity e = (Entity)ll.get(j);
+						ret.append("{"+e.getType()+":"+e.getId()+"},");
+					}
+					ret.setLength(ret.length()-1);
+					ret.append(']');
+					ret.append('\n');
+				}
+				else
+				{
+					ret.append(att_name+": "+o);
+					ret.append('\n');
+				}
+			}
+			else
+			{
+				ret.append(att_name+": "+o);
+				ret.append('\n');
+			}
+		}
+		//ret.append(getAttributes());
 //		EntityDefinition def = getEntityDefinition();
 //		List<FieldDefinition> fields = def.getFields();
 //		for (int i = 0; i < fields.size(); i++)
@@ -377,7 +440,12 @@ public class Entity implements Comparable<Entity>
 		e._type = _type;
 		e.setId(UNDEFINED);
 		e._attributes = _attributes;
-		e._dirty_attributes = _dirty_attributes;
+		//NOTE: we need to dirty all attributes here
+		//so that if someone saved the clone
+		//it wouldnt be populated with default
+		//values. see BDBStore set_default_values
+		//which is called by saveEntity
+		e.dirtyAllAttributes(); 
 		return e;
 	}
 

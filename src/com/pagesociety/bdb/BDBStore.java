@@ -749,6 +749,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			{
 				if(sidx.indexesField(dirty_fields.get(ii)))
 				{
+					//System.out.println("DETECTING DIRTY FIELD "+dirty_fields.get(ii));
+					//System.out.println("E IS "+e);
 					save_to_secondary_index(parent_txn,pkey, sidx, e, update);
 					break;/*we break here because we only want to update an index
 							//	once if it is a multifield index*/

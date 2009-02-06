@@ -236,12 +236,22 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 					logger.error(getName()+" UNABLE TO DELETE!!!! pkey not found.PROBABLY RECORD WAS NEVER INSERTED. ARE YOU NOT DEALING WITH NULLS? "+LongBinding.entryToLong(pkey));
 					del_cursor.close();
 					txn.commitNoSync();
-					try{
-						System.err.println("SHOULD NOT BE HERE!!!");
-						throw new Exception();
-					}catch(Exception e)
+					
+					//NOTE: there is porbably a better solution to this but as it stands now the
+					//array indexes dont handle empty lists. so if something has an empty list
+					//it never gets indexed...thus when it is updated as it is here we will not find
+					//any entries for that primary key since it previously ws the empty list.
+					//TODO: make array indexes deal with multi list properly and null for
+					//that matter. we would need special ways of querying them as well Query.LIST_EMPTY etc.
+					if(!isSetIndex())
 					{
-						e.printStackTrace();
+						try{
+							System.err.println("SHOULD NOT BE HERE!!!");
+							throw new Exception();
+						}catch(Exception e)
+						{
+							e.printStackTrace();
+						}
 					}
 					return;
 				}

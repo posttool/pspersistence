@@ -859,9 +859,9 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			Entity old_rel = (Entity)pidx.getById(ptxn,e.getId()).getAttribute(dirty_field);
 			if(old_rel != null)
 			{
-				old_rel.getAttributes().put(relation_field_to_e, null);
+				old_rel.setAttribute(relation_field_to_e, null);
 				do_save_entity(ptxn, rel_pidx,old_rel,false);
-				//rel_pidx.saveEntity(ptxn, old_rel);			
+
 			}
 		}
 		if (operation==INSERT || operation==UPDATE)
@@ -869,7 +869,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			Entity new_rel   = (Entity)e.getAttribute(dirty_field);
 			if(new_rel != null)
 			{
-				new_rel.getAttributes().put(relation_field_to_e, e);
+				//new_rel.getAttributes().put(relation_field_to_e, e);
+				new_rel.setAttribute(relation_field_to_e, null);
 				do_save_entity(ptxn,rel_pidx, new_rel,false);
 			}
 		}
@@ -897,7 +898,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				if (old_fathers_children==null)
 					throw new DatabaseException("RESOLVE RELATIONSHIP INTEGRITY ERROR resolve_one_to_many - father of child must have children");
 				old_fathers_children.remove(old_child_record);
-				//father_pidx.saveEntity(ptxn, old_father);
+				old_father.setAttribute(relation_field_to_e, old_fathers_children);//TODO: same list dirtying idea here..see below.without setting it wont pick up on indexes//
 				do_save_entity(ptxn,father_pidx, old_father,false);
 			}
 		}
@@ -910,12 +911,12 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				if(new_fathers_children == null)
 				{
 					new_fathers_children = new ArrayList<Entity>();
-					new_father.getAttributes().put(relation_field_to_e, new_fathers_children);
 				}
 				/* add e to the new relation */
 				new_fathers_children.add(e);
+				new_father.setAttribute(relation_field_to_e, new_fathers_children);//TODO: same list dirtying logic
 				do_save_entity(ptxn,father_pidx, new_father,false);
-				//father_pidx.saveEntity(ptxn,new_father);
+
 			}
 		}
 	}
@@ -944,20 +945,6 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				do_save_entity(ptxn,child_pidx, c,false);				
 			}
 		
-			/*
-			s = added_children.size();
-			for(int j = 0; j < s;j++)
-			{
-				Entity c = added_children.get(j);
-				Entity old_father = (Entity)c.getAttribute(relation_field_to_e);
-				if (old_father!=null) {
-					expand_entity(ptxn, father_pidx, old_father);
-					List<Entity> old_fathers_children = (List<Entity>) old_father.getAttribute(dirty_field);
-					old_fathers_children.remove(c);
-					do_save_entity(ptxn,father_pidx, old_father,false);
-				}
-			}
-			*/
 		}
 	
 		if (operation==INSERT || operation==UPDATE)
@@ -967,7 +954,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			for(int i = 0; i < s;i++)
 			{
 				Entity c = added_children.get(i);
-				c.getAttributes().put(relation_field_to_e, e);
+				c.setAttribute(relation_field_to_e, e);
 				do_save_entity(ptxn,child_pidx, c,false);
 			}
 		}
@@ -983,9 +970,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		BDBPrimaryIndex targ_pidx = entity_primary_indexes_as_map.get(relation);
 		
 		List<Entity> removed_children = new ArrayList<Entity>();
-		List<Entity> added_children = new ArrayList<Entity>();
+		List<Entity> added_children   = new ArrayList<Entity>();
 		calc_added_and_removed(ptxn, e, dirty_field, orig_pidx, targ_pidx, operation, added_children, removed_children);
-		
 		
 		if (operation == DELETE || operation==UPDATE )
 		{
@@ -995,6 +981,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				Entity c = removed_children.get(j);
 				List<Entity> old_fathers = (List<Entity>)c.getAttribute(relation_field_to_e);
 				old_fathers.remove(e);
+				c.setAttribute(relation_field_to_e ,old_fathers);//TODO: e.setListElement(),e.addListElement(),e.removeListElement(),need to set it so it is marked dirty//
 				do_save_entity(ptxn,targ_pidx, c,false);	
 			}
 		}
@@ -1009,9 +996,10 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				if (tc == null)
 				{
 					tc = new ArrayList<Entity>();
-					t.getAttributes().put(relation_field_to_e, tc);
+				
 				}
 				tc.add(e);
+				t.setAttribute(relation_field_to_e, tc);//TODO: e.setListElement(),e.addListElement(),e.removeListElement(),need to set it so it is marked dirty//
 				do_save_entity(ptxn,targ_pidx, t,false);			
 			}
 		}

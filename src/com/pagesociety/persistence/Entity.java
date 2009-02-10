@@ -439,7 +439,7 @@ public class Entity implements Comparable<Entity>
 		Entity e = new Entity();
 		e._type = _type;
 		e.setId(UNDEFINED);
-		e._attributes = _attributes;
+		e._attributes = (Map<String,Object>)((HashMap<String, Object>)_attributes).clone();
 		//NOTE: we need to dirty all attributes here
 		//so that if someone saved the clone
 		//it wouldnt be populated with default

@@ -824,22 +824,22 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			relationship = relationship.flip();
 		}
 
-		String relation 		   = relationship.getTargetEntity();
-		String relation_field_to_e = relationship.getTargetEntityField();
+		String other_side_type 		   = relationship.getTargetEntity();
+		String other_side_fieldname = relationship.getTargetEntityField();
 				
 		switch(relationship.getType())
 		{
 			case EntityRelationshipDefinition.TYPE_ONE_TO_ONE:
-				resolve_one_to_one(ptxn, operation, e, dirty_field, relation, relation_field_to_e);
+				resolve_one_to_one(ptxn, operation, e, dirty_field, other_side_type, other_side_fieldname);
 				break;
 			case EntityRelationshipDefinition.TYPE_ONE_TO_MANY:
-				resolve_one_to_many(ptxn, operation, e, dirty_field, relation, relation_field_to_e);
+				resolve_one_to_many(ptxn, operation, e, dirty_field, other_side_type, other_side_fieldname);
 				break;
 			case EntityRelationshipDefinition.TYPE_MANY_TO_ONE:
-				resolve_many_to_one(ptxn, operation, e, dirty_field, relation, relation_field_to_e);
+				resolve_many_to_one(ptxn, operation, e, dirty_field, other_side_type, other_side_fieldname);
 				break;
 			case EntityRelationshipDefinition.TYPE_MANY_TO_MANY:
-				resolve_many_to_many(ptxn, operation, e, dirty_field, relation, relation_field_to_e);
+				resolve_many_to_many(ptxn, operation, e, dirty_field, other_side_type, other_side_fieldname);
 				break;
 			default:
 				throw new DatabaseException("UNIMPLEMENTED ");
@@ -847,19 +847,19 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	}
 	
 	
-	private void resolve_one_to_one(Transaction ptxn, int operation, Entity e, String dirty_field, String relation, String relation_field_to_e) throws DatabaseException
+	private void resolve_one_to_one(Transaction ptxn, int operation, Entity e, String dirty_field, String other_side_type, String other_side_fieldname) throws DatabaseException
 	{
 		validate_entity_for_relationship((Entity)e.getAttribute(dirty_field));
 		
 		BDBPrimaryIndex pidx = entity_primary_indexes_as_map.get(e.getType());
-		BDBPrimaryIndex rel_pidx = entity_primary_indexes_as_map.get(relation);
+		BDBPrimaryIndex rel_pidx = entity_primary_indexes_as_map.get(other_side_type);
 		
 		if (operation==UPDATE || operation==DELETE)
 		{
 			Entity old_rel = (Entity)pidx.getById(ptxn,e.getId()).getAttribute(dirty_field);
 			if(old_rel != null)
 			{
-				old_rel.setAttribute(relation_field_to_e, null);
+				old_rel.setAttribute(other_side_fieldname, null);
 				do_save_entity(ptxn, rel_pidx,old_rel,false);
 
 			}
@@ -870,7 +870,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			if(new_rel != null)
 			{
 				//new_rel.getAttributes().put(relation_field_to_e, e);
-				new_rel.setAttribute(relation_field_to_e, null);
+				new_rel.setAttribute(other_side_fieldname, null);
 				do_save_entity(ptxn,rel_pidx, new_rel,false);
 			}
 		}
@@ -878,28 +878,28 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 
 
 	@SuppressWarnings("unchecked")
-	private void resolve_one_to_many(Transaction ptxn, int operation, Entity e, String dirty_field, String relation, String relation_field_to_e) throws DatabaseException
+	private void resolve_one_to_many(Transaction ptxn, int operation, Entity e, String dirty_field, String other_side_field, String relation_field_to_e) throws DatabaseException
 	{
 		validate_entity_for_relationship((Entity)e.getAttribute(dirty_field));
 		
-		BDBPrimaryIndex child_pidx = entity_primary_indexes_as_map.get(e.getType());
-		BDBPrimaryIndex father_pidx = entity_primary_indexes_as_map.get(relation);
+		BDBPrimaryIndex my_pidx = entity_primary_indexes_as_map.get(e.getType());
+		BDBPrimaryIndex other_pidx = entity_primary_indexes_as_map.get(other_side_field);
 		
 		if (operation==UPDATE || operation==DELETE)
 		{
-			Entity old_child_record = /* fill e */ (Entity)child_pidx.getById(ptxn,e.getId());
+			Entity old_child_record = /* fill e */ (Entity)my_pidx.getById(ptxn,e.getId());
 			Entity old_father = (Entity)old_child_record.getAttribute(dirty_field);
 			
 			if(old_father != null)
 			{
 				/* remove e from the old father */
-				old_father = /* fill */ father_pidx.getById(ptxn, old_father.getId());	
+				old_father = /* fill */ other_pidx.getById(ptxn, old_father.getId());	
 				List<Entity> old_fathers_children = (List<Entity>)old_father.getAttribute(relation_field_to_e);
 				if (old_fathers_children==null)
 					throw new DatabaseException("RESOLVE RELATIONSHIP INTEGRITY ERROR resolve_one_to_many - father of child must have children");
 				old_fathers_children.remove(old_child_record);
 				old_father.setAttribute(relation_field_to_e, old_fathers_children);//TODO: same list dirtying idea here..see below.without setting it wont pick up on indexes//
-				do_save_entity(ptxn,father_pidx, old_father,false);
+				do_save_entity(ptxn,other_pidx, old_father,false);
 			}
 		}
 		if (operation==INSERT || operation==UPDATE)
@@ -915,7 +915,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				/* add e to the new relation */
 				new_fathers_children.add(e);
 				new_father.setAttribute(relation_field_to_e, new_fathers_children);//TODO: same list dirtying logic
-				do_save_entity(ptxn,father_pidx, new_father,false);
+				do_save_entity(ptxn,other_pidx, new_father,false);
 
 			}
 		}
@@ -923,16 +923,16 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	
 
 	@SuppressWarnings("unchecked")
-	private void resolve_many_to_one(Transaction ptxn, int operation, Entity e, String dirty_field, String relation, String relation_field_to_e) throws DatabaseException
+	private void resolve_many_to_one(Transaction ptxn, int operation, Entity e, String dirty_field, String other_side_type, String other_side_fieldname) throws DatabaseException
 	{
 		validate_entities_for_relationship((List<Entity>)e.getAttribute(dirty_field));
 		
-		BDBPrimaryIndex father_pidx = entity_primary_indexes_as_map.get(e.getType());
-		BDBPrimaryIndex child_pidx = entity_primary_indexes_as_map.get(relation);
+		BDBPrimaryIndex my_pidx = entity_primary_indexes_as_map.get(e.getType());
+		BDBPrimaryIndex other_pidx = entity_primary_indexes_as_map.get(other_side_type);
 
 		List<Entity> removed_children = new ArrayList<Entity>();
 		List<Entity> added_children   = new ArrayList<Entity>();
-		calc_added_and_removed(ptxn, e, dirty_field, father_pidx, child_pidx, operation, added_children, removed_children);
+		calc_added_and_removed(ptxn, e, dirty_field, my_pidx, other_pidx, operation, added_children, removed_children);
 		
 		if (operation==DELETE || operation==UPDATE)
 		{
@@ -941,8 +941,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			for(int i = 0;i < s;i++)
 			{
 				Entity c = removed_children.get(i);
-				c.setAttribute(relation_field_to_e, null);
-				do_save_entity(ptxn,child_pidx, c,false);				
+				c.setAttribute(other_side_fieldname, null);
+				do_save_entity(ptxn,other_pidx, c,false);				
 			}
 			
 		
@@ -950,13 +950,13 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			for(int j = 0; j < s;j++)
 			{
 				Entity c = added_children.get(j);
-				Entity old_father = (Entity)c.getAttribute(relation_field_to_e);
+				Entity old_father = (Entity)c.getAttribute(other_side_fieldname);
 				if (old_father!=null) {
-					expand_entity(ptxn, father_pidx, old_father);
+					expand_entity(ptxn, my_pidx, old_father);
 					List<Entity> old_fathers_children = (List<Entity>) old_father.getAttribute(dirty_field);
 					old_fathers_children.remove(c);
 					old_father.setAttribute(dirty_field, old_fathers_children);
-					do_save_entity(ptxn,father_pidx, old_father,false);
+					do_save_entity(ptxn,my_pidx, old_father,false);
 				}
 			}
 			
@@ -970,24 +970,24 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			for(int i = 0; i < s;i++)
 			{
 				Entity c = added_children.get(i);
-				c.setAttribute(relation_field_to_e, e);
-				do_save_entity(ptxn,child_pidx, c,false);
+				c.setAttribute(other_side_fieldname, e);
+				do_save_entity(ptxn,other_pidx, c,false);
 			}
 		}
 		
 	}
 
 	@SuppressWarnings("unchecked")
-	private void resolve_many_to_many(Transaction ptxn, int operation, Entity e, String dirty_field, String relation, String relation_field_to_e) throws DatabaseException
+	private void resolve_many_to_many(Transaction ptxn, int operation, Entity e, String dirty_field, String other_side_type, String other_side_fieldname) throws DatabaseException
 	{
 		validate_entities_for_relationship((List<Entity>)e.getAttribute(dirty_field));
 		
-		BDBPrimaryIndex orig_pidx = entity_primary_indexes_as_map.get(e.getType());
-		BDBPrimaryIndex targ_pidx = entity_primary_indexes_as_map.get(relation);
+		BDBPrimaryIndex my_pidx = entity_primary_indexes_as_map.get(e.getType());
+		BDBPrimaryIndex other_pidx = entity_primary_indexes_as_map.get(other_side_type);
 		
 		List<Entity> removed_children = new ArrayList<Entity>();
 		List<Entity> added_children   = new ArrayList<Entity>();
-		calc_added_and_removed(ptxn, e, dirty_field, orig_pidx, targ_pidx, operation, added_children, removed_children);
+		calc_added_and_removed(ptxn, e, dirty_field, my_pidx, other_pidx, operation, added_children, removed_children);
 		
 		if (operation == DELETE || operation==UPDATE )
 		{
@@ -995,10 +995,10 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			for(int j = 0; j < s;j++)
 			{
 				Entity c = removed_children.get(j);
-				List<Entity> old_fathers = (List<Entity>)c.getAttribute(relation_field_to_e);
+				List<Entity> old_fathers = (List<Entity>)c.getAttribute(other_side_fieldname);
 				old_fathers.remove(e);
-				c.setAttribute(relation_field_to_e ,old_fathers);//TODO: e.setListElement(),e.addListElement(),e.removeListElement(),need to set it so it is marked dirty//
-				do_save_entity(ptxn,targ_pidx, c,false);	
+				c.setAttribute(other_side_fieldname ,old_fathers);//TODO: e.setListElement(),e.addListElement(),e.removeListElement(),need to set it so it is marked dirty//
+				do_save_entity(ptxn,other_pidx, c,false);	
 			}
 		}
 
@@ -1008,15 +1008,15 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			for(int i = 0; i < s;i++)
 			{
 				Entity t = added_children.get(i);
-				List<Entity> tc = (List<Entity>)t.getAttribute(relation_field_to_e);
+				List<Entity> tc = (List<Entity>)t.getAttribute(other_side_fieldname);
 				if (tc == null)
 				{
 					tc = new ArrayList<Entity>();
 				
 				}
 				tc.add(e);
-				t.setAttribute(relation_field_to_e, tc);//TODO: e.setListElement(),e.addListElement(),e.removeListElement(),need to set it so it is marked dirty//
-				do_save_entity(ptxn,targ_pidx, t,false);			
+				t.setAttribute(other_side_fieldname, tc);//TODO: e.setListElement(),e.addListElement(),e.removeListElement(),need to set it so it is marked dirty//
+				do_save_entity(ptxn,other_pidx, t,false);			
 			}
 		}
 		

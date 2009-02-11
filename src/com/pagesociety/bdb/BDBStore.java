@@ -944,6 +944,22 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				c.setAttribute(relation_field_to_e, null);
 				do_save_entity(ptxn,child_pidx, c,false);				
 			}
+			
+		
+			s = added_children.size();
+			for(int j = 0; j < s;j++)
+			{
+				Entity c = added_children.get(j);
+				Entity old_father = (Entity)c.getAttribute(relation_field_to_e);
+				if (old_father!=null) {
+					expand_entity(ptxn, father_pidx, old_father);
+					List<Entity> old_fathers_children = (List<Entity>) old_father.getAttribute(dirty_field);
+					old_fathers_children.remove(c);
+					old_father.setAttribute(dirty_field, old_fathers_children);
+					do_save_entity(ptxn,father_pidx, old_father,false);
+				}
+			}
+			
 		
 		}
 	

@@ -1754,10 +1754,11 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	private boolean _closed = false;
 	private synchronized void do_close() throws PersistenceException
 	{
-		logger.info("ENTER CLOSE");
 		
 		if(_closed)
 			return;
+		
+		System.out.println("ENTER CLOSE");
 		
 		_closed = true;
 		long t = System.currentTimeMillis();
@@ -1790,7 +1791,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 		catch (Exception e)
 		{
-			logger.error("do_close()", e);
+			System.err.println("do_close()");
 			e.printStackTrace();
 			throw new PersistenceException("FIALED TO CLOSE PERSISTENT STORE");
 		}
@@ -1800,7 +1801,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 
 		
 
-		logger.info("BDBStore - do_close() - CLOSED EVERYTHING IN " + (System.currentTimeMillis() - t) + " MS");		
+		System.out.println("BDBStore - do_close() - CLOSED EVERYTHING IN " + (System.currentTimeMillis() - t) + " MS");		
 	}
 
 	/******************SUPPORT FUNCTIONS**************************************************/

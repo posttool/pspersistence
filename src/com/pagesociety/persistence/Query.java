@@ -23,14 +23,16 @@ public class Query
 	
 		/* union */
 		q = new Query("Author");
-		q.pageSize(Query.ALL_RESULTS);
-		q.idx("byFirstName");
 		q.startUnion();
-			q.lt("Gigi");
-			q.gt("Daya");
+			q.idx("byFirstName");
+				q.lt("Gigi");
+				q.gt("Daya");
+			q.idx("byLastName");
+				q.gt("Montgomery");
 		q.endUnion();	
+		q.pageSize(Query.ALL_RESULTS);
 		q.orderBy("Last Name");
-		q.ret();
+		
 
 		System.out.println("UNION");
 		System.out.println(q);

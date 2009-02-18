@@ -119,52 +119,99 @@ public class SingleFieldFreeTextIndex extends AbstractSingleFieldIndex
 
 	public void insertIndexEntry(Transaction parent_txn,Entity e,DatabaseEntry data) throws DatabaseException
 	{	
-		String s 			= (String)e.getAttribute(field.getName());
-		DatabaseEntry key 	= new DatabaseEntry();
-		if(s == null)
+		if(field.isArray())
 		{
-			/*key*/
-			StringBinding.stringToEntry(null, key);
-			/*data*/
-			TupleOutput to = new TupleOutput();				
-			to.writeFast(data.getData(), 0, data.getSize());
-			to.writeInt(0);/* we put in a position of zero here so all our index rows are the same */
-			DatabaseEntry ddata = new DatabaseEntry(to.toByteArray());
-			put_row(parent_txn,e,key,ddata);
-			return;
-		}
-		else
-		{
-			StringTokenizer st = new StringTokenizer(s);
-			int c = -1;
-			while(st.hasMoreTokens())
+			List<String> ss 			= (List<String>)e.getAttribute(field.getName());
+			DatabaseEntry key 	= new DatabaseEntry();
+			if(ss == null)
 			{
-				
-				c++;
-				//System.out.println(e.getId()+":C IS "+c);
-				String word = st.nextToken();
-				String lc_word = word.toLowerCase();
-				if(_stoplist.isStop(lc_word))
-					continue;
-
-				lc_word = trim_word(s);
-				word = _stemmer.stem(lc_word);
-				/*CHECK IGNORE LIST IGNORE THAN STEM HERE*/
 				/*key*/
-			
-				StringBinding.stringToEntry(word, key);
+				StringBinding.stringToEntry(null, key);
 				/*data*/
 				TupleOutput to = new TupleOutput();				
 				to.writeFast(data.getData(), 0, data.getSize());
-				to.writeInt(c);
-				
+				to.writeInt(0);/* we put in a position of zero here so all our index rows are the same */
 				DatabaseEntry ddata = new DatabaseEntry(to.toByteArray());
-				/*key is now word and ddata is {entity_id,pos in field}*/
-				put_row(parent_txn,e,key,ddata);	
+				put_row(parent_txn,e,key,ddata);
+				return;
 			}
+			else
+			{
+				for(int i = 0;i < ss.size();i++)
+				{
+					String word = ss.get(i);
+					String lc_word = word.toLowerCase();
+					if(_stoplist.isStop(lc_word))
+						continue;
+	
+					lc_word = trim_word(lc_word);
+					word = _stemmer.stem(lc_word);
+					/*CHECK IGNORE LIST IGNORE THAN STEM HERE*/
+					/*key*/
+				
+					StringBinding.stringToEntry(word, key);
+					/*data*/
+					TupleOutput to = new TupleOutput();				
+					to.writeFast(data.getData(), 0, data.getSize());
+					to.writeInt(i);
+					
+					DatabaseEntry ddata = new DatabaseEntry(to.toByteArray());
+					/*key is now word and ddata is {entity_id,pos in field}*/
+					put_row(parent_txn,e,key,ddata);	
+				}
+			}
+			/*probably check to see if anything was inserted...everything could be culled because of ignore list*/
+			/*insert null in this case??? */	
 		}
-		/*probably check to see if anything was inserted...everything could be culled because of ignore list*/
-		/*insert null in this case??? */
+		else
+		{
+			String s 			= (String)e.getAttribute(field.getName());
+			DatabaseEntry key 	= new DatabaseEntry();
+			if(s == null)
+			{
+				/*key*/
+				StringBinding.stringToEntry(null, key);
+				/*data*/
+				TupleOutput to = new TupleOutput();				
+				to.writeFast(data.getData(), 0, data.getSize());
+				to.writeInt(0);/* we put in a position of zero here so all our index rows are the same */
+				DatabaseEntry ddata = new DatabaseEntry(to.toByteArray());
+				put_row(parent_txn,e,key,ddata);
+				return;
+			}
+			else
+			{
+				StringTokenizer st = new StringTokenizer(s);
+				int c = -1;
+				while(st.hasMoreTokens())
+				{
+					
+					c++;
+					//System.out.println(e.getId()+":C IS "+c);
+					String word = st.nextToken();
+					String lc_word = word.toLowerCase();
+					if(_stoplist.isStop(lc_word))
+						continue;
+	
+					lc_word = trim_word(lc_word);
+					word = _stemmer.stem(lc_word);
+					/*CHECK IGNORE LIST IGNORE THAN STEM HERE*/
+					/*key*/
+				
+					StringBinding.stringToEntry(word, key);
+					/*data*/
+					TupleOutput to = new TupleOutput();				
+					to.writeFast(data.getData(), 0, data.getSize());
+					to.writeInt(c);
+					
+					DatabaseEntry ddata = new DatabaseEntry(to.toByteArray());
+					/*key is now word and ddata is {entity_id,pos in field}*/
+					put_row(parent_txn,e,key,ddata);	
+				}
+			}
+			/*probably check to see if anything was inserted...everything could be culled because of ignore list*/
+			/*insert null in this case??? */
+		}
 	}
 
 	public void deleteIndexEntry(Transaction parent_txn,DatabaseEntry pkey) throws DatabaseException

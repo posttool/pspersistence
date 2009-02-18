@@ -221,29 +221,51 @@ public class MultiFieldFreeTextIndex extends AbstractMultiFieldIndex
 		{
 			FieldDefinition f   = _string_fields.get(i);
 			String fieldname    = f.getName();
-			String s 			= (String)e.getAttribute(fieldname);
-			
-			if(s == null)
+			//TODO: at some point we should support string arrays
+			if(f.isArray())
 			{
-				write_index_row(parent_txn, e, fieldname.toLowerCase(),s, eq_tuple_output, data,0 );
+				List<String> ss = (List<String>)e.getAttribute(fieldname);
+				if(ss == null)
+					write_index_row(parent_txn, e, fieldname.toLowerCase(),null, eq_tuple_output, data,0 );
+				else
+				{
+					
+					for(int j = 0;j < ss.size();j++)
+					{
+						String word = ss.get(j);
+						String lc_word = word.toLowerCase();
+						if(_stoplist.isStop(lc_word))
+						continue;
+
+						lc_word = SingleFieldFreeTextIndex.trim_word(lc_word);
+						word = _stemmer.stem(lc_word);
+						write_index_row(parent_txn, e, fieldname,word, eq_tuple_output, data,j);
+					}
+				}
 			}
 			else
 			{
-				StringTokenizer st = new StringTokenizer(s);
-				int c = -1;
-				while(st.hasMoreTokens())
-				{					
-					c++;
-					//System.out.println(e.getId()+":C IS "+c);
-					String word = st.nextToken();
-					String lc_word = word.toLowerCase();
-					if(_stoplist.isStop(lc_word))
-						continue;
-
-					lc_word = SingleFieldFreeTextIndex.trim_word(lc_word);
-					word = _stemmer.stem(lc_word);
-					write_index_row(parent_txn, e, fieldname,word, eq_tuple_output, data,c );
-				
+				String s 			= (String)e.getAttribute(fieldname);
+				if(s == null)
+					write_index_row(parent_txn, e, fieldname.toLowerCase(),null, eq_tuple_output, data,0 );
+				else
+				{
+					StringTokenizer st = new StringTokenizer(s);
+					int c = -1;
+					while(st.hasMoreTokens())
+					{					
+						c++;
+						//System.out.println(e.getId()+":C IS "+c);
+						String word = st.nextToken();
+						String lc_word = word.toLowerCase();
+						if(_stoplist.isStop(lc_word))
+							continue;
+	
+						lc_word = SingleFieldFreeTextIndex.trim_word(lc_word);
+						word = _stemmer.stem(lc_word);
+						write_index_row(parent_txn, e, fieldname,word, eq_tuple_output, data,c );
+					
+					}
 				}
 			}
 		}

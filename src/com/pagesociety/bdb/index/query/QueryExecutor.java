@@ -115,6 +115,7 @@ public class QueryExecutor
 	public QueryResult execute(Query q) throws PersistenceException
 	{
 		long t1;
+		//System.out.println("EXECUTE "+q);
 		
 		/* we want to always check and store results based on this 
 		 * cache key and the data as it is at the beginning of the query

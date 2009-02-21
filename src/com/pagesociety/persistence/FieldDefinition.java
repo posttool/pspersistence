@@ -294,6 +294,7 @@ public class FieldDefinition implements java.io.Serializable
 			type = getBaseType();
 			buf.append("an array of ");
 			buf.append(toStringBaseType(type));
+			buf.append(" Default value: "+getDefaultValue());
 			return buf.toString();
 		}
 		else
@@ -305,6 +306,7 @@ public class FieldDefinition implements java.io.Serializable
 			buf.append(" ");
 			buf.append(t);
 		}
+		buf.append(" Default value: "+getDefaultValue());
 		return buf.toString();
 	}
 
@@ -319,8 +321,7 @@ public class FieldDefinition implements java.io.Serializable
 		if ((type & Types.TYPE_ARRAY) == Types.TYPE_ARRAY)
 		{
 			StringBuffer buf = new StringBuffer();
-			buf.append("Array of ");
-			buf.append(toStringBaseType(type));
+			buf.append(toStringBaseType(type)+"[]");
 			return buf.toString();
 		}
 		else
@@ -410,5 +411,6 @@ public class FieldDefinition implements java.io.Serializable
 		}
 		return false;
 	}
+
 
 }

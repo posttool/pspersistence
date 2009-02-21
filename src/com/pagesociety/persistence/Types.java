@@ -1,5 +1,7 @@
 package com.pagesociety.persistence;
 
+import java.util.ArrayList;
+
 /**
  * The possible field types that the store will handle. All types (except
  * undefined) can be mixed with the array type. Arrays are specified by or-ing
@@ -74,5 +76,82 @@ public class Types
 	 */
 	public static final int TYPE_REFERENCE 		   = 0x400;
 	
+	public static int parseType(String s) throws PersistenceException
+	{
+		s = s.toUpperCase();
+		int type=0;
+		
+		if(s.startsWith("TYPE_STRING") || s.startsWith("STRING"))
+			type =  TYPE_STRING;
+		else if(s.startsWith("TYPE_REFERENCE") || s.startsWith("REFERENCE"))
+			type =  TYPE_REFERENCE;
+		else if(s.startsWith("TYPE_DATE") || s.startsWith("DATE"))
+			type =  TYPE_DATE;
+		else if(s.startsWith("TYPE_INT")  || s.startsWith("INT"))
+			type =  TYPE_INT;
+		else if(s.startsWith("TYPE_LONG") || s.startsWith("LONG"))
+			type = TYPE_LONG;
+		else if(s.startsWith("TYPE_FLOAT")|| s.startsWith("FLOAT"))
+			type =  TYPE_FLOAT;
+		else if(s.startsWith("TYPE_DOUBLE")  || s.startsWith("DOUBLE"))
+			type =  TYPE_DOUBLE;		
+		else if(s.startsWith("TYPE_BOOLEAN") || s.startsWith("BOOLEAN"))
+			type = TYPE_BOOLEAN;
+		else if(s.startsWith("TYPE_BLOB") || s.startsWith("BLOB"))
+			type =  TYPE_BLOB;
+		else if(s.startsWith("TYPE_TEXT") || s.startsWith("TEXT"))
+			type =  TYPE_TEXT;
+		else
+			throw new PersistenceException("UNKNOWN TYPE "+s);
+		
+		if(s.endsWith("[]"))
+			type = (type | TYPE_ARRAY);
 	
+	
+		return type;
+	}
+	
+	public static Object parseDefaultValue(int type,String default_val) throws PersistenceException
+	{
+		if(default_val.equals("null"))
+			return null;
+		default_val.trim();
+		
+		boolean is_array = ((type & TYPE_ARRAY) == TYPE_ARRAY);
+		if(is_array)
+		{
+			if(default_val.toUpperCase().equals("EMPTY_LIST"))
+				return new ArrayList();
+			else
+				throw new PersistenceException("ARRAY DEFAULT ISNT SUPPORTED YET");
+		}
+		switch(type)
+		{
+			case TYPE_TEXT:
+			case TYPE_STRING:
+				return default_val;
+			case TYPE_REFERENCE:
+				 String[] e_parts = default_val.split(":");
+				 String entity_name = e_parts[0];
+				 Long entity_id = Long.parseLong(e_parts[1]);
+				 Entity e = new Entity();
+				 e.setType(entity_name);
+				 e.setId(entity_id);
+				 return e;
+			case TYPE_INT:
+				return Integer.parseInt(default_val);
+			case TYPE_LONG:
+				return Long.parseLong(default_val);
+			case TYPE_FLOAT:
+				return Float.parseFloat(default_val);
+			case TYPE_DOUBLE:
+				return Double.parseDouble(default_val);
+			case TYPE_DATE:
+				throw new PersistenceException("DATE DEFAULT ISNT SUPPORTED YET");
+			case TYPE_BLOB:
+				throw new PersistenceException("BLOB DEFAULT ISNT SUPPORTED YET");
+			default:
+					return null;
+		}
+	}
 }

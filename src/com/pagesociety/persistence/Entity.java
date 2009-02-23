@@ -280,7 +280,7 @@ public class Entity implements Comparable<Entity>
 		ret.append("ENTITY: ");
 		ret.append(getType());
 		ret.append(" ");
-		ret.append(getId()+"\n");
+		ret.append(getId()+" ");
 
 		Map<String,Object> att = getAttributes();
 		Iterator<String> i = att.keySet().iterator();
@@ -290,22 +290,21 @@ public class Entity implements Comparable<Entity>
 			Object o = getAttribute(att_name);
 			if(o == null)
 			{
-				ret.append(att_name+": null");
-				ret.append('\n');
+				ret.append(att_name+": null ");
 			}
 			else if(o instanceof Entity)
 			{
 				Entity e = (Entity)o;
-				ret.append(att_name+": {"+e.getType()+":"+e.getId()+"}");
-				ret.append('\n');
+				ret.append(att_name+": {"+e.getType()+":"+e.getId()+"} ");
+
 			}
 			else if(o instanceof List)
 			{
 				List<?> ll = (List<?>)o;
 				if(ll.size() == 0)
 				{
-					ret.append(att_name+": []");
-					ret.append('\n');
+					ret.append(att_name+": [] ");
+
 				}
 				else if(ll.get(0) instanceof Entity)
 				{
@@ -316,19 +315,16 @@ public class Entity implements Comparable<Entity>
 						ret.append("{"+e.getType()+":"+e.getId()+"},");
 					}
 					ret.setLength(ret.length()-1);
-					ret.append(']');
-					ret.append('\n');
+					ret.append("] ");
 				}
 				else
 				{
-					ret.append(att_name+": "+o);
-					ret.append('\n');
+					ret.append(att_name+": "+o+" ");
 				}
 			}
 			else
 			{
-				ret.append(att_name+": "+o);
-				ret.append('\n');
+				ret.append(att_name+": "+o+" ");
 			}
 		}
 		//ret.append(getAttributes());

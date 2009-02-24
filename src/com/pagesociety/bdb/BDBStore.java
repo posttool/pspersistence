@@ -568,7 +568,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			FieldDefinition field = fields.get(i);
 			Object o = e.getAttribute(field.getName());
 			if (!field.isValidValue(o))
-				throw new PersistenceException("Field "+field.getName()+" requires a value of type ["+FieldDefinition.typeAsString(field.getBaseType())+"]. Not "+o.getClass());
+				throw new PersistenceException("Field "+field.getName()+" requires a value of type ["+FieldDefinition.typeAsString(field.getType())+"]. Not "+o.getClass());
 		}
 		//		
 	}

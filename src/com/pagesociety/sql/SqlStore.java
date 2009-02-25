@@ -373,7 +373,7 @@ public class SqlStore implements PersistentStore
 		throw new PersistenceException("SqlStore.addEntityIndex NOT IMPLEMENTED");
 	}
 
-	public void addEntityIndex(String entity, String[] field_names, int index_type,
+	public EntityIndex addEntityIndex(String entity, String[] field_names, int index_type,
 			String index_name, Map<String, String> attributes)
 			throws PersistenceException
 	{

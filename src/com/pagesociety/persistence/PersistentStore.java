@@ -260,7 +260,7 @@ public interface PersistentStore
 	 * @throws PersistenceException
 	 * @see #addEntityIndex(String, String, String, String, Map)
 	 */
-	public abstract void addEntityIndex(String entity, String[] field_names,
+	public abstract EntityIndex addEntityIndex(String entity, String[] field_names,
 			int index_type, String index_name, Map<String, String> attributes)
 			throws PersistenceException;
 

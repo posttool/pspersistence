@@ -2487,12 +2487,12 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 
 	}
 	
-	public void addEntityIndex(String entity,String field_name,int index_type,String index_name, Map<String,String> attributes) throws PersistenceException
+	public EntityIndex addEntityIndex(String entity,String field_name,int index_type,String index_name, Map<String,String> attributes) throws PersistenceException
 	{
 		_store_locker.enterLockerThread();
 		try{
 			logger.debug("addEntityIndex(String, String, String, String, Map<String,Object>) - ADD ENTITY INDEX " + index_name + " ON " + entity + " OF TYPE " + index_type);
-			do_add_entity_index(entity,new String[]{field_name},index_type,index_name,attributes);
+			return do_add_entity_index(entity,new String[]{field_name},index_type,index_name,attributes);
 	
 		}catch(PersistenceException pe)
 		{

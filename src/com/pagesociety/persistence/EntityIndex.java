@@ -82,7 +82,7 @@ public class EntityIndex
 	 *
 	 * @return An entity index definition.
 	 */
-	public int getEntityIndexType()
+	public int getType()
 	{
 		return _index_type;
 	}
@@ -194,12 +194,25 @@ public class EntityIndex
 		return ii;
 	}
 
+	
+	public boolean equals(Object o)
+	{
+		EntityIndex idx = (EntityIndex)o;
+		if(o==null)
+			return false;
+		
+		return 		(_index_type == idx._index_type 	  &&
+					_name.equals(idx._name) 			  &&
+					_entity_type.equals(idx._entity_type) &&
+					_fields.equals(idx._fields));
+	
+	}
 	/**
 	 * Returns a string representation of the index.
 	 */
 	public String toString()
 	{
-		return _name + " " + _index_type + " " + _fields;
+		return _name + " " + typeToString(_index_type) + " " + _fields;
 	}
 
 

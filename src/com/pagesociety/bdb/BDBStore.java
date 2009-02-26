@@ -2030,7 +2030,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				Class<?> c = null;
 				BDBSecondaryIndex index = null;
 				
-				int index_type = eii.getEntityIndexType();
+				int index_type = eii.getType();
 				String classname = null;
 				switch(index_type)
 				{
@@ -2597,7 +2597,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 
 		} catch (Exception ee) {
 			logger.error("do_add_entity_index(String, String[], String, String, Map<String,Object>)", ee);
-			throw new PersistenceException("FAILED INSTANTIATING INSTANCE OF INDEX "+eii.getEntityIndexType());
+			throw new PersistenceException("FAILED INSTANTIATING INSTANCE OF INDEX "+eii.getType());
 		}
 		index.setup(pidx, eii);
 	

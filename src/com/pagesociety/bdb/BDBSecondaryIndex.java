@@ -162,13 +162,13 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 	
 	protected String getIndexDbName(String entity_name,String index_name)
 	{
-		int type = index.getEntityIndexType();
+		int type = index.getType();
 		return entity_name+"_"+EntityIndex.typeToString(type).toUpperCase()+"_"+index_name+BDBConstants.DB_SUFFIX;
 	}
 	
 	protected String getDeleteIndexDbName(String entity_name,String index_name)
 	{
-		int type = index.getEntityIndexType();
+		int type = index.getType();
 		return entity_name+"_"+EntityIndex.typeToString(type).toUpperCase()+"_"+index_name+"_DELETE_MAP_"+BDBConstants.DB_SUFFIX;
 	}
 

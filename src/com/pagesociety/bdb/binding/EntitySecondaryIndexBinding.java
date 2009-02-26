@@ -26,7 +26,7 @@ public class EntitySecondaryIndexBinding
 		TupleOutput to = new TupleOutput();
 		EntityIndex entity_index = (EntityIndex) object;
 		to.writeString(entity_index.getName());
-		to.writeInt(entity_index.getEntityIndexType());
+		to.writeInt(entity_index.getType());
 		to.writeString(entity_index.getEntity());
 		
 		List<FieldDefinition> fields = entity_index.getFields();

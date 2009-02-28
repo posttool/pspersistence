@@ -2963,27 +2963,6 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	}
 	
 
-	
-	public QueryResult getNextResults(Object nextresults_token) throws PersistenceException
-	{ 
-		_store_locker.enterAppThread();
-		try{
-			return do_get_next_results(nextresults_token);
-		}catch(PersistenceException pe)
-		{
-			throw pe;
-		}
-		finally
-		{
-			_store_locker.exitAppThread();
-		}
-	}
-	
-	protected QueryResult do_get_next_results(Object nextresults_token) throws PersistenceException
-	{
-		throw new PersistenceException("no more do_get_next_reults");
-	}
-
 	public List<Object> getDistinctKeys(String entityname,String indexname) throws PersistenceException
 	{
 		_store_locker.enterAppThread();

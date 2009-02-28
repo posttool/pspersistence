@@ -447,17 +447,6 @@ public interface PersistentStore
 	 */
 	public abstract QueryResult executeQuery(Query q) throws PersistenceException;
 
-	/**
-	 * Returns the next page of entities. The next results token must be
-	 * supplied by the QueryResult for this to work.
-	 * 
-	 * @param next_results_token
-	 * @return The query result including the list of entities.
-	 * @throws PersistenceException
-	 * @see QueryResult#getNextResultsToken()
-	 */
-	public abstract QueryResult getNextResults(Object next_results_token)
-			throws PersistenceException;
 
 	/**
 	 * Returns the distinct keys for any index.

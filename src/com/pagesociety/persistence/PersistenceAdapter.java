@@ -3,7 +3,7 @@ package com.pagesociety.persistence;
 import java.util.List;
 import java.util.Map;
 
-
+//touched
 /*An abstract adapter class for receiving mouse events. The methods in this 
 class are empty. This class exists as convenience for creating subsets of store interface. */ 
 public abstract class PersistenceAdapter implements PersistentStore

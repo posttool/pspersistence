@@ -203,21 +203,10 @@ public class EntityIndex
 		if(o==null)
 			return false;
 		
-		boolean b1 =		(_index_type == idx._index_type 	  &&
+		return 		(_index_type == idx._index_type 	  &&
 					_name.equals(idx._name) 			  &&
-					_entity_type.equals(idx._entity_type));
-		if(!b1)
-			return false;
-		
-		for(int i = 0;i < _fields.size();i++)
-		{
-			FieldDefinition f = _fields.get(i);
-			FieldDefinition f2 = idx.getField(f.getName());
-			if(f2 == null)
-				return false;
-			return(f.equals(f2));
-		}
-		return false;
+					_entity_type.equals(idx._entity_type) &&
+					_fields.equals(idx._fields));
 	}
 	
 	public FieldDefinition getField(String fieldname)

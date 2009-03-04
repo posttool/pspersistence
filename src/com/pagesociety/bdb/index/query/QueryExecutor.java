@@ -988,7 +988,7 @@ public class QueryExecutor
 			  return get_globbed_multi_index_predicate_iterator(idx,l_user_param,iter_type,last,iter_node);
 			
 			if(last != idx.getNumIndexedFields()-1 && iter_type != Query.STARTSWITH)
-				throw new PersistenceException("WRONG NUMBER OF ARGUMENTS FOR INDEX. INDEX HAS "+(last+1)+" AND "+l_user_param.size()+" WERE PROVIDED");
+				throw new PersistenceException("WRONG NUMBER OF ARGUMENTS FOR INDEX. INDEX HAS "+idx.getNumIndexedFields()+" AND "+l_user_param.size()+" WERE PROVIDED");
  
 			try{
 				param = ((SimpleMultiFieldIndex)idx).getQueryKey((List<Object>)user_param);			

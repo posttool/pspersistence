@@ -172,11 +172,9 @@ public class FieldBinding
 				ti.readFast(b);
 				return b;
 			case Types.TYPE_REFERENCE:
-				String entity_type = ti.readString();//this should be some sort of class id at some point...not a string//
+				String entity_type = ti.readString();
 				long id = ti.readLong();
 				Entity e = Entity.createInstance();
-				//TODO: primary index map should become static instance and be like a
-				//directory service
 				e.setType(entity_type);
 				e.setId(id);
 				return e;

@@ -2618,9 +2618,19 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			while(cursor.getNext(pkey, data, LockMode.DEFAULT) == OperationStatus.SUCCESS)
 			{	
 				i++;
-				e = entity_binding.entryToEntity(def, data);
-				//System.out.println(index.getName()+">>>> AUTO POPULATE WITH"+e.getType()+" "+e.getId());
-				index.insertIndexEntry(txn, e, pkey);
+				try{
+					e = entity_binding.entryToEntity(def, data);
+					//System.out.println(index.getName()+">>>> AUTO POPULATE WITH"+e.getType()+" "+e.getId());
+					index.insertIndexEntry(txn, e, pkey);
+				}catch(Exception ee)
+				{
+					System.out.println("FAILED UPDATING ENTITY AFTER ADDING INDEX");
+					System.out.println("DEF WAS :\n"+def+"\n");
+					System.out.println("INDEX WAS :\n"+index+"\n");
+					System.out.println("DATA WAS :\n"+new String(data.getData())+"\n");
+					ee.printStackTrace();
+					throw new PersistenceException("DAVID SHOW THIS TO TOPH.");
+				}
 			}
 			cursor.close();
 			txn.commit();

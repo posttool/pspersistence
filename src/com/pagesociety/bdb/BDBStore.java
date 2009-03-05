@@ -4,9 +4,13 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.channels.FileChannel;
+import java.text.Format;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -58,6 +62,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	
 	private static final Logger logger = Logger.getLogger(BDBStore.class);
 	//environment
+
 	private Environment 				environment;
 	// entity def db and binding
 	private Database 					version_db;
@@ -80,7 +85,9 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	Thread _deadlock_monitor;
 	private static final int DEFAULT_MONITOR_INTERVAL_FOR_MONITORING_SCHEME = 3000;
 	
-
+	//backup stuff//
+	private File backup_root_directory;
+	
 	// primary and secondary databases handles
 	private Map<String,BDBPrimaryIndex> 		  			entity_primary_indexes_as_map;
 	private List<BDBPrimaryIndex> 		  					entity_primary_indexes_as_list;
@@ -139,7 +146,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		bootstrap_existing_entity_relationships();
 		
 		init_field_binding();		
-		
+		init_backup_subsystem(config);
 		
 		logger.debug("Init - Complete");
 		
@@ -257,6 +264,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				throw new PersistenceException("Failed Saving Entity Definition: "+ename);
 			}
 			txn.commit();
+
 		}
 		catch (Exception e)
 		{
@@ -1639,102 +1647,6 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		_store_locker.exitLockerThread();
 	}
 	
-	public void archive(File destination_directory) throws PersistenceException
-	{
-		_store_locker.enterLockerThread();
-		try
-		{
-			do_checkpoint();
-			//environment.resetLogSequenceNumber(filename, encrypted)
-			File[] archive_dbs = environment.getArchiveDatabases();
-			File[] archive_logs = environment.getArchiveLogFiles(true);
-			for (int i=0; i<archive_dbs.length; i++)
-			{
-				copy(archive_dbs[i], destination_directory);
-			}
-			copy(archive_logs[archive_logs.length-1], destination_directory);
-		}
-		catch (DatabaseException e)
-		{
-			e.printStackTrace();
-			throw new PersistenceException("Can't archive store", e);
-		}
-		finally
-		{
-			_store_locker.exitLockerThread();
-		}
-		
-	}
-	
-	//http://www.javalobby.org/java/forums/t17036.html
-	private void copy(File file, File destination_directory) throws PersistenceException
-	{
-		FileChannel ic = null;
-		FileChannel oc =  null;
-		try
-		{
-			ic = new FileInputStream(file).getChannel();
-			oc = new FileOutputStream(new File(destination_directory, file.getName())).getChannel();
-			ic.transferTo(0, ic.size(), oc);
-		}
-		catch (Exception e)
-		{
-			e.printStackTrace();
-			throw new PersistenceException("Cant make archive copy!",e);
-		}
-		finally
-		{
-			try
-			{
-				if (ic!=null)
-					ic.close();
-				if (oc!=null)
-					oc.close();
-			} 
-			catch (Exception e)
-			{
-				e.printStackTrace();
-				throw new PersistenceException("Cant make archive copy!",e);
-			}
-		}
-
-	}
-
-	//TODO: this needs proper locking stuff around it//
-	public void useEnvironment(String environment_name) throws PersistenceException
-	{
-		_store_locker.enterLockerThread();
-		try{
-			do_close();
-			set_active_env_prop(environment_name);
-			init(_config);
-		}catch(PersistenceException pe)
-		{
-			pe.printStackTrace();
-			throw pe;
-		}
-		finally
-		{
-			_store_locker.exitLockerThread();
-		}
-	}
-	
-	
-	
-	private void set_active_env_prop(String relative_path) throws PersistenceException
-	{
-		_db_env_props.put(BDBConstants.KEY_ACTIVE_ENVIRONMENT, relative_path);
-    	try
-		{
-    		_db_env_props.store(new FileOutputStream(_db_env_props_file), "PS PERSISTENCE BERKELEY DB ENVIRONMENT PROPERTIES");
-		}
-		catch (Exception e1)
-		{
-			e1.printStackTrace();
-			throw new PersistenceException("SELECT ENVIRONMENT ERROR - CANNOT INITIALIZE PROPERTIES FILE IN ENV ROOT",e1);
-		}
-	}
-
 	
 	public void close() throws PersistenceException
 	{
@@ -1898,6 +1810,17 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			logger.error(e);
 			throw new PersistenceException("UNABLE TO VERIFY VERSION FOR DB DUE TO IO EXCEPTION.");
 		}
+	}
+	
+	
+	private void init_backup_subsystem(Map<String, Object> config) throws PersistenceException
+	{
+		String backup_path = (String)config.get(BDBStoreConfigKeyValues.KEY_STORE_BACKUP_DIRECTORY);
+		backup_root_directory = new File(backup_path);
+		if(!backup_root_directory.exists())
+			throw new PersistenceException("BACKUP DIRECTORY "+backup_path+" DOES NOT EXIST");
+		if(!backup_root_directory.isDirectory())
+			throw new PersistenceException("BACKUP DIRECTORY "+backup_path+" IS NOT A DIRECTORY");
 	}
 	
 	private void init_entity_definition_db(Map<String,Object> config) throws PersistenceException
@@ -2211,6 +2134,33 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		return env_cfg;
 	}
 
+	private EnvironmentConfig get_run_recovery_config(boolean fatal_recovery)
+	{
+		EnvironmentConfig env_cfg = new EnvironmentConfig();
+		env_cfg.setAllowCreate(false);
+		env_cfg.setInitializeCache(true);
+		env_cfg.setInitializeLocking(true);
+		env_cfg.setInitializeLogging(true);
+		if(fatal_recovery)
+			env_cfg.setRunFatalRecovery(true);
+		else
+			env_cfg.setRunRecovery(true);
+		env_cfg.setTransactional(true);
+		env_cfg.setErrorStream(System.err);		
+		//1 megabytes = 1 048 576 bytes
+		env_cfg.setCacheSize(1048576);
+		// we need enough transactions for the number of 
+		// simultaneous threads per environment
+		env_cfg.setTxnMaxActive(5);
+		// locks
+		env_cfg.setMaxLocks(50);
+		env_cfg.setMaxLockObjects(5);
+		env_cfg.setMaxLockers(5);
+
+		//env_cfg.setLockDetectMode(LockDetectMode.MINWRITE);
+		//env_cfg.setVerbose(VerboseConfig.FILEOPS_ALL, true);
+		return env_cfg;		
+	}
 
 	public int addEntityField(String entity, FieldDefinition entity_field_def)throws PersistenceException
 	{
@@ -3292,5 +3242,269 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		return environment;
 	}
 
+
+	////BACKUP SUBSYSTEM/////////////////////////////////////////////////////////////
+	//
+	//
+	//
+	/////////////////////////////////////////////////////////////////////////////////////
+	
+	
+	public boolean supportsFullBackup() throws PersistenceException
+	{
+		return true;
+	}
+	
+	public boolean supportsIncrementalBackup() throws PersistenceException
+	{
+		return true;
+	}
+
+	public Object doFullBackup() throws PersistenceException
+	{
+		
+		try{
+			String backup_filename = get_backup_filename();
+			logger.debug("F U L L   B A C K U P  TO "+backup_root_directory.getAbsolutePath()+File.separator+get_backup_filename() );
+			return do_full_backup(backup_filename);	
+		}catch(PersistenceException pe)
+		{
+			throw pe;
+		}
+	}
+	
+	public Object do_full_backup(String backup_filename) throws PersistenceException
+	{
+		lock();
+		try{
+			File backup_dir = new File(backup_root_directory,backup_filename);	
+			do_checkpoint();
+			//environment.resetLogSequenceNumber(filename, encrypted)
+			File[] archive_dbs = environment.getArchiveDatabases();
+			for (int i=0; i<archive_dbs.length; i++)
+				copy(archive_dbs[i], backup_dir);
+			
+			File[] unneeded_archive_logs = environment.getArchiveLogFiles(false);
+			for (int i=0; i<unneeded_archive_logs.length; i++)
+				unneeded_archive_logs[i].delete();
+			
+			File[] archive_logs = environment.getArchiveLogFiles(true);
+			
+			for (int i=0; i<archive_logs.length; i++)
+				copy(archive_logs[i], backup_dir);
+	
+			//TODO: dont know if we need to do this here//
+			EnvironmentConfig env_cfg = get_run_recovery_config(true);
+			Environment recovered_env = new Environment(backup_dir,env_cfg);
+			recovered_env.close();
+			return backup_dir.getAbsolutePath();
+			
+		}catch(Exception e)
+		{
+			e.printStackTrace();
+			throw new PersistenceException("FAILED DURING FULL BACKUP");		
+		}
+		finally
+		{
+			unlock();
+		}
+	}
+	
+	
+	public String get_backup_filename()
+	{
+	    Format formatter = new SimpleDateFormat("yyyyMMdd_HHmmss");
+	    Date now = new Date();
+	    return formatter.format(now);
+	}
+	
+
+	public Object doIncrementalBackup(Object full_backup_token) throws PersistenceException
+	{
+		//dont think we need to do a lock here
+		File backup_dir = new File((String)full_backup_token);
+		try{
+			logger.debug("I N C R E M E N T A L   B A C K U P   TO "+backup_dir);
+			do_checkpoint();
+			File[] unneeded_archive_logs = environment.getArchiveLogFiles(false);
+			for (int i=0; i<unneeded_archive_logs.length; i++)
+				unneeded_archive_logs[i].delete();
+			
+			File[] archive_logs = environment.getArchiveLogFiles(true);
+			for (int i=0; i<archive_logs.length; i++)
+				copy(archive_logs[i], backup_dir);
+	
+
+			//RUN CATASTROPHIC RECOVERY ON DATABASE ENVIRONMENT//
+			//TODO: pretty sure we need to do this here//
+			EnvironmentConfig env_cfg = get_run_recovery_config(true);
+			Environment recovered_env = new Environment(backup_dir,env_cfg);
+			recovered_env.close();
+			return full_backup_token;
+		}catch(Exception e)
+		{
+			e.printStackTrace();
+			throw new PersistenceException("FAILED DURING INCREMENTAL BACKUP");		
+		}
+	
+	}
+	
+	//returns directory//
+	public File getBackupAsDirectory(Object backup_token) throws PersistenceException
+	{
+		String backup_path = (String)backup_token;
+		return new File(backup_path);
+	}
+
+	
+	public void restoreFromBackup(Object backup_token) throws PersistenceException
+	{
+		_store_locker.enterLockerThread();
+		try{
+			logger.debug("R E S T O R E  FROM "+backup_token);
+			File backup_dir = new File((String)backup_token);
+			String store_root = (String)_config.get(BDBStoreConfigKeyValues.KEY_STORE_ROOT_DIRECTORY);
+			copyDirectory(backup_dir, new File(store_root));
+			useEnvironment(backup_dir.getName());
+			//get environment root//
+			//copy d to there     //
+			//update active store//
+		}catch(Exception e)
+		{
+			e.printStackTrace();
+			throw new PersistenceException("RESTORE FROM BACKUP FAILED ");
+		}
+		finally
+		{
+			logger.debug("addEntityRelationship(EntityRelationshipDefinition) - LOCKER THREAD IS EXITING");
+			_store_locker.exitLockerThread();	
+		}	
+		logger.debug("RESTORE SUCCESSFUL");
+	}
+	
+	
+	public void deleteBackup(Object backup_token) throws PersistenceException
+	{
+
+		try{
+			logger.debug("D E L E T I N G   B A C K U P "+backup_token);
+			File b = getBackupAsDirectory(backup_token);
+			b.delete();
+		}catch(Exception e)
+		{
+			e.printStackTrace();
+			throw new PersistenceException("DELETE BACKUP "+backup_token+" FAILED");
+		}
+		finally
+		{
+			logger.debug("addEntityRelationship(EntityRelationshipDefinition) - LOCKER THREAD IS EXITING");
+		}	
+	}
+
+	public void setBackupRoot(File f) throws PersistenceException
+	{
+		if(!f.exists())
+			throw new PersistenceException("BACKUP DIRECTORY "+f.getAbsolutePath()+" DOES NOT EXIST");
+		if(!f.isDirectory())
+			throw new PersistenceException("BACKUP DIRECTORY "+f.getAbsolutePath()+" IS NOT A DIRECTORY");
+		backup_root_directory = f;
+	}
+
+
+	public void useEnvironment(String environment_name) throws PersistenceException
+	{
+		_store_locker.enterLockerThread();
+		try{
+			do_close();
+			set_active_env_prop(environment_name);
+			init(_config);
+		}catch(PersistenceException pe)
+		{
+			pe.printStackTrace();
+			throw pe;
+		}
+		finally
+		{
+			_store_locker.exitLockerThread();
+		}
+	}	
+	
+	private void set_active_env_prop(String relative_path) throws PersistenceException
+	{
+		_db_env_props.put(BDBConstants.KEY_ACTIVE_ENVIRONMENT, relative_path);
+    	try
+		{
+    		_db_env_props.store(new FileOutputStream(_db_env_props_file), "PS PERSISTENCE BERKELEY DB ENVIRONMENT PROPERTIES");
+		}
+		catch (Exception e1)
+		{
+			e1.printStackTrace();
+			throw new PersistenceException("SELECT ENVIRONMENT ERROR - CANNOT INITIALIZE PROPERTIES FILE IN ENV ROOT",e1);
+		}
+	}
+
+
+		
+	//http://www.javalobby.org/java/forums/t17036.html
+	private void copy(File file, File destination_directory) throws PersistenceException
+	{
+		FileChannel ic = null;
+		FileChannel oc =  null;
+		try
+		{
+			ic = new FileInputStream(file).getChannel();
+			oc = new FileOutputStream(new File(destination_directory, file.getName())).getChannel();
+			ic.transferTo(0, ic.size(), oc);
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace();
+			throw new PersistenceException("Cant make archive copy!",e);
+		}
+		finally
+		{
+			try
+			{
+				if (ic!=null)
+					ic.close();
+				if (oc!=null)
+					oc.close();
+			} 
+			catch (Exception e)
+			{
+				e.printStackTrace();
+				throw new PersistenceException("Cant make archive copy!",e);
+			}
+		}
+
+	}
+	
+    public void copyDirectory(File sourceLocation , File targetLocation)throws IOException {
+        
+        if (sourceLocation.isDirectory()) {
+            if (!targetLocation.exists()) {
+                targetLocation.mkdir();
+            }
+            
+            String[] children = sourceLocation.list();
+            for (int i=0; i<children.length; i++) {
+                copyDirectory(new File(sourceLocation, children[i]),
+                        new File(targetLocation, children[i]));
+            }
+        } else {
+            
+            InputStream in = new FileInputStream(sourceLocation);
+            OutputStream out = new FileOutputStream(targetLocation);
+            
+            // Copy the bits from instream to outstream
+            byte[] buf = new byte[1024];
+            int len;
+            while ((len = in.read(buf)) > 0) {
+                out.write(buf, 0, len);
+            }
+            in.close();
+            out.close();
+        }
+    }
 
 }

@@ -981,7 +981,12 @@ public class QueryExecutor
 		if(is_multi)
 		{
 			List<Object> l_user_param;
-			l_user_param = (List<Object>)user_param;
+			try{
+				l_user_param = (List<Object>)user_param;
+			}catch (ClassCastException e)
+			{
+				throw new PersistenceException("QUERY ARGUMENT MUST BE A LIST: "+user_param);
+			}
 			int last 	 = l_user_param.size()-1;
 			
 			if (l_user_param.get(last) == Query.VAL_GLOB)

@@ -114,63 +114,71 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	{
 		logger.info("Initializing BDBStore V"+store_major_version+"."+store_minor_version);
 		_config = config; 
-		
+
 		entity_primary_indexes_as_map 	 		 = new HashMap<String, BDBPrimaryIndex>();
 		entity_primary_indexes_as_list 	 		 = new ArrayList<BDBPrimaryIndex>();
 		entity_secondary_indexes_as_map 		 = new HashMap<String, Map<String, BDBSecondaryIndex>>();
 		entity_secondary_indexes_as_list 		 = new HashMap<String,List<BDBSecondaryIndex>>();
 		entity_relationship_map 		 	 	 = new HashMap<String, Map<String,EntityRelationshipDefinition>>();
 		entity_binding					 		 = new EntityBinding(); 
-		
-		/* order is important */
 
+		/* order is important */
+		/* check the version of data vs version of code*/
+		setup_version_file(config);
+		verify_version(config);
+		
 		init_shutdown_hook();
 		init_locker(config);
 		init_checkpoint_policy(config);
 		init_environment(config);
 
-		/* check the version of data vs version of code*/
-		setup_version_file(config);
-		verify_version(config);
-		
 		init_entity_definition_db(config);
 		init_entity_definition_provider(config);
+
 		init_entity_secondary_index_db(config);
 		init_entity_relationship_db(config);
 		init_entity_index_definition_manager();
 		init_deadlock_resolution_scheme(config);
+
 		init_query_manager();
 		
+
 		bootstrap_existing_entity_definitions();
 		bootstrap_existing_indices();
 		bootstrap_existing_entity_relationships();
-		
-		init_field_binding();		
+		init_field_binding();
 		init_backup_subsystem(config);
-		
 		logger.debug("Init - Complete");
 		
 	}
 	
+	private boolean _shutdown_hook_is_added = false;
 	private void init_shutdown_hook()
 	{
+		if(_shutdown_hook_is_added)
+			return;
+		
 		Runtime.getRuntime().addShutdownHook(new Thread()
 		{
 			public void run()
 			{
 				try{
 					System.out.println("SHUTDOWN HOOK IS RUNNING");
-					close();
+					do_close();
 				}catch(Exception e)
 				{
 					e.printStackTrace();
 				}
 			}
 		});
+		_shutdown_hook_is_added = true;
 	}
 	
+	private boolean _locker_is_inited = false;
 	private void init_locker(Map<String, Object> config)
 	{
+		if(_locker_is_inited)
+			return;
 		try {
 			_store_locker = (Locker)Class.forName((String)config.get(BDBStoreConfigKeyValues.KEY_STORE_LOCKER_CLASS)).newInstance();
 		} catch (Exception e) {
@@ -179,6 +187,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 		logger.debug("init_store_locker(HashMap<Object,Object>) - SETTING STORE LOCKER TO INSTANCE OF " + _store_locker.getClass().getName());
 		_store_locker.init(config);
+		_locker_is_inited = true;
 	}
 	
 	private void init_checkpoint_policy(Map<String,Object> config)
@@ -1240,7 +1249,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			return def;	
 	}
 
-	private EntityDefinition do_get_entity_definition(String entity_name)
+	public EntityDefinition do_get_entity_definition(String entity_name)
 	{
 		BDBPrimaryIndex pidx;
 		if((pidx = entity_primary_indexes_as_map.get(entity_name)) != null)
@@ -1301,21 +1310,22 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	}
 	
 	/* get the entity defs from the db and bootstrap the entity_def cache */
-	protected List<EntityIndex> get_entity_indices_from_db(String entity_name) throws PersistenceException
+	protected List<EntityIndex> get_entity_indices_from_db(BDBPrimaryIndex pidx) throws PersistenceException
 	{
 		List<EntityIndex> indices = new ArrayList<EntityIndex>();
 		Cursor cursor = null;
 		try
 		{
+			
 			cursor = entity_index_db.openCursor(null, null);
 			DatabaseEntry key  = new DatabaseEntry();
 			DatabaseEntry data = new DatabaseEntry();
-			
-			FieldBinding.valueToEntry(Types.TYPE_STRING, entity_name, key);				
+
+			FieldBinding.valueToEntry(Types.TYPE_STRING, pidx.getEntityDefinition().getName(), key);				
 			OperationStatus op_stat = cursor.getSearchKey(key, data, LockMode.DEFAULT);
 			while (op_stat == OperationStatus.SUCCESS)
 			{
-				EntityIndex e = (EntityIndex) entity_index_binding.entryToObject(this,data);
+				EntityIndex e = (EntityIndex) entity_index_binding.entryToObject(pidx.getEntityDefinition(),data);
 				indices.add(e);
 				op_stat = cursor.getNextDup(key, data, LockMode.DEFAULT);
 			}
@@ -1760,7 +1770,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				env_cfg.setLockDetectMode(LockDetectMode.OLDEST);
 	
 			environment = new Environment(db_env_home, env_cfg);
-			
+			_closed 	= false;
 		}
 		catch (Exception e)
 		{
@@ -1769,6 +1779,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}		
 	}
 
+	//TODO: need to compare versions and rewrite file//
 	private void setup_version_file(Map<String,Object> config) throws PersistenceException
 	{
 		String path = (String)config.get(BDBStoreConfigKeyValues.KEY_STORE_ROOT_DIRECTORY);
@@ -1779,7 +1790,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			File def_db = new File(path+File.separator+active_env_path+File.separator+BDBConstants.ENTITY_DEFINITION_DB_NAME);
 			if(def_db.exists())
 				throw new PersistenceException("PLEASE MIGRATE STORE FROM VERSION 0 TO VERSION "+store_major_version);
-	
+
 			try{
 				FileOutputStream fos = new FileOutputStream(f);
 				fos.write(store_major_version);
@@ -1790,6 +1801,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				logger.error(e);
 				throw new PersistenceException("UNABLE TO SETUP VERSION FILE FOR DB DUE TO IO EXCEPTION.");
 			}
+			f.setReadOnly();
 		}
 	}
 		
@@ -1815,7 +1827,10 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	
 	private void init_backup_subsystem(Map<String, Object> config) throws PersistenceException
 	{
+		
 		String backup_path = (String)config.get(BDBStoreConfigKeyValues.KEY_STORE_BACKUP_DIRECTORY);
+		if(backup_path == null)
+			return;
 		backup_root_directory = new File(backup_path);
 		if(!backup_root_directory.exists())
 			throw new PersistenceException("BACKUP DIRECTORY "+backup_path+" DOES NOT EXIST");
@@ -1943,9 +1958,10 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		for (String entity_name : entity_types){
 			List<BDBSecondaryIndex> 		sec_indexes_list = new ArrayList<BDBSecondaryIndex>();
 			Map<String, BDBSecondaryIndex> 	sec_indexes_map  = new HashMap<String, BDBSecondaryIndex>();
-			
+
 			BDBPrimaryIndex pidx 		= entity_primary_indexes_as_map.get(entity_name);
-			List<EntityIndex> indicies 	= get_entity_indices_from_db(entity_name);
+			List<EntityIndex> indicies 	= get_entity_indices_from_db(pidx);
+
 			EntityIndex eii;
 			for (int ii = 0; ii < indicies.size(); ii++)
 			{
@@ -1985,15 +2001,19 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				} catch (Exception e) {
 					logger.error("bootstrap_existing_indices()", e);
 				}
+
 				index.setup(pidx, eii);
 				sec_indexes_map.put(eii.getName(),index);
 				/*this is just so we can close them easily*/
 				sec_indexes_list.add(index);
+
 			}
+
 			entity_secondary_indexes_as_list.put(entity_name,sec_indexes_list);
 			entity_secondary_indexes_as_map.put(entity_name,sec_indexes_map);
 
 		}//end for each entity
+
 	}
 	
 	private void bootstrap_existing_entity_relationships() throws PersistenceException
@@ -2023,6 +2043,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	private QueryManagerConfig 	_query_manager_config;
 	private void init_query_manager()
 	{
+
 		_query_manager_config = new QueryManagerConfig();
 		_query_manager_config.setPrimaryIndexMap(entity_primary_indexes_as_map);
 		_query_manager_config.setSecondaryIndexMap(entity_secondary_indexes_as_map);
@@ -2031,6 +2052,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		_query_manager_config.setEntityCacheMaxSize(128);
 		_query_manager = new QueryManager(_query_manager_config);
 		_query_manager.init();
+
 	}
 	
 	private void init_field_binding() throws PersistenceException
@@ -2137,7 +2159,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	private EnvironmentConfig get_run_recovery_config(boolean fatal_recovery)
 	{
 		EnvironmentConfig env_cfg = new EnvironmentConfig();
-		env_cfg.setAllowCreate(false);
+		env_cfg.setAllowCreate(true);
 		env_cfg.setInitializeCache(true);
 		env_cfg.setInitializeLocking(true);
 		env_cfg.setInitializeLogging(true);
@@ -2151,11 +2173,11 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		env_cfg.setCacheSize(1048576);
 		// we need enough transactions for the number of 
 		// simultaneous threads per environment
-		env_cfg.setTxnMaxActive(5);
+		env_cfg.setTxnMaxActive(1000);
 		// locks
-		env_cfg.setMaxLocks(50);
-		env_cfg.setMaxLockObjects(5);
-		env_cfg.setMaxLockers(5);
+		env_cfg.setMaxLocks(2000);
+		env_cfg.setMaxLockObjects(2000);
+		env_cfg.setMaxLockers(2000);
 
 		//env_cfg.setLockDetectMode(LockDetectMode.MINWRITE);
 		//env_cfg.setVerbose(VerboseConfig.FILEOPS_ALL, true);
@@ -3252,17 +3274,18 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	
 	public boolean supportsFullBackup() throws PersistenceException
 	{
-		return true;
+		return backup_root_directory != null;
 	}
 	
 	public boolean supportsIncrementalBackup() throws PersistenceException
 	{
-		return true;
+		return backup_root_directory != null;
 	}
 
-	public Object doFullBackup() throws PersistenceException
+	public String doFullBackup() throws PersistenceException
 	{
-		
+		if(!supportsFullBackup())
+			throw new PersistenceException("FULLBACKUP NOT SETUP.SET store-backup-dir PARAM.");
 		try{
 			String backup_filename = get_backup_filename();
 			logger.debug("F U L L   B A C K U P  TO "+backup_root_directory.getAbsolutePath()+File.separator+get_backup_filename() );
@@ -3273,11 +3296,12 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 	}
 	
-	public Object do_full_backup(String backup_filename) throws PersistenceException
+	public String do_full_backup(String backup_filename) throws PersistenceException
 	{
 		lock();
 		try{
 			File backup_dir = new File(backup_root_directory,backup_filename);	
+			backup_dir.mkdir();
 			do_checkpoint();
 			//environment.resetLogSequenceNumber(filename, encrypted)
 			File[] archive_dbs = environment.getArchiveDatabases();
@@ -3292,8 +3316,9 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			
 			for (int i=0; i<archive_logs.length; i++)
 				copy(archive_logs[i], backup_dir);
-	
+
 			//TODO: dont know if we need to do this here//
+			logger.debug("\tRUNNING CATASTROPHIC RECOVERY ON "+backup_dir);
 			EnvironmentConfig env_cfg = get_run_recovery_config(true);
 			Environment recovered_env = new Environment(backup_dir,env_cfg);
 			recovered_env.close();
@@ -3319,8 +3344,10 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	}
 	
 
-	public Object doIncrementalBackup(Object full_backup_token) throws PersistenceException
+	public String doIncrementalBackup(String full_backup_token) throws PersistenceException
 	{
+		if(!supportsFullBackup())
+			throw new PersistenceException("INCREMENTAL BACKUP NOT SETUP.SET store-backup-dir PARAM.");
 		//dont think we need to do a lock here
 		File backup_dir = new File((String)full_backup_token);
 		try{
@@ -3337,6 +3364,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 
 			//RUN CATASTROPHIC RECOVERY ON DATABASE ENVIRONMENT//
 			//TODO: pretty sure we need to do this here//
+			logger.debug("\tRUNNING CATASTROPHIC RECOVERY ON "+backup_dir);
 			EnvironmentConfig env_cfg = get_run_recovery_config(true);
 			Environment recovered_env = new Environment(backup_dir,env_cfg);
 			recovered_env.close();
@@ -3349,26 +3377,32 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	
 	}
 	
-	//returns directory//
-	public File getBackupAsDirectory(Object backup_token) throws PersistenceException
+
+	public String[] getBackupIdentifiers() throws PersistenceException
 	{
-		String backup_path = (String)backup_token;
-		return new File(backup_path);
+		File[] backups = backup_root_directory.listFiles();	
+		String[] ss = new String[backups.length];
+		for(int i = 0;i< ss.length;i++)
+			ss[i]=backups[i].getAbsolutePath();
+		return ss;
 	}
 
 	
-	public void restoreFromBackup(Object backup_token) throws PersistenceException
+
+	public void restoreFromBackup(String backup_token) throws PersistenceException
 	{
 		_store_locker.enterLockerThread();
 		try{
 			logger.debug("R E S T O R E  FROM "+backup_token);
-			File backup_dir = new File((String)backup_token);
+			File backup_dir 	   = new File((String)backup_token);
+			String backup_dir_name = backup_dir.getName(); 
 			String store_root = (String)_config.get(BDBStoreConfigKeyValues.KEY_STORE_ROOT_DIRECTORY);
-			copyDirectory(backup_dir, new File(store_root));
-			useEnvironment(backup_dir.getName());
-			//get environment root//
-			//copy d to there     //
-			//update active store//
+			File dest_dir = new File(store_root,backup_dir_name);
+			logger.debug("\tCOPYING "+backup_dir+" TO "+dest_dir.getAbsolutePath());
+			
+			copyDirectory(backup_dir,dest_dir );
+			System.out.println("SWITCHING ENVIRONMENT TO "+backup_dir_name);
+			use_environment(backup_dir_name);
 		}catch(Exception e)
 		{
 			e.printStackTrace();
@@ -3376,19 +3410,19 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 		finally
 		{
-			logger.debug("addEntityRelationship(EntityRelationshipDefinition) - LOCKER THREAD IS EXITING");
+			logger.debug("RESTORE FROM BACKUP  - LOCKER THREAD IS EXITING");
 			_store_locker.exitLockerThread();	
 		}	
 		logger.debug("RESTORE SUCCESSFUL");
 	}
 	
 	
-	public void deleteBackup(Object backup_token) throws PersistenceException
+	public void deleteBackup(String backup_token) throws PersistenceException
 	{
 
 		try{
 			logger.debug("D E L E T I N G   B A C K U P "+backup_token);
-			File b = getBackupAsDirectory(backup_token);
+			File b = new File((String)backup_token);
 			b.delete();
 		}catch(Exception e)
 		{
@@ -3401,8 +3435,12 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}	
 	}
 
-	public void setBackupRoot(File f) throws PersistenceException
+	//TODO: WE MIGHT INTRODUCE A TYPE PARAM HERE AT SOME POINT  TYPE_BASIC_FILE,TYPE_ZIP_FILE,TYPE_S3,TYPE_REMOTE etc
+	//at which point the backup subsystem becomes some interface that you can set instances of for the store IBDBBackupManager
+	//and all this crap can move there
+	public void setBackupRootIdentifier(String s) throws PersistenceException
 	{
+		File f = new File(s);
 		if(!f.exists())
 			throw new PersistenceException("BACKUP DIRECTORY "+f.getAbsolutePath()+" DOES NOT EXIST");
 		if(!f.isDirectory())
@@ -3411,9 +3449,9 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	}
 
 
-	public void useEnvironment(String environment_name) throws PersistenceException
+	private void use_environment(String environment_name) throws PersistenceException
 	{
-		_store_locker.enterLockerThread();
+		
 		try{
 			do_close();
 			set_active_env_prop(environment_name);
@@ -3423,14 +3461,11 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			pe.printStackTrace();
 			throw pe;
 		}
-		finally
-		{
-			_store_locker.exitLockerThread();
-		}
 	}	
 	
 	private void set_active_env_prop(String relative_path) throws PersistenceException
 	{
+		System.out.println("SETTING ACTIVE ENV TO "+relative_path);
 		_db_env_props.put(BDBConstants.KEY_ACTIVE_ENVIRONMENT, relative_path);
     	try
 		{

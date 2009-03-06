@@ -555,4 +555,70 @@ public class SqlStore implements PersistentStore
 		
 	}
 
+
+
+
+	@Override
+	public void deleteBackup(String backup_identifier)
+			throws PersistenceException {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+
+
+	@Override
+	public String doFullBackup() throws PersistenceException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+
+
+	@Override
+	public String doIncrementalBackup(String backup_identifier)
+			throws PersistenceException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+
+
+	@Override
+	public String[] getBackupIdentifiers() throws PersistenceException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+
+
+	@Override
+	public void restoreFromBackup(String backup_identifier)
+			throws PersistenceException {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+
+
+	@Override
+	public boolean supportsFullBackup() throws PersistenceException {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+
+
+
+	@Override
+	public boolean supportsIncrementalBackup() throws PersistenceException {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
 }

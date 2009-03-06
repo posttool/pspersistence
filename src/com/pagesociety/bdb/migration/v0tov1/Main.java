@@ -155,6 +155,7 @@ public class Main {
 			e.printStackTrace();
 			ERROR("FAILED WRITING VERSION FILE");
 		}
+		f.setReadOnly();
 		System.out.println("UPDATED STORE DATA FILES TO 1.0");
 	}
 

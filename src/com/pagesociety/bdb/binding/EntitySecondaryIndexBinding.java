@@ -59,27 +59,21 @@ public class EntitySecondaryIndexBinding
 		return new DatabaseEntry(to.toByteArray());
 	}
 
-	public Object entryToObject(BDBStore store, DatabaseEntry data) throws DatabaseException
+	public Object entryToObject(EntityDefinition def, DatabaseEntry data) throws DatabaseException
 	{
 		TupleInput ti 			= new TupleInput(data.getData());
 		String index_name 		= ti.readString();
 		int index_type 			= ti.readInt();
 		String entity_name 		= ti.readString();
 		//String field_name = ti.readString();
-		EntityDefinition def;
-
-			def = store.getEntityDefinition(entity_name);
-			if(def == null)
-				throw new DatabaseException("NO ENTITY DEF FOR "+entity_name);
-
+	
 		EntityIndex esi = new EntityIndex(index_name, index_type);
 		esi.setEntity(entity_name);	
-		
+
 		/*decode fields*/
 		int size = ti.readInt();
 		for(int i=0;i<size;i++)
 			esi.addField(def.getField(ti.readString()));			
-
 		/*decode runtime attributes*/
 		size = ti.readInt();
 		for (int i = 0; i < size; i++)

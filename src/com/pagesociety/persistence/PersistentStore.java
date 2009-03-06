@@ -1,8 +1,12 @@
 package com.pagesociety.persistence;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import com.sleepycat.db.Environment;
+import com.sleepycat.db.EnvironmentConfig;
 
 
 
@@ -471,7 +475,14 @@ public interface PersistentStore
 	 */
 	public abstract int count(Query q) throws PersistenceException;
 
-
+ 
 	public void checkpoint() throws PersistenceException;
-
+	//backup stuff//
+	public boolean supportsFullBackup() throws PersistenceException;	
+	public boolean supportsIncrementalBackup() throws PersistenceException;
+	public String doFullBackup() throws PersistenceException;
+	public String doIncrementalBackup(String backup_identifier) throws PersistenceException;
+	public String[] getBackupIdentifiers() throws PersistenceException;
+	public void restoreFromBackup(String backup_identifier) throws PersistenceException;
+	public void deleteBackup(String backup_identifier) throws PersistenceException;
 }

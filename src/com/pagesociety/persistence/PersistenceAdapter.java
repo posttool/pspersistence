@@ -40,5 +40,12 @@ public abstract class PersistenceAdapter implements PersistentStore
 	public List<Object> getDistinctKeys(String entity, String index)throws PersistenceException{return null;}
 	public int count(Query q) throws PersistenceException{return 0;}
 	public void checkpoint() throws PersistenceException{}
+	public boolean supportsFullBackup() throws PersistenceException{return false;}	
+	public boolean supportsIncrementalBackup() throws PersistenceException{return false;}
+	public String doFullBackup() throws PersistenceException{return null;}
+	public String doIncrementalBackup(String backup_identifier) throws PersistenceException{return null;}
+	public String[] getBackupIdentifiers() throws PersistenceException{return null;}
+	public void restoreFromBackup(String backup_identifier) throws PersistenceException{}
+	public void deleteBackup(String backup_identifier) throws PersistenceException{}
 
 }

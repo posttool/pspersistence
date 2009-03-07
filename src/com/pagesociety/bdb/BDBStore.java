@@ -124,13 +124,13 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 
 		/* order is important */
 		/* check the version of data vs version of code*/
-		setup_version_file(config);
-		verify_version(config);
-		
 		init_shutdown_hook();
 		init_locker(config);
 		init_checkpoint_policy(config);
 		init_environment(config);
+		
+		setup_version_file(config);
+		verify_version(config);
 
 		init_entity_definition_db(config);
 		init_entity_definition_provider(config);

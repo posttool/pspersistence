@@ -3133,7 +3133,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	       if (f.isArray())
 	       {
 	           List<Entity> refs = (List<Entity>) e.getAttribute(f.getName());
-	           if (refs == null || refs.size() == 0)
+	           if (refs == null)
 	               return;
 	           
 	           List<Entity> filled_refs = new ArrayList<Entity>();
@@ -3141,11 +3141,15 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	           {
 	              Entity r = refs.get(i);
 	              if(r == null)
+	              {
 	            	  filled_refs.add(null);
+	              }
 	              else
-	        	   filled_refs.add(ref_pidx.getById(null,r.getId()));
-	           }
-	            e.getAttributes().put(f.getName(), filled_refs);
+	              {
+	            	  filled_refs.add(ref_pidx.getById(null,r.getId()));
+	              }
+	            }
+	           e.getAttributes().put(f.getName(), filled_refs);
 	       }
 	       else
 	       {

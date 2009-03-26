@@ -62,7 +62,7 @@ public class EntitySecondaryIndexBinding
 		//this is here to be backwards compatible with before we were
 		//dealing with attributes as serialized objects...num_attributes//
 		int num_attributes = entity_index.getAttributes().keySet().size();
-		System.out.println("NUM ATTRIBUTES FOR "+entity_index.getName()+" IS "+num_attributes);
+		//System.out.println("NUM ATTRIBUTES FOR "+entity_index.getName()+" IS "+num_attributes);
 		to.writeInt(num_attributes);
 		if(num_attributes != 0)
 		{
@@ -74,7 +74,7 @@ public class EntitySecondaryIndexBinding
 	}
 
 	//TODO:dont need def here anymore
-	public Object entryToObject(EntityDefinition def, DatabaseEntry data) throws DatabaseException
+	public Object entryToObject(DatabaseEntry data) throws DatabaseException
 	{
 		TupleInput ti 			= new TupleInput(data.getData());
 		String index_name 		= ti.readString();

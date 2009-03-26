@@ -1646,7 +1646,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			OperationStatus op_stat = cursor.getSearchKey(key, data, LockMode.DEFAULT);
 			while (op_stat == OperationStatus.SUCCESS)
 			{
-				EntityIndex e = (EntityIndex) entity_index_binding.entryToObject(pidx.getEntityDefinition(),data);
+				EntityIndex e = (EntityIndex) entity_index_binding.entryToObject(data);
 				indices.add(e);
 				op_stat = cursor.getNextDup(key, data, LockMode.DEFAULT);
 			}
@@ -2029,11 +2029,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				pidx.close(entity_secondary_indexes_as_list.get(ename));
 			}
 			
-			for(int i = 0; i < deep_index_list.size();i++)
-			{
-				BDBSecondaryIndex d_idx = deep_index_list.get(i);
-				d_idx.close();
-			}
+
 			
 			if (entity_index_db != null)
 			{
@@ -2351,6 +2347,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				if(index.isDeepIndex())
 				{
 					update_deep_index_meta_info(index);
+					deep_index_list.add(index);
 				}
 				/*END PART OF CRAZINESS */
 				sec_indexes_list.add(index);
@@ -2638,6 +2635,19 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		for(int i = 0; i < sec_indexes.size();i++)
 		{
 			BDBSecondaryIndex sec_idx = sec_indexes.get(i);
+			if(sec_idx.isDeepIndex())
+			{
+				System.out.println("WARNING STILL NEEDS TO BE DEALT WITH. SEE RENAME ENTITY FIELD.");
+				try
+				{
+					throw new Exception();
+				}catch(Exception e)
+				{
+					e.printStackTrace();
+				}
+				
+				continue;
+			}
 			if(sec_idx.invalidatedByFieldDelete(f))
 				throw new PersistenceException("DELETE ENTITY FIELD: "+field_name+" has a dependent index( "+sec_idx.getName()+" ). Delete the index first.");
 		}
@@ -2756,8 +2766,6 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			}
 		}
 		
-		/* here we make sure the indexes update their file names on disk appropriately
-		 * and force them to be rewritten in the entity_index_db with the new field names*/
 
 		/*update entity def */
 		redefine_entity_definition(old_def,new_def);	 
@@ -2765,60 +2773,64 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		List<BDBSecondaryIndex> all_indexes_for_entity = entity_secondary_indexes_as_list.get(entity);
 		for(int i = 0; i < all_indexes_for_entity.size();i++)
 		{
-			
 			BDBSecondaryIndex index 		= all_indexes_for_entity.get(i);
-			if(index.isDeepIndex())
+			if(index.indexesField(old_field_name))
+				update_index_field_definition_for_rename(index, old_field_name, new_field_name);
+		}
+		
+		//deal with deep indexes
+		for(int i = 0;i < deep_index_list.size();i++)
+		{
+			
+			BDBSecondaryIndex index 		= deep_index_list.get(i);
+			System.out.println("INDEX "+index.getName()+" isDeep() "+index.isDeepIndex()+" attributes"+index.getAttributes());
+
+			String[] ref_path = (String[])index.getAttribute(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_LOCATOR_PREFIX+0);
+			List<FieldDefinition>[] ref_path_types = (List<FieldDefinition>[])index.getAttribute(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_TYPE_LOCATOR_PREFIX+0);
+
+			if(index.getEntityDefinition().getName().equals(old_def.getName()))
 			{
-				//TODO: DEAL WITH RENAMING IN DEEP INDEXES//
-				String[] ref_path = (String[])index.getAttribute(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_LOCATOR_PREFIX+0);
-				List<FieldDefinition>[] ref_path_types = (List<FieldDefinition>[])index.getAttribute(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_TYPE_LOCATOR_PREFIX+0);
-				if(index.getEntityDefinition().getName().equals(old_def.getName()))
+				if(ref_path[0].equals(old_field_name))
 				{
-					if(ref_path[0].equals(old_field_name))
-					{
-						ref_path[0] = new_field_name;
-						index.getAttributes().put(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_LOCATOR_PREFIX+0,ref_path);
-					}
+					ref_path[0] = new_field_name;
+					index.getAttributes().put(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_LOCATOR_PREFIX+0,ref_path);
 				}
-				for(int ii = 0;ii < ref_path_types.length-1;ii++)
+			}
+			for(int ii = 0;ii < ref_path_types.length-1;ii++)
+			{
+				List<FieldDefinition> dd = ref_path_types[ii];
+				for(int j = 0;j < dd.size();j++)
 				{
-					List<FieldDefinition> dd = ref_path_types[ii];
-					for(int j = 0;j < dd.size();j++)
+					FieldDefinition type = dd.get(j);
+					if(type.getReferenceType().equals(old_def.getName()) || 
+					   type.getReferenceType().equals(FieldDefinition.REF_TYPE_UNTYPED_ENTITY))
 					{
-						FieldDefinition type = dd.get(j);
-						if(type.getReferenceType().equals(old_def.getName()) || 
-						   type.getReferenceType().equals(FieldDefinition.REF_TYPE_UNTYPED_ENTITY))
+						if(ref_path[ii+1].equals(old_field_name))
 						{
-							if(ref_path[i+1].equals(old_field_name))
-							{
-								ref_path[i+1].equals(new_field_name);
-								List<FieldDefinition> types = ref_path_types[ii+1];
-								for(int k=0;k< types.size();k++)
-									types.get(k).setName(new_field_name);
-							}
+							//System.out.println("CHANGING "+ref_path[ii+1]+" TO "+new_field_name);
+							ref_path[ii+1] = new_field_name;
+							List<FieldDefinition> types = ref_path_types[ii+1];
+							for(int k=0;k< types.size();k++)
+								types.get(k).setName(new_field_name);
 						}
 					}
 				}
-				try{
-					//update in db
-					delete_entity_index_from_db(index.getEntityDefinition().getName(), index.getEntityIndex());
-					add_entity_index_to_db(index.getEntityDefinition().getName(), index.getEntityIndex());
-					//update meta info
-					Map<String,List<BDBSecondaryIndex>> meta = deep_index_meta_map.get(old_def.getName());
-					meta.put(new_field_name,meta.remove(old_field_name));
-				
-				}catch(DatabaseException dbe)
-				{
-					throw new PersistenceException("FAILED UPDATING DEEP INDEX DEF ON FIELD RENAME.");
-				}
-				
-				continue;
 			}
-			else
+			try{
+				//update in db
+				//System.out.println("INDEX NAME IS "+index.getName()+" INDEX "+index.getEntityIndex());
+				delete_entity_index_from_db(index.getEntityDefinition().getName(), index.getEntityIndex());
+				add_entity_index_to_db(index.getEntityDefinition().getName(), index.getEntityIndex());
+				//update meta info
+				Map<String,List<BDBSecondaryIndex>> meta = deep_index_meta_map.get(old_def.getName());
+				meta.put(new_field_name,meta.remove(old_field_name));
+			
+			}catch(DatabaseException dbe)
 			{
-				if(index.indexesField(old_field_name))
-					update_index_field_definition_for_rename(index, old_field_name, new_field_name);
+				throw new PersistenceException("FAILED UPDATING DEEP INDEX DEF ON FIELD RENAME.");
 			}
+			
+			continue;
 		}
 		return f; 
 	}
@@ -3157,7 +3169,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			System.out.println("UPDATING META INFO FOR DEEP INDEX "+index.getName()+" ADDING TO DEEP INDEX META MAP");
 			//add it to the deep index meta map//			
 			update_deep_index_meta_info(index);
-			//deep_index_list.add(index);
+			deep_index_list.add(index);
 		}
 		
 		entity_secondary_indexes_as_list.get(entity).add(index);
@@ -3166,6 +3178,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		
 		try
 		{
+			System.out.println("!!!ADDING ENTITY INDEX TO DB!!! "+entity+" "+eii.getName());
 			add_entity_index_to_db(entity, eii);
 		}
 		catch (DatabaseException e)
@@ -3250,7 +3263,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		//and looking for REF_PATH_i
 		String[] parts = (String[])index.getAttribute(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_LOCATOR_PREFIX+0);
 		List<FieldDefinition>[] ref_path_ref_types = new List[parts.length];
-		resolve_ref_path_ref_types(index.getPrimaryIndex().getEntityDefinition(),index.getPrimaryIndex().getEntityDefinition(),parts,ref_path_ref_types,0,index.getAttributes());
+		resolve_ref_path_ref_types(index.getEntityDefinition(),index.getEntityDefinition(),parts,ref_path_ref_types,0,index.getAttributes());
 		add_item_to_deep_index_meta_map(index.getPrimaryIndex().getEntityDefinition().getName(), parts[0], index);
 
 		for(int j = 0;j < parts.length-1;j++)
@@ -3472,7 +3485,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				EntityIndex idx = s_idx.getEntityIndex();
 				try{
 					delete_entity_index_from_db(entity, idx);
-					s_idx = entity_secondary_indexes_as_map.get(entity).remove(old_name);				
+					s_idx = entity_secondary_indexes_as_map.get(entity).remove(old_name);
 					idx.setName(new_name);
 					add_entity_index_to_db(entity, idx);
 					entity_secondary_indexes_as_map.get(entity).put(new_name,s_idx);
@@ -3493,18 +3506,30 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		
 		Transaction txn = null;
 		try{
-			DatabaseEntry data = entity_index_binding.objectToEntry(idx);
+
 			txn = environment.beginTransaction(null, null);
 			Cursor cursor 	   = entity_index_db.openCursor(txn, null);
-		
-			OperationStatus op_stat = cursor.getSearchBoth(key, data, LockMode.DEFAULT);
+			DatabaseEntry data = new DatabaseEntry();
+			OperationStatus op_stat = cursor.getSearchKey(key, data, LockMode.DEFAULT);
 			if(op_stat == OperationStatus.NOTFOUND)
-				throw new DatabaseException("NOTFOUND: COULDNT DELETE IDX "+entity+" "+idx.getName());
-			op_stat = cursor.delete();
-			cursor.close();
-			txn.commit();
-			if(op_stat != OperationStatus.SUCCESS)
-				throw new DatabaseException("DELETE FAILED: COULDNT DELETE IDX "+entity+" "+idx.getName());
+				throw new DatabaseException("NOTFOUND: COULDNT DELETE IDX "+entity+" "+idx.getName()+" BECAUSE THERE ARE NO INDEXES FOR "+entity);			
+
+			while((op_stat = cursor.getNextDup(key, data, LockMode.DEFAULT)) == OperationStatus.SUCCESS);
+			{
+				EntityIndex ei = (EntityIndex)entity_index_binding.entryToObject(data);
+				if(ei.getName().equals(idx.getName()))
+				{
+					op_stat = cursor.delete();
+					cursor.close();
+					txn.commit();
+					if(op_stat != OperationStatus.SUCCESS)
+						throw new DatabaseException("DELETE FAILED: COULDNT DELETE IDX "+entity+" "+idx.getName());
+					return ei;
+				}
+			}
+			if(op_stat == OperationStatus.NOTFOUND)
+				throw new DatabaseException("NOTFOUND: COULDNT DELETE IDX "+entity+" "+idx.getName()+" DIDNT FIND IT.");			
+			
 		}catch(DatabaseException dbe)
 		{
 			try{
@@ -3516,7 +3541,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			dbe.printStackTrace();
 			throw new DatabaseException("DATABASE FAILURE FOR DELETE ENTITY INDEX");
 		}
-		return idx; 
+		return null;
 	}
 	
 	private void add_entity_index_to_db(String entity,EntityIndex idx) throws DatabaseException

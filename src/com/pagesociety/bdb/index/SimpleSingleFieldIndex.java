@@ -1,25 +1,19 @@
 package com.pagesociety.bdb.index;
 
-import java.util.ArrayList;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import com.pagesociety.bdb.BDBQueryResult;
-import com.pagesociety.bdb.BDBQueryToken;
 import com.pagesociety.bdb.BDBSecondaryIndex;
 import com.pagesociety.bdb.binding.FieldBinding;
 import com.pagesociety.persistence.Entity;
 import com.pagesociety.persistence.FieldDefinition;
-import com.pagesociety.persistence.PersistenceException;
 import com.pagesociety.persistence.Query;
-import com.pagesociety.persistence.QueryResult;
-import com.pagesociety.persistence.Types;
 import com.sleepycat.bind.tuple.TupleOutput;
 import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
-import com.sleepycat.db.OperationStatus;
+
 
 public class SimpleSingleFieldIndex extends AbstractSingleFieldIndex
 {

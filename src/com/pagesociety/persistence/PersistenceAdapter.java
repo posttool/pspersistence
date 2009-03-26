@@ -20,8 +20,8 @@ public abstract class PersistenceAdapter implements PersistentStore
 	public int deleteEntityField(String entity, String fieldname)throws PersistenceException{return 0;}
 	public FieldDefinition renameEntityField(String entity,String old_field_name, String new_field_name) throws PersistenceException{return null;}
 	public List<EntityIndex> getEntityIndices(String entity)throws PersistenceException {return null;}
-	public EntityIndex addEntityIndex(String entity, String field_name,int index_type, String index_name, Map<String, String> attributes)throws PersistenceException {return null;}
-	public EntityIndex addEntityIndex(String entity, String[] field_names,int index_type, String index_name, Map<String, String> attributes)throws PersistenceException{return null;}
+	public EntityIndex addEntityIndex(String entity, String field_name,int index_type, String index_name, Map<String, Object> attributes)throws PersistenceException {return null;}
+	public EntityIndex addEntityIndex(String entity, String[] field_names,int index_type, String index_name, Map<String, Object> attributes)throws PersistenceException{return null;}
 	public void deleteEntityIndex(String entity, String index_name)throws PersistenceException{}
 	public void renameEntityIndex(String entity, String old_name, String new_name)throws PersistenceException{}
 	public void addEntityRelationship(EntityRelationshipDefinition r)throws PersistenceException{}

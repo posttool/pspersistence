@@ -45,7 +45,7 @@ public class SingleFieldFreeTextIndex extends AbstractSingleFieldIndex
 		super(BDBSecondaryIndex.TYPE_FREETEXT_INDEX);
 	}
 	
-	public void init(Map<String,String> attributes)
+	public void init(Map<String,Object> attributes)
 	{
 		
 	}

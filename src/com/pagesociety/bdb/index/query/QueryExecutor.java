@@ -973,7 +973,7 @@ public class QueryExecutor
 	private IndexIterator setup_predicate_iterator(IterableIndex idx,boolean is_multi,int iter_type,QueryNode iter_node) throws PersistenceException
 	{		
 		if(idx.isSetIndex())
-			throw new PersistenceException("UNSUPPORTED OPERATION FOR INDEX."+idx.getName()+"IS NOT A SET INDEX");
+			throw new PersistenceException("UNSUPPORTED OPERATION FOR INDEX."+idx.getName()+"IS NOT A PREDICATE INDEX");
 		
 		DatabaseEntry param			= null;
 		Object user_param = _query_params[(Integer)iter_node.attributes.get(Query.ATT_PREDICATE_ITER_USER_PARAM)];

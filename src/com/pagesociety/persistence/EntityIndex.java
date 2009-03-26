@@ -37,14 +37,14 @@ public class EntityIndex
 	private int				 		_index_type;//the type of the index. must be one of the types above
 	private String			 		_entity_type;//index is on instances of these types of entities
 	private List<FieldDefinition> 	_fields;//the indexed field/fields
-	private Map<String, String> 	_attributes;//additional attributes of the index. currently unused
+	private Map<String, Object> 	_attributes;//additional attributes of the index. currently unused
 
 	/**
 	 * Create a default untyped index.
 	 */
 	public EntityIndex()
 	{
-		_attributes = new HashMap<String, String>();
+		_attributes = new HashMap<String, Object>();
 		_fields 	= new ArrayList<FieldDefinition>();
 	}
 
@@ -61,7 +61,7 @@ public class EntityIndex
 	{
 		_index_type = index_type;
 		_name = name;
-		_attributes = new HashMap<String, String>();
+		_attributes = new HashMap<String, Object>();
 		_fields = new ArrayList<FieldDefinition>();
 	}
 	
@@ -69,7 +69,7 @@ public class EntityIndex
 	{
 		_index_type = index_type;
 		_name = name;
-		_attributes = new HashMap<String, String>();
+		_attributes = new HashMap<String, Object>();
 		_fields = new ArrayList<FieldDefinition>();
 		for(int i = 0;i < fields.length;i++)
 			addField(fields[i]);
@@ -156,25 +156,35 @@ public class EntityIndex
 	 *
 	 * @return Index attributes.
 	 */
-	public Map<String, String> getAttributes()
+	public Map<String, Object> getAttributes()
 	{
 		return _attributes;
+	}
+	
+	public Object getAttribute(String att_name)
+	{
+		return _attributes.get(att_name);
 	}
 
 	
 	
 	/**
 	 * Sets attribute values for this index. Attributes are defined by the
-	 * EntityIndexDefinition.
+	 * EntityIndexDefinition.Attributes are currently only String and List<String>
 	 *
 	 * @param key
 	 *            The attribute name.
 	 * @param value
 	 *            The value.
 	 */
-	public void setAttribute(String key, String value)
+	public void setAttribute(String key, Object value)
 	{
 		_attributes.put(key, value);
+	}
+	
+	public void setAttributes(Map<String,Object> att)
+	{
+		_attributes = att;
 	}
 
 	/**

@@ -27,7 +27,7 @@ public class SimpleMultiFieldIndex extends AbstractMultiFieldIndex
 		super(BDBSecondaryIndex.TYPE_NORMAL_INDEX);
 	}
 	
-	public void init(Map<String,String> attributes)
+	public void init(Map<String,Object> attributes)
 	{
 
 	}

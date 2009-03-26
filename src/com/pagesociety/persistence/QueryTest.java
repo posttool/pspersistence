@@ -89,7 +89,7 @@ public class QueryTest {
 		//simple_freetext_test();
 		//multi_freetext_test();
 		//multi_freetext_globbing_test();
-		multi_freetext_globbing_test2();
+		//multi_freetext_globbing_test2();
 		//default_value_test();
 		//relationship_one_to_one_test();
 		//relationship_one_to_many_test();
@@ -97,6 +97,11 @@ public class QueryTest {
 		//entity_hash_test();
 		//id_index_test();
 		//weird_range_test();
+		//deep_indexing_test_populate();
+		//deep_indexing_test_simple_save();
+		//deep_indexing_test_arrays_in_ref_path();
+		//deep_indexing_test_save_array_terminal();
+		deep_indexing_test_field_rename();
 	}
 	
 	public void id_index_test() throws PersistenceException
@@ -1906,6 +1911,541 @@ public class QueryTest {
 		print(result);
 		System.out.println("MULTI ARRAY MEMBERSHIP CONTAINS ALL [Joyce,Wright],GLOB " + t2 + " RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
 	}
+
+	
+	public void deep_indexing_test_populate() throws PersistenceException
+	{
+		//insert_entity_instances(500);
+		int N=150;
+		for(int i = 0;i < N;i++)
+		{
+			Entity author 		= _store.getEntityDefinition("Author").createInstance();
+			String first_name   = R(firstNames);
+			String last_name    = R(lastNames);
+			author.setAttribute("FirstName", first_name);
+			author.setAttribute("LastName", last_name);
+			_store.saveEntity(author);
+			
+			Entity book   		= _store.getEntityDefinition("Book").createInstance();
+			String title 		= R(titles);
+			book.setAttribute("Title",title);
+			_store.saveEntity(book);
+			
+			Entity poem   			= _store.getEntityDefinition("Poem").createInstance();
+			String poem_title 		= R(poem_titles);
+			poem.setAttribute("Title",poem_title);
+			_store.saveEntity(poem);
+			
+			Entity publisher   	= _store.getEntityDefinition("Publisher").createInstance();
+			publisher.setAttribute("City",R(cities));
+			publisher.setAttribute("Country",R(countries));
+			_store.saveEntity(publisher);	
+		}
+		
+		for(int i = 0;i < N;i++)
+		{
+			Entity author 		= _store.getEntityById("Author", i+1);
+			Entity book   		= _store.getEntityById("Book", i+1);
+			Entity poem   		= _store.getEntityById("Poem", i+1);
+			Entity publisher   	= _store.getEntityById("Publisher", i+1);
+		
+			poem.setAttribute("SubData", publisher);
+			_store.saveEntity(poem);
+			
+			book.setAttribute("SubData", publisher);
+			_store.saveEntity(book);
+			
+			if(Math.random() > 0.5)
+				author.setAttribute("Data",book);
+			else
+			{
+				if(Math.random() > 0.5)
+					author.setAttribute("Data",poem);
+				else
+					author.setAttribute("Data",null);
+			}
+			author = _store.saveEntity(author);
+			System.out.println("SAVED AUTHOR "+author);
+		}
+		
+		
+		Map<String,Object> index_attributes = new HashMap<String,Object>();
+		String[] Data_can_be_0 = new String[]{"Book","Poem"};
+		//TODO: fix these names
+		//they probs also need to take into account the field position
+		//
+		index_attributes.put("0_Data_can_be",Data_can_be_0);
+		String[] SubData_can_be_1 = new String[]{"Publisher"};
+		index_attributes.put("1_SubData_can_be",SubData_can_be_1);
+		addSingleFieldEntityIndex("Author","Data.SubData.City", EntityIndex.TYPE_SIMPLE_SINGLE_FIELD_INDEX, "byData.SubData.City", index_attributes);
+		
+		
+		
+		
+		Query q = new Query("Author");
+		q.pageSize(Query.ALL_RESULTS);
+		q.idx("byData.SubData.City");
+		//q.between(q.list(Query.VAL_MIN,Query.VAL_MIN),q.list(Query.VAL_MAX,Query.VAL_MAX));
+		q.eq("Austin");
+		QueryResult result;
+		t1 = System.currentTimeMillis();
+		result = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		print(result);
+		System.out.println("DEEP INDEX Author byData.SubData.City " + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+		
+		List<Entity> ee = result.getEntities();
+		for(int i = 0;i < ee.size();i++)
+		{
+			Entity e = ee.get(i);
+			System.out.println(e);
+			Entity ddata 	= null;
+			Entity subdata  = null;
+			String city 	= null;
+			_store.fillReferenceField(e, "Data");
+			ddata = (Entity)e.getAttribute("Data");
+			System.out.println("\tData is "+ddata);
+			if(ddata != null)
+			{
+				_store.fillReferenceField(ddata, "SubData");
+				subdata = (Entity)ddata.getAttribute("SubData");
+				System.out.println("\tSubData is "+subdata);
+	
+				if(subdata != null)
+				{
+					city = (String)subdata.getAttribute("City");
+					System.out.println("\tCity is "+city);
+					System.out.println();
+				}
+			}
+			
+		}
+	}
+	
+	
+	public void deep_indexing_test_simple_save() throws PersistenceException
+	{
+		Map<String,Object> index_attributes = new HashMap<String,Object>();
+		String[] Data_can_be_0 = new String[]{"Book","Poem"};
+		//TODO: fix these names
+		//they probs also need to take into account the field position
+		//
+		index_attributes.put("0_Data_can_be",Data_can_be_0);
+		String[] SubData_can_be_1 = new String[]{"Publisher"};
+		index_attributes.put("1_SubData_can_be",SubData_can_be_1);
+		addSingleFieldEntityIndex("Author","Data.SubData.City", EntityIndex.TYPE_SIMPLE_SINGLE_FIELD_INDEX, "byData.SubData.City", index_attributes);
+
+		
+		//insert_entity_instances(500);
+		int N=10;
+		for(int i = 0;i < N;i++)
+		{
+			Entity author 		= _store.getEntityDefinition("Author").createInstance();
+			String first_name   = R(firstNames);
+			String last_name    = R(lastNames);
+			author.setAttribute("FirstName", first_name);
+			author.setAttribute("LastName", last_name);
+			_store.saveEntity(author);
+			
+			Entity book   		= _store.getEntityDefinition("Book").createInstance();
+			String title 		= R(titles);
+			book.setAttribute("Title",title);
+			_store.saveEntity(book);
+			
+			Entity poem   			= _store.getEntityDefinition("Poem").createInstance();
+			String poem_title 		= R(poem_titles);
+			poem.setAttribute("Title",poem_title);
+			_store.saveEntity(poem);
+			
+			Entity publisher   	= _store.getEntityDefinition("Publisher").createInstance();
+			publisher.setAttribute("City",R(cities));
+			publisher.setAttribute("Country",R(countries));
+			_store.saveEntity(publisher);	
+		}
+		
+		Entity author1 = _store.getEntityById("Author", 1);
+		Entity book1  = _store.getEntityById("Book", 1);
+		Entity poem1  = _store.getEntityById("Poem", 1);
+		Entity publisher1  = _store.getEntityById("Publisher", 1);
+		publisher1.setAttribute("City", "Bogata");
+		Entity publisher2  = _store.getEntityById("Publisher", 2);
+		publisher2.setAttribute("City", "Reno");
+		_store.saveEntity(publisher1);
+		_store.saveEntity(publisher2);
+		
+		book1.setAttribute("SubData", publisher1);
+		poem1.setAttribute("SubData", publisher2);
+		author1.setAttribute("Data", book1);
+		
+		_store.saveEntity(book1);
+		_store.saveEntity(poem1);
+		_store.saveEntity(author1);
+		
+		/////////////////////////////////////////////
+		Query q = new Query("Author");
+		q.pageSize(Query.ALL_RESULTS);
+		q.idx("byData.SubData.City");
+		//q.between(q.list(Query.VAL_MIN,Query.VAL_MIN),q.list(Query.VAL_MAX,Query.VAL_MAX));
+		q.eq("Bogata");
+		QueryResult result;
+		t1 = System.currentTimeMillis();
+		result = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		print(result);
+		System.out.println("DEEP INDEX Author byData.SubData.City " + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+		
+		List<Entity> ee = result.getEntities();
+		for(int i = 0;i < ee.size();i++)
+		{
+			Entity e = ee.get(i);
+			System.out.println(e);
+			Entity ddata 	= null;
+			Entity subdata  = null;
+			String city 	= null;
+			_store.fillReferenceField(e, "Data");
+			ddata = (Entity)e.getAttribute("Data");
+			System.out.println("\tData is "+ddata);
+			if(ddata != null)
+			{
+				_store.fillReferenceField(ddata, "SubData");
+				subdata = (Entity)ddata.getAttribute("SubData");
+				System.out.println("\tSubData is "+subdata);
+	
+				if(subdata != null)
+				{
+					city = (String)subdata.getAttribute("City");
+					System.out.println("\tCity is "+city);
+					System.out.println();
+				}
+			}
+			
+		}
+		////////////////////////////////////////////////////////////////////////
+		
+		publisher1.setAttribute("City", "Miami");
+		_store.saveEntity(publisher1);
+		/////////////////////////
+		
+		/////////////////////////////////////////////
+		q = new Query("Author");
+		q.pageSize(Query.ALL_RESULTS);
+		q.idx("byData.SubData.City");
+		//q.between(q.list(Query.VAL_MIN,Query.VAL_MIN),q.list(Query.VAL_MAX,Query.VAL_MAX));
+		q.eq("Bogata");
+		
+		t1 = System.currentTimeMillis();
+		result = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		print(result);
+		System.out.println("DEEP INDEX Author byData.SubData.City " + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+		
+		ee = result.getEntities();
+		for(int i = 0;i < ee.size();i++)
+		{
+			Entity e = ee.get(i);
+			System.out.println(e);
+			Entity ddata 	= null;
+			Entity subdata  = null;
+			String city 	= null;
+			_store.fillReferenceField(e, "Data");
+			ddata = (Entity)e.getAttribute("Data");
+			System.out.println("\tData is "+ddata);
+			if(ddata != null)
+			{
+				_store.fillReferenceField(ddata, "SubData");
+				subdata = (Entity)ddata.getAttribute("SubData");
+				System.out.println("\tSubData is "+subdata);
+	
+				if(subdata != null)
+				{
+					city = (String)subdata.getAttribute("City");
+					System.out.println("\tCity is "+city);
+					System.out.println();
+				}
+			}
+			
+		}
+	/////////////////////////////////
+		
+		/////////////////////////////////////////////
+		q = new Query("Author");
+		q.pageSize(Query.ALL_RESULTS);
+		q.idx("byData.SubData.City");
+		//q.between(q.list(Query.VAL_MIN,Query.VAL_MIN),q.list(Query.VAL_MAX,Query.VAL_MAX));
+		q.eq("Miami");
+		
+		t1 = System.currentTimeMillis();
+		result = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		print(result);
+		System.out.println("DEEP INDEX Author byData.SubData.City " + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+		
+		ee = result.getEntities();
+		for(int i = 0;i < ee.size();i++)
+		{
+			Entity e = ee.get(i);
+			System.out.println(e);
+			Entity ddata 	= null;
+			Entity subdata  = null;
+			String city 	= null;
+			_store.fillReferenceField(e, "Data");
+			ddata = (Entity)e.getAttribute("Data");
+			System.out.println("\tData is "+ddata);
+			if(ddata != null)
+			{
+				_store.fillReferenceField(ddata, "SubData");
+				subdata = (Entity)ddata.getAttribute("SubData");
+				System.out.println("\tSubData is "+subdata);
+	
+				if(subdata != null)
+				{
+					city = (String)subdata.getAttribute("City");
+					System.out.println("\tCity is "+city);
+					System.out.println();
+				}
+			}
+			
+		}
+	
+	}
+
+	public void deep_indexing_test_arrays_in_ref_path() throws PersistenceException
+	{
+		Map<String,Object> index_attributes = new HashMap<String,Object>();
+		//String[] Data_can_be_0 = new String[]{"Book","Poem"};
+		//TODO: fix these names
+		//they probs also need to take into account the field position
+		//
+		//index_attributes.put("0_Data_can_be",Data_can_be_0);
+		//String[] SubData_can_be_1 = new String[]{"Publisher"};
+		//index_attributes.put("1_SubData_can_be",SubData_can_be_1);
+		addSingleFieldEntityIndex("Author","Books.Publisher.City", EntityIndex.TYPE_SIMPLE_SINGLE_FIELD_INDEX, "byBooks.Publisher.City", index_attributes);
+
+		int N=10;		
+		insert_entity_instances(10);
+
+		for(int i = 0;i < N;i++)
+		{
+			Entity publisher   	= _store.getEntityDefinition("Publisher").createInstance();
+			publisher.setAttribute("City",R(cities));
+			publisher.setAttribute("Country",R(countries));
+			_store.saveEntity(publisher);	
+		}
+		
+		Entity author1    = _store.getEntityById("Author", 1);
+		Entity publisher1 = _store.getEntityById("Publisher", 1);
+		publisher1.setAttribute("City", "Rio");
+		_store.saveEntity(publisher1);
+		System.out.println("AUTHOR 1 -> "+author1);
+		List<Entity> books = (List<Entity>)author1.getAttribute("Books");
+		System.out.println("!!!! BOOKS is "+books);
+		if(books == null)
+		{
+			System.out.println("BOOKS FOR AUTHOR 1 WAS NULL");
+			return;
+		}
+		for(int i = 0;i < books.size();i++)
+		{
+			Entity book = books.get(i);
+			System.out.println("!!!SETTING PUBLISHER ON BOOK "+book.getId()+" TO "+publisher1);
+			book.setAttribute("Publisher", publisher1);
+			_store.saveEntity(book);
+		}
+		
+
+		Query q = new Query("Author");
+		q.pageSize(Query.ALL_RESULTS);
+		q.idx("byBooks.Publisher.City");
+		//q.between(q.list(Query.VAL_MIN,Query.VAL_MIN),q.list(Query.VAL_MAX,Query.VAL_MAX));
+		q.eq("Rio");
+		
+		t1 = System.currentTimeMillis();
+		QueryResult result = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		print(result);
+		System.out.println("DEEP INDEX Author byBooks.Publisher.City " + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+		
+		
+		_store.deleteEntity(publisher1);
+		t1 = System.currentTimeMillis();
+		result = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		print(result);
+		System.out.println("DEEP INDEX Author byBooks.Publisher.City " + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+
+		
+		
+	}
+	
+	
+	public void deep_indexing_test_save_array_terminal() throws PersistenceException
+	{
+		Map<String,Object> index_attributes = new HashMap<String,Object>();
+		//String[] Data_can_be_0 = new String[]{"Book","Poem"};
+		//TODO: fix these names
+		//they probs also need to take into account the field position
+		//
+		//index_attributes.put("0_Data_can_be",Data_can_be_0);
+		//String[] SubData_can_be_1 = new String[]{"Publisher"};
+		//index_attributes.put("1_SubData_can_be",SubData_can_be_1);
+		addSingleFieldEntityIndex("Author","Books.Publisher.Cities", EntityIndex.TYPE_ARRAY_MEMBERSHIP_INDEX, "byBooks.Publisher.Cities", index_attributes);
+
+		int N=10;		
+		insert_entity_instances(20);
+
+		for(int i = 0;i < N;i++)
+		{
+			Entity publisher   	= _store.getEntityDefinition("Publisher").createInstance();
+			List<String> cc = new ArrayList<String>();
+			cc.add("Paris");
+			cc.add("Rome");
+			publisher.setAttribute("Cities",cc);
+			publisher.setAttribute("Country",R(countries));
+			_store.saveEntity(publisher);	
+		}
+	
+		Query aa = new Query("Author");
+		aa.idx(Query.PRIMARY_IDX);
+		aa.eq(Query.VAL_GLOB);
+		int c = _store.count(aa);
+		//print(ar);
+
+		int rid = (int)(Math.random()*(c-1))+1;
+		
+			
+		System.out.println("!!!!!!RID IS: "+rid);
+		Entity author1    = _store.getEntityById("Author", rid);
+		Entity publisher1 = _store.getEntityById("Publisher", 1);
+
+		System.out.println("AUTHOR 1 -> "+author1);
+		List<Entity> books = (List<Entity>)author1.getAttribute("Books");
+		System.out.println("!!!! HEY BOOKS is "+books);
+		if(books == null)
+		{
+			System.out.println("BOOKS FOR AUTHOR WAS NULL");
+			return;
+		}
+		for(int i = 0;i < books.size();i++)
+		{
+			Entity book = books.get(i);
+			Query q = new Query("Author");
+			q.idx("byBooks");
+			q.setContainsAny(q.list(book));
+			QueryResult r = _store.executeQuery(q);
+			book.setAttribute("Publisher", publisher1);
+			_store.saveEntity(book);			
+		}
+		
+
+		Query q = new Query("Author");
+		q.pageSize(Query.ALL_RESULTS);
+		q.idx("byBooks.Publisher.Cities");
+		//q.between(q.list(Query.VAL_MIN,Query.VAL_MIN),q.list(Query.VAL_MAX,Query.VAL_MAX));
+		q.setContainsAny(q.list("Paris"));
+		
+		t1 = System.currentTimeMillis();
+		QueryResult result = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		print(result);
+		System.out.println("DEEP INDEX Author byBooks.Publisher.Cities " + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+		
+		
+		//_store.deleteEntity(publisher1);
+		//t1 = System.currentTimeMillis();
+		//result = _store.executeQuery(q);
+		//t2 = System.currentTimeMillis()-t1;
+		//print(result);
+		//System.out.println("DEEP INDEX Author byBooks.Publisher.Cities " + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+	
+	}
+	
+	
+	public void deep_indexing_test_field_rename() throws PersistenceException
+	{
+		Map<String,Object> index_attributes = new HashMap<String,Object>();
+
+		//TODO: fix these names
+		//they probs also need to take into account the field position
+		//
+		String[] Data_can_be_0 = new String[]{"Book","Poem"};
+		index_attributes.put("0_Data_can_be",Data_can_be_0);
+		String[] SubData_can_be_1 = new String[]{"Publisher"};
+		index_attributes.put("1_SubData_can_be",SubData_can_be_1);
+		addSingleFieldEntityIndex("Author","Data.SubData.City", EntityIndex.TYPE_SIMPLE_SINGLE_FIELD_INDEX, "byData.SubData.City", index_attributes);
+
+		
+		//insert_entity_instances(500);
+		int N=10;
+		for(int i = 0;i < N;i++)
+		{
+			Entity author 		= _store.getEntityDefinition("Author").createInstance();
+			String first_name   = R(firstNames);
+			String last_name    = R(lastNames);
+			author.setAttribute("FirstName", first_name);
+			author.setAttribute("LastName", last_name);
+			_store.saveEntity(author);
+			
+			Entity book   		= _store.getEntityDefinition("Book").createInstance();
+			String title 		= R(titles);
+			book.setAttribute("Title",title);
+			_store.saveEntity(book);
+			
+			Entity poem   			= _store.getEntityDefinition("Poem").createInstance();
+			String poem_title 		= R(poem_titles);
+			poem.setAttribute("Title",poem_title);
+			_store.saveEntity(poem);
+			
+			Entity publisher   	= _store.getEntityDefinition("Publisher").createInstance();
+			publisher.setAttribute("City",R(cities));
+			publisher.setAttribute("Country",R(countries));
+			_store.saveEntity(publisher);	
+		}
+		
+		Entity author1 = _store.getEntityById("Author", 1);
+		Entity book1  = _store.getEntityById("Book", 1);
+		Entity poem1  = _store.getEntityById("Poem", 1);
+		Entity publisher1  = _store.getEntityById("Publisher", 1);
+		publisher1.setAttribute("City", "Bogata");
+		Entity publisher2  = _store.getEntityById("Publisher", 2);
+		publisher2.setAttribute("City", "Reno");
+		_store.saveEntity(publisher1);
+		_store.saveEntity(publisher2);
+		
+		book1.setAttribute("SubData", publisher1);
+		poem1.setAttribute("SubData", publisher2);
+		author1.setAttribute("Data", book1);
+		
+		_store.saveEntity(book1);
+		_store.saveEntity(poem1);
+		_store.saveEntity(author1);
+		
+		/////////////////////////////////////////////
+		Query q = new Query("Author");
+		q.pageSize(Query.ALL_RESULTS);
+		q.idx("byData.SubData.City");
+		//q.between(q.list(Query.VAL_MIN,Query.VAL_MIN),q.list(Query.VAL_MAX,Query.VAL_MAX));
+		q.eq("Bogata");
+		QueryResult result;
+		t1 = System.currentTimeMillis();
+		result = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		print(result);
+		System.out.println("DEEP INDEX Author byData.SubData.City " + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+	
+		_store.renameEntityField("Book", "SubData", "subdata");
+		_store.renameEntityField("Poem", "SubData", "subdata");
+		
+		q = new Query("Author");
+		q.pageSize(Query.ALL_RESULTS);
+		q.idx("byData.SubData.City");
+		//q.between(q.list(Query.VAL_MIN,Query.VAL_MIN),q.list(Query.VAL_MAX,Query.VAL_MAX));
+		q.eq("Bogata");
+		t1 = System.currentTimeMillis();
+		result = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		print(result);
+		System.out.println("DEEP INDEX Author byData.SubData.City " + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+	}
 	
 	///CHANGE VARIABLE TO POINT TO A VALID DIRECTORY AND YOU SHOULD BE ABLE TO RUN TEST//
 	public void init_store() throws PersistenceException
@@ -1930,6 +2470,13 @@ public class QueryTest {
 		addEntityDefinition(def);
 		def = new EntityDefinition("Book");
 		addEntityDefinition(def);		
+
+		def = new EntityDefinition("Poem");
+		addEntityDefinition(def);		
+		
+		def = new EntityDefinition("Publisher");
+		addEntityDefinition(def);		
+		
 		FieldDefinition f;	
 		f = new FieldDefinition("FirstName", 		Types.TYPE_STRING).setDefaultValue("Default First Name");
 		addEntityField("Author", f);
@@ -1965,6 +2512,9 @@ public class QueryTest {
 		addEntityField("Author", f);
 		f = new FieldDefinition("PrimaryBook", Types.TYPE_REFERENCE , "Book");
 		addEntityField("Author", f);	
+		f = new FieldDefinition("Data", Types.TYPE_REFERENCE , FieldDefinition.REF_TYPE_UNTYPED_ENTITY);
+		addEntityField("Author", f);	
+		
 		
 		f = new FieldDefinition("Title", Types.TYPE_STRING);
 		addEntityField("Book", f);
@@ -1975,7 +2525,26 @@ public class QueryTest {
 		f = new FieldDefinition("Summary", Types.TYPE_STRING );
 		addEntityField("Book", f);	
 		f = new FieldDefinition("Status", Types.TYPE_INT );
+		addEntityField("Book", f);
+		f = new FieldDefinition("Publisher", Types.TYPE_REFERENCE , "Publisher");
 		addEntityField("Book", f);	
+		f = new FieldDefinition("SubData", Types.TYPE_REFERENCE , FieldDefinition.REF_TYPE_UNTYPED_ENTITY);
+		addEntityField("Book", f);	
+		
+		
+		f = new FieldDefinition("Title", Types.TYPE_STRING);
+		addEntityField("Poem", f);
+		f = new FieldDefinition("OriginalPublisher", Types.TYPE_REFERENCE , "Publisher");
+		addEntityField("Poem", f);	
+		f = new FieldDefinition("SubData", Types.TYPE_REFERENCE , FieldDefinition.REF_TYPE_UNTYPED_ENTITY);
+		addEntityField("Poem", f);	
+		
+		f = new FieldDefinition("Country", Types.TYPE_STRING);
+		addEntityField("Publisher", f);
+		f = new FieldDefinition("City", Types.TYPE_STRING);
+		addEntityField("Publisher", f);
+		f = new FieldDefinition("Cities", Types.TYPE_ARRAY | Types.TYPE_STRING);
+		addEntityField("Publisher", f);
 	}
 	
 	static long DAY = 1000 * 60 * 60 * 24;	
@@ -1989,7 +2558,7 @@ public class QueryTest {
 			b.setAttribute("Title", R(titles));
 			b = _store.saveEntity(b);
 			favoriteBooks[i] = b;
-			System.out.println("FavoriteBook "+i+" IS "+b);
+			//System.out.println("FavoriteBook "+i+" IS "+b);
 		}
 		
 		int inserted = 0;
@@ -2122,7 +2691,7 @@ public class QueryTest {
 						inserted++;
 					}
 					// books
-					if (Math.random() > .8)
+					if (Math.random() > .1)
 					{
 						n = (int) (Math.random() * 5 + 1);
 						List<Entity> books = new ArrayList<Entity>();
@@ -2200,7 +2769,7 @@ public class QueryTest {
 	}
 	
 	//addSingleFieldEntityIndex("Author", "Owners", "ArrayMembershipIndex", "byOwnerSubset",null);
-	private void addSingleFieldEntityIndex(String entity,String field_name,int index_type,String index_name,Map<String,String> attributes) throws PersistenceException
+	private void addSingleFieldEntityIndex(String entity,String field_name,int index_type,String index_name,Map<String,Object> attributes) throws PersistenceException
 	{
 		try{
 			_store.addEntityIndex(entity,field_name,index_type,index_name,attributes);		
@@ -2211,7 +2780,7 @@ public class QueryTest {
 		}
 	}
 	
-	private void addMultiFieldEntityIndex(String entity,String[] field_names,int index_type,String index_name,Map<String,String> attributes) throws PersistenceException
+	private void addMultiFieldEntityIndex(String entity,String[] field_names,int index_type,String index_name,Map<String,Object> attributes) throws PersistenceException
 	{
 		try{	
 			_store.addEntityIndex(entity,field_names,index_type,index_name,attributes);		
@@ -2231,7 +2800,7 @@ public class QueryTest {
 				fbid = null;
 			else
 				fbid = String.valueOf(fb.getId());
-			System.out.println(">" + e.getId() + "\t" + e.getAttribute("FirstName") + "\t" + e.getAttribute("LastName") + "\t" + e.getAttribute("Birthday")+"\t FavoriteBook Id:"+fbid
+			System.out.println(">" + e.getId() + "\t" + e.getAttribute("FirstName") + "\t" + e.getAttribute("LastName") + "\t" + e.getAttribute("Birthday")+"\tBooks: "+e.getAttribute("Books")+"\t FavoriteBook Id:"+fbid
 					+ "\tFAV NUM:" + e.getAttribute("FavoriteNumber") + "\t" + e.getAttribute("Weight") + "\t" + e.getAttribute("WorkflowStatus")+"\t"+e.getAttribute("Owners")+" "+e.getAttribute("Owners2"));
 
 		}
@@ -2262,7 +2831,7 @@ public class QueryTest {
 		}
 	}
 
-	private Entity[] favoriteBooks = new Entity[3];
+	private Entity[] favoriteBooks = new Entity[30];
 	
 	private String[] firstNames = new String[] { "Pilner", "Sumner", "Cloe", "Christine", "Carl", "Caleb","Coso", "Cubo", "Christopher", "Courtney",
 "Daya", "Eugene", "Frank", "Gigi", "Janice", "Hortence", "Julie","Zeke" };
@@ -2280,5 +2849,29 @@ public class QueryTest {
 			"This is summary two's text",
 			"This is sure to be summary 3's text",
 			"And finally we have summary four."
+	};
+	
+	private String[] poem_titles = new String[]{
+			"The Spring Was Solemn",
+			"Nights Of Ambrosia",
+			"A Road Well Travelled",
+			"Footsteps",
+			"Tales From Dimension XXIV In The Cygnous Division"
+	};
+	
+	private String[] cities = new String[] {
+			"San Francisco",
+			"Chicago",
+			"Los Angeles",
+			"Austin",
+			"Reading"
+	};
+	
+	private String[] countries = new String[] {
+			"Thailand",
+			"Norway",
+			"Lebanon",
+			"Italy",
+			"Russia"
 	};
 }

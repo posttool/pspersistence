@@ -48,8 +48,10 @@ import java.util.Map;
  * @see EntityDefinition
  * 
  */
-public class Entity implements Comparable<Entity>
+public class Entity implements Comparable<Entity>,java.io.Serializable
 {
+	private static final long serialVersionUID = 1L;
+
 	private String _type;
 	private long _id;
 	private Map<String, Object> _attributes;
@@ -449,4 +451,6 @@ public class Entity implements Comparable<Entity>
 	{
 		return (_attributes.size() == 1);
 	}
+	
+	
 }

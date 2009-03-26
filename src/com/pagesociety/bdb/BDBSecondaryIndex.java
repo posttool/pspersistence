@@ -37,6 +37,14 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 {
 	private static final Logger logger = Logger.getLogger(BDBSecondaryIndex.class);
 	
+	public static final String ATTRIBUTE_IS_DEEP_INDEX		="is_deep_index";
+	public static final String ATTRIBUTE_IS_DEEP_INDEX_YES 	="y";
+	public static final String ATTRIBUTE_IS_DEEP_INDEX_NO	= "n";
+	
+	public static final String ATTRIBUTE_DEEP_INDEX_PATH_LOCATOR_PREFIX		 = "ref_path_";
+	public static final String ATTRIBUTE_DEEP_INDEX_PATH_TYPE_LOCATOR_PREFIX = "ref_path_type_";
+	
+	
 	protected BDBPrimaryIndex 			primary_index;
 	protected Environment 				environment;	
 	protected EntityIndex				index;
@@ -110,7 +118,7 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 		return index.getFields();
 	}
 	
-	public Map<String,String> getAttributes()
+	public Map<String,Object> getAttributes()
 	{
 		return index.getAttributes();
 	}
@@ -176,7 +184,6 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 	{	
 		Set<DatabaseEntry> keys = new HashSet<DatabaseEntry>();
 		getInsertKeys(e,keys);
-
 		Iterator<DatabaseEntry> iter = keys.iterator();
 		while(iter.hasNext())
 		{	
@@ -190,6 +197,7 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 			//{
 			    try {
 					txn = environment.beginTransaction(parent_txn, null);	
+					//System.out.println("ADDING KEY "+new String(key.getData(),0,key.getSize())+" FOR "+LongBinding.entryToLong(data));
 					db_handle.put(txn, key, data);
 					delete_handle.put(txn,data,key);	
 					txn.commitNoSync();
@@ -233,7 +241,7 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 				op_stat 				= del_cursor.getSearchKey(pkey, data, LockMode.DEFAULT);
 				if(op_stat == OperationStatus.NOTFOUND)
 				{
-					logger.error(getName()+" UNABLE TO DELETE!!!! pkey not found.PROBABLY RECORD WAS NEVER INSERTED. ARE YOU NOT DEALING WITH NULLS? "+LongBinding.entryToLong(pkey));
+
 					del_cursor.close();
 					txn.commitNoSync();
 					
@@ -243,10 +251,17 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 					//any entries for that primary key since it previously ws the empty list.
 					//TODO: make array indexes deal with multi list properly and null for
 					//that matter. we would need special ways of querying them as well Query.LIST_EMPTY etc.
-					if(!isSetIndex())
+					if(!isSetIndex() && !isDeepIndex())
 					{
+						//NOTE: HERE IS THE DEAL HERE. WE ARE SPECIAL CASING THESE TypES OF
+						//INDEXES BECAUSE THEY ARE NOT INSERTING KEYS FOR ALL VALUES
+						//WE SHOULD PROBABLY INSERT SOME KEY FOR EMPTY_LIST,NULL_LIST,
+						//FOR THE ARRAY ONES AND FOR DEEP ONES SOME TOKEN IF A PATH BEFORE
+						//THE TERMINAL ONE WAS RESOLVED>>>OF COURSE THIS MEANS WE NEED WAYS
+						//OF QUERYING THIS STUFF AS WELL.
 						try{
-							System.err.println("SHOULD NOT BE HERE!!!");
+							logger.error(getName()+" UNABLE TO DELETE!!!! pkey not found.PROBABLY RECORD WAS NEVER INSERTED. ARE YOU NOT DEALING WITH NULLS? "+LongBinding.entryToLong(pkey));
+							System.err.println("NO KEY TO DELETE For IDX "+getName());
 							throw new Exception();
 						}catch(Exception e)
 						{
@@ -266,7 +281,7 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 						throw new DatabaseException("INDEX SEEMS CORRUPTED NO KEY/PKEY ENTRY FOR DEL INDEX");
 					}
 					op_stat = idx_cursor.delete();
-//					System.out.println(">>>>>>>>>"+getName()+" LOW LEVEL DELETEING OF "+FieldBinding.entryToValue(Types.TYPE_LONG,pkey));
+					//System.out.println(">>>>>>>>>"+getName()+" LOW LEVEL DELETEING OF "+LongBinding.entryToLong(pkey));
 					op_stat = del_cursor.delete();					
 				}while(del_cursor.getNextDup(pkey, data, LockMode.DEFAULT) == OperationStatus.SUCCESS);
 			
@@ -403,5 +418,10 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 		return;	
 	}
 	
+	
+	public boolean isDeepIndex()
+	{
+		return (ATTRIBUTE_IS_DEEP_INDEX_YES.equals(getAttribute(ATTRIBUTE_IS_DEEP_INDEX)));
+	}
 	
 }

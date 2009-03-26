@@ -10,9 +10,10 @@ import java.nio.channels.FileChannel;
 import java.text.Format;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +43,7 @@ import com.pagesociety.persistence.Query;
 import com.pagesociety.persistence.QueryResult;
 import com.pagesociety.persistence.Types;
 import com.sleepycat.bind.tuple.LongBinding;
+import com.sleepycat.bind.tuple.TupleOutput;
 import com.sleepycat.db.Cursor;
 import com.sleepycat.db.Database;
 import com.sleepycat.db.DatabaseConfig;
@@ -626,6 +628,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 						resolve_relationship_sidefx(parent_txn,e,INSERT);
 				}
 				save_to_secondary_indexes(parent_txn, pkey, e, update);						
+				save_to_deep_indexes(parent_txn, pkey, e, update);
+				
 				e.undirty();
 				parent_txn.commitNoSync();
 				break;
@@ -665,6 +669,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		Transaction txn = environment.beginTransaction(parent_txn, null);
 		pi.insertEntity(txn,pkey,e);
 		save_to_secondary_indexes(txn, pkey, e, false);
+		save_to_deep_indexes(parent_txn, pkey, e, false);
 		txn.commitNoSync();
 		e.undirty();
 		//we might want a more elaborate policy here//
@@ -760,7 +765,14 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		for(int i=0;i < s;i++)
 		{					
 			sidx = sec_indexes.get(i);
+			//cant use this method to check if a deep index
+			//indexes a particular field//
+			//but it still needs to be in list for query manager testing existing etc...sigh
+			if(sidx.isDeepIndex())
+				continue;
+
 			//System.out.println("\nSEC INDEX NAME IS "+sidx.getName());
+			//System.out.println("\nSEC INDEX ATTRIBUTES IS "+sidx.getAttributes());
 			//System.out.println("DIRTY FIELDS ARE "+dirty_fields);
 			for(int ii = 0; ii < ss;ii++ )
 			{
@@ -788,7 +800,268 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		sidx.insertIndexEntry(parent_txn,e,pkey);						
 
 	}
+
+	private void save_to_deep_indexes(Transaction parent_txn,DatabaseEntry pkey,Entity e,boolean update) throws DatabaseException
+	{
+		String entity_type = e.getType();
+		Map<String,List<BDBSecondaryIndex>> deep_indexes_by_entity = deep_index_meta_map.get(entity_type);
+		if(deep_indexes_by_entity == null)
+			return;
+		
+		List<String> dirty_fields;
+		if(update)
+			dirty_fields = e.getDirtyAttributes();
+		else
+		{
+			//get all the fields on insert//
+			dirty_fields = getEntityDefinitionProvider().provideEntityDefinition(e).getFieldNames();
+		}
+
+		//need to get all possible indexes for dirty fields of initiaing entity
+		List<BDBSecondaryIndex> deep_indexes_by_field = new ArrayList<BDBSecondaryIndex>();
+		int s = dirty_fields.size();
+		for(int i = 0;i < s;i++)
+		{
+			String dirty_field 		= dirty_fields.get(i);
+			List<BDBSecondaryIndex> l_deep_indexes_by_field 	= deep_indexes_by_entity.get(dirty_field);
+			//System.out.println("DIRTY FIELD IS "+dirty_field);
+			//System.out.println("DEEP INDEXES BY FIELD IS "+deep_indexes_by_field);
+			if(l_deep_indexes_by_field != null)
+				deep_indexes_by_field.addAll(l_deep_indexes_by_field);
+		}
 	
+		s = deep_indexes_by_field.size();
+		for(int i = 0;i < s;i++)
+			save_to_deep_index(parent_txn,pkey,deep_indexes_by_field.get(i), e, update);
+	}
+	
+	private void save_to_deep_index(Transaction parent_txn,DatabaseEntry pkey,BDBSecondaryIndex didx,Entity e,boolean update) throws DatabaseException
+	{	
+		String entity_type = e.getType();
+		String[] ref_path 					   = (String[])didx.getAttribute(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_LOCATOR_PREFIX+"0");
+		List<FieldDefinition>[] ref_path_types = (List<FieldDefinition>[])didx.getAttribute(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_TYPE_LOCATOR_PREFIX+"0");
+		String return_type 		   			   = didx.getPrimaryIndex().getEntityDefinition().getName();		
+	
+		FieldDefinition initiating_reference 	= null;
+		int				initiating_path_index 	= -1;
+		
+		if(return_type.equals(e.getType()))
+			initiating_path_index = 0;
+		else
+		{
+			//find where i am //
+			//System.out.println("HI TOPH "+e+" IS "+e.getType()+" "+e.getId());
+			int s = ref_path_types.length;
+			outer:for(int i = 0;i < s;i++)
+			{
+				List<FieldDefinition> ref_path_type_members = ref_path_types[i];
+				for(int ii=0;ii < ref_path_type_members.size();ii++)
+				{
+					FieldDefinition ref_candidate = ref_path_type_members.get(ii);
+					//System.out.println("REF CANDIDATE IS "+ref_candidate+" "+ref_candidate.getReferenceType());
+					if(entity_type.equals(ref_path_type_members.get(ii).getReferenceType()))
+					{
+						initiating_reference = ref_candidate;
+						initiating_path_index = i;
+						break outer;//break the loop labelled outer://
+					}
+				}
+			}			
+		}
+		
+		if(initiating_path_index == -1)
+			throw new DatabaseException("UNABLE TO RESOLVE INITIATING INSTANCE TYPE FOR DEEP INDEX. "+didx.getName()+" INITIATOR WAS "+e);
+	
+		//EXPAND FROM INITIATOR DOWNWARD
+		try{
+			expand_ref_path(e, ref_path, ref_path_types, initiating_path_index,new HashSet<Entity>());
+		}catch(PersistenceException ee)
+		{
+			ee.printStackTrace();
+			throw new DatabaseException("COULDNT EXPAND REF PATH IN DEEP INDEX "+didx.getName()+" FOR PATH "+Arrays.asList(ref_path)+" WITH INITIATOR "+e);
+		}
+			
+			//need to update index
+
+
+		//EXPAND FROM INITIATOR UPWARD
+
+		//THIS IS A LIST OF RETURN TYPE ALL FILLED OUT
+		List<Entity> modified_list = new ArrayList<Entity>();
+		if(return_type.equals(e.getType()))
+		{
+			if(update)
+				didx.deleteIndexEntry(parent_txn,pkey);
+			didx.insertIndexEntry(parent_txn,e,pkey);
+		}
+		else
+		{
+			//System.out.println("ENTITY IS "+e.getType()+" "+e.getId());
+			expand_ref_path_upwards(e, ref_path, ref_path_types,initiating_path_index,return_type, modified_list,new HashSet<Entity>());
+			//System.out.println(">>>>INSERTING "+LongBinding.entryToLong(pkey)+" TO "+sidx.getName());
+			//System.out.println("MODIFIED LIST IS NOW. "+modified_list);
+			int s = modified_list.size();
+			for(int i = 0;i < s;i++)
+			{
+				Entity top_dog = modified_list.get(i);//top dog is an instance of what the index returns//
+				//System.out.println("TOP DAWG IS "+top_dog);
+				TupleOutput to = new TupleOutput();
+				to.writeLong(top_dog.getId());
+				pkey = new DatabaseEntry(to.toByteArray());
+
+				if(update)
+					didx.deleteIndexEntry(parent_txn,pkey);
+
+				didx.insertIndexEntry(parent_txn,top_dog,pkey);						
+			}
+		}
+		clean_query_cache(return_type);
+	}
+
+
+	private List<Entity> get_modified_list_from_initiator(BDBSecondaryIndex didx,Entity e) throws DatabaseException
+	{
+		String entity_type = e.getType();
+		String[] ref_path 					   = (String[])didx.getAttribute(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_LOCATOR_PREFIX+"0");
+		List<FieldDefinition>[] ref_path_types = (List<FieldDefinition>[])didx.getAttribute(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_TYPE_LOCATOR_PREFIX+"0");
+		String return_type 		   			   = didx.getPrimaryIndex().getEntityDefinition().getName();		
+	
+		FieldDefinition initiating_reference 	= null;
+		int				initiating_path_index 	= -1;
+		
+		if(return_type.equals(e.getType()))
+			initiating_path_index = 0;
+		else
+		{
+			//find where i am //
+			//System.out.println("HI TOPH "+e+" IS "+e.getType()+" "+e.getId());
+			int s = ref_path_types.length;
+			outer:for(int i = 0;i < s;i++)
+			{
+				List<FieldDefinition> ref_path_type_members = ref_path_types[i];
+				for(int ii=0;ii < ref_path_type_members.size();ii++)
+				{
+					FieldDefinition ref_candidate = ref_path_type_members.get(ii);
+					//System.out.println("REF CANDIDATE IS "+ref_candidate+" "+ref_candidate.getReferenceType());
+					if(entity_type.equals(ref_path_type_members.get(ii).getReferenceType()))
+					{
+						initiating_reference = ref_candidate;
+						initiating_path_index = i;
+						break outer;//break the loop labelled outer://
+					}
+				}
+			}			
+		}
+		
+		if(initiating_path_index == -1)
+			throw new DatabaseException("UNABLE TO RESOLVE INITIATING INSTANCE TYPE FOR DEEP INDEX. "+didx.getName()+" INITIATOR WAS "+e);
+		
+		List<Entity> modified_list = new ArrayList<Entity>();
+		expand_ref_path_upwards(e, ref_path, ref_path_types,initiating_path_index,return_type, modified_list,new HashSet<Entity>());
+		return modified_list;
+	}
+
+	
+	private void expand_ref_path_upwards(Entity e, String[] ref_path, List<FieldDefinition>[] ref_path_types,int offset,String top_return_type, List<Entity> modified_list,Set<Entity> seen) throws DatabaseException 
+	{
+		if(offset == 0)
+		{
+			String 			index_name = "by"+intercaps(ref_path[offset]);
+			//System.out.println("TOP EXPANDING UPWARD FOR:\n"+e.getType()+" "+e.getId());
+			//System.out.println("select "+top_return_type+" from "+index_name+" where eq "+e);
+			EntityDefinition d = getEntityDefinition(top_return_type);
+			FieldDefinition r_type = d.getField(ref_path[offset]);
+			Query q = new Query(top_return_type);
+			q.idx(index_name);
+			if(r_type.isArray())
+				q.setContainsAny(q.list(e));
+			else
+				q.eq(e);
+			
+			QueryResult r = null;
+			try {
+				r = _query_manager.executeQuery(q);
+			} catch (PersistenceException e1) 
+			{
+				e1.printStackTrace();
+				throw new DatabaseException("FAILED EXCUTING QUERY "+q+" FOR EXPAND UPWARDS IN DEEP INDEX RESOLUTION.");
+			}
+			List<Entity> parents = r.getEntities();
+	
+			//System.out.println("\t1 found -> "+parents.size()+" "+parents);
+			for(int ii = 0;ii < parents.size();ii++)
+			{
+				Entity parent = parents.get(ii);
+				if(seen.contains(parent))
+					continue;
+				//System.out.println("SETTING PARENT ATTRIBUTE OF "+parent.getType()+" "+parent.getId()+" "+ref_path[offset]+" TO  "+e.getType()+" "+e.getId());
+				if(ref_path_types[offset].get(0).isArray())
+				{
+					List<Entity> ll = new ArrayList<Entity>();
+					ll.add(e);
+					parent.setAttribute(ref_path[offset], ll);
+				}
+				else
+					parent.setAttribute(ref_path[offset], e);
+				
+				modified_list.add(parent);
+			}
+			return;
+		}
+		
+		List<FieldDefinition> upwards_ref_types = ref_path_types[offset-1];
+		int s = upwards_ref_types.size();
+		for(int i = 0;i < s;i++)
+		{
+			FieldDefinition index_type =  upwards_ref_types.get(i);
+			String 			index_name = "by"+intercaps(ref_path[offset]);
+			Query q 				   = new Query(index_type.getReferenceType());
+			EntityDefinition d 		   = do_get_entity_definition(index_type.getReferenceType());
+			FieldDefinition right_type = d.getField(ref_path[offset]);
+			
+			q.idx(index_name);
+			if(right_type.isArray())
+				q.setContainsAny(q.list(e));
+			else
+				q.eq(e);
+			
+			//System.out.println("select "+index_type.getReferenceType()+" from "+index_name+" where eq "+e);
+			QueryResult r = null;
+			try{
+				r = _query_manager.executeQuery(q);
+			} catch (PersistenceException e1) 
+			{
+				e1.printStackTrace();
+				throw new DatabaseException("FAILED EXCUTING QUERY "+q+" FOR EXPAND UPWARDS IN DEEP INDEX RESOLUTION.");
+			}
+			List<Entity> parents = r.getEntities();
+			//System.out.println("EXPANDING UPWARD FOR:\n"+e.getType()+" "+e.getId());
+			//System.out.println("select "+index_type.getReferenceType()+" from "+index_name+" where eq "+e);
+			//System.out.println("\tfound -> "+parents.size()+" "+parents);
+			for(int ii = 0;ii < parents.size();ii++)
+			{
+				Entity parent = parents.get(ii);
+				if(seen.contains(parent))//avoid circular reference//
+					continue;
+				
+				//System.out.println("SETTING PARENT ATTRIBUTE "+ref_path[offset]+" TO  "+e.getType()+" "+e.getId());
+				if(ref_path_types[offset].get(0).isArray())
+				{
+					//List<Entity> ll = (List<Entity>)parent.getAttribute(ref_path[offset]);
+					//if(ll == null)
+					List<Entity >ll = new ArrayList<Entity>();
+					ll.add(e);
+					parent.setAttribute(ref_path[offset], ll);
+				}
+				else
+					parent.setAttribute(ref_path[offset], e);
+				seen.add(parent);
+				expand_ref_path_upwards(parent, ref_path, ref_path_types, offset-1, top_return_type, modified_list,seen);
+			}
+
+		}	
+	}
+
 	/* BEGIN resolve relationship side effects */
 	/**
 	 * Takes an entity that has been updated and finds relationships for dirty fields.
@@ -1175,6 +1448,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 												"YOU CANNOT DELETE THAT WHICH DOES NOT EXIST.");
 			}
 			delete_from_secondary_indexes(txn, pkey, e);
+			delete_from_deep_indexes(txn, pkey, e);
 			txn.commitNoSync();
 			/* have a more robust cache expiration policy at some point...probably
 			 * just blow away complex cache */
@@ -1202,8 +1476,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		{	
 			sidx = sec_indexes.get(i);
 			delete_from_secondary_index(parent_txn,pkey, sidx, e);
-		}
-		
+		}		
 	}
 	
 	private void delete_from_secondary_index(Transaction parent_txn,DatabaseEntry pkey,BDBSecondaryIndex sidx,Entity e) throws DatabaseException
@@ -1211,7 +1484,55 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			//System.out.println(">>>>DELETEING "+seqnum+" FROM "+sidx.getName());
 		sidx.deleteIndexEntry(parent_txn,pkey);
 	}
+	
+	private void delete_from_deep_indexes(Transaction parent_txn,DatabaseEntry pkey,Entity e) throws DatabaseException
+	{
+		String entity_type = e.getType();
+		Map<String,List<BDBSecondaryIndex>> deep_indexes_by_entity = deep_index_meta_map.get(entity_type);
+		if(deep_indexes_by_entity == null)
+			return;
+		
+		List<String> all_possible_index_fields;
+		//get all the fields on delete and look for indexes for all of them//
+		all_possible_index_fields = getEntityDefinitionProvider().provideEntityDefinition(e).getFieldNames();
+		List<BDBSecondaryIndex> deep_indexes_by_field = new ArrayList<BDBSecondaryIndex>();
+		int s = all_possible_index_fields.size();
+		for(int i = 0;i < s;i++)
+		{
+			String index_field 		= all_possible_index_fields.get(i);
+			List<BDBSecondaryIndex> l_deep_indexes_by_field 	= deep_indexes_by_entity.get(index_field);
+			if(l_deep_indexes_by_field != null)
+				deep_indexes_by_field.addAll(l_deep_indexes_by_field);
+		}
+		s = deep_indexes_by_field.size();
+		for(int i = 0;i < s;i++)
+			delete_from_deep_index(parent_txn,pkey,deep_indexes_by_field.get(i), e);
 
+	}
+	
+	private void delete_from_deep_index(Transaction parent_txn,DatabaseEntry pkey,BDBSecondaryIndex didx,Entity e) throws DatabaseException
+	{	
+		String return_type = didx.getPrimaryIndex().getEntityDefinition().getName();		
+		
+		if(return_type.equals(e.getType()))
+			didx.deleteIndexEntry(parent_txn, pkey);
+		else
+		{
+			List<Entity> modified_list = get_modified_list_from_initiator(didx, e);
+			int s = modified_list.size();
+			for(int i = 0;i < s;i++)
+			{
+				Entity top_dog = modified_list.get(i);//top dog is an instance of what the index returns//
+				//System.out.println("TOP DAWG IS "+top_dog);
+				TupleOutput to = new TupleOutput();
+				to.writeLong(top_dog.getId());
+				pkey = new DatabaseEntry(to.toByteArray());
+				didx.deleteIndexEntry(parent_txn,pkey);
+			}
+		}
+		clean_query_cache(return_type);
+	}
+	
 	/* implements BDBEntityDefProvider... */
 	public EntityDefinition provideEntityDefinition(Entity e)
 	{
@@ -1401,6 +1722,21 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		{
 			_store_locker.exitAppThread();
 		}
+	}
+	
+	//TODO: this should be added to interface at some point//
+	public EntityIndex do_get_entity_index(String entity,String index_name) 
+	{
+
+			BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(entity);
+			List<BDBSecondaryIndex> bdb_idx = entity_secondary_indexes_as_list.get(entity);
+			for (int i=0; i<bdb_idx.size(); i++)
+			{
+				EntityIndex idx = bdb_idx.get(i).getEntityIndex(); 
+				if(idx.getName().equals(index_name))
+					return idx;
+			}
+			return null;
 	}
 
 	public void addEntityRelationship(EntityRelationshipDefinition r) throws PersistenceException
@@ -1692,6 +2028,13 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				String ename 		 = pidx.getEntityDefinition().getName();
 				pidx.close(entity_secondary_indexes_as_list.get(ename));
 			}
+			
+			for(int i = 0; i < deep_index_list.size();i++)
+			{
+				BDBSecondaryIndex d_idx = deep_index_list.get(i);
+				d_idx.close();
+			}
+			
 			if (entity_index_db != null)
 			{
 				entity_index_db.sync();		
@@ -1973,26 +2316,26 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				String classname = null;
 				switch(index_type)
 				{
-				case EntityIndex.TYPE_SIMPLE_SINGLE_FIELD_INDEX:
-					classname = "com.pagesociety.bdb.index.SimpleSingleFieldIndex";
-					break;
-				case EntityIndex.TYPE_SIMPLE_MULTI_FIELD_INDEX:
-					classname = "com.pagesociety.bdb.index.SimpleMultiFieldIndex";
-					break;
-				case EntityIndex.TYPE_ARRAY_MEMBERSHIP_INDEX:
-					classname = "com.pagesociety.bdb.index.ArrayMembershipIndex";
-					break;
-				case EntityIndex.TYPE_MULTIFIELD_ARRAY_MEMBERSHIP_INDEX:
-					classname = "com.pagesociety.bdb.index.MultiFieldArrayMembershipIndex";
-					break;
-				case EntityIndex.TYPE_FREETEXT_INDEX:
-					classname = "com.pagesociety.bdb.index.SingleFieldFreeTextIndex";
-					break;	
-				case EntityIndex.TYPE_MULTI_FIELD_FREETEXT_INDEX:
-					classname = "com.pagesociety.bdb.index.MultiFieldFreeTextIndex";
-					break;						
-				default:
-					throw new PersistenceException("UNKNOWN INDEX TYPE 0x"+Integer.toHexString(index_type));
+					case EntityIndex.TYPE_SIMPLE_SINGLE_FIELD_INDEX:
+						classname = "com.pagesociety.bdb.index.SimpleSingleFieldIndex";
+						break;
+					case EntityIndex.TYPE_SIMPLE_MULTI_FIELD_INDEX:
+						classname = "com.pagesociety.bdb.index.SimpleMultiFieldIndex";
+						break;
+					case EntityIndex.TYPE_ARRAY_MEMBERSHIP_INDEX:
+						classname = "com.pagesociety.bdb.index.ArrayMembershipIndex";
+						break;
+					case EntityIndex.TYPE_MULTIFIELD_ARRAY_MEMBERSHIP_INDEX:
+						classname = "com.pagesociety.bdb.index.MultiFieldArrayMembershipIndex";
+						break;
+					case EntityIndex.TYPE_FREETEXT_INDEX:
+						classname = "com.pagesociety.bdb.index.SingleFieldFreeTextIndex";
+						break;	
+					case EntityIndex.TYPE_MULTI_FIELD_FREETEXT_INDEX:
+						classname = "com.pagesociety.bdb.index.MultiFieldFreeTextIndex";
+						break;						
+					default:
+						throw new PersistenceException("UNKNOWN INDEX TYPE 0x"+Integer.toHexString(index_type));
 				}
 				
 				try {
@@ -2001,12 +2344,17 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				} catch (Exception e) {
 					logger.error("bootstrap_existing_indices()", e);
 				}
-
+				System.out.println("!!!! SETTING UP "+eii.getName()+" FIELDS: "+eii.getFields());
 				index.setup(pidx, eii);
-				sec_indexes_map.put(eii.getName(),index);
-				/*this is just so we can close them easily*/
+				
+				/*BEGIN PART OF CRAZINESS*/
+				if(index.isDeepIndex())
+				{
+					update_deep_index_meta_info(index);
+				}
+				/*END PART OF CRAZINESS */
 				sec_indexes_list.add(index);
-
+				sec_indexes_map.put(eii.getName(),index);
 			}
 
 			entity_secondary_indexes_as_list.put(entity_name,sec_indexes_list);
@@ -2390,7 +2738,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		
 		EntityDefinition old_def = pidx.getEntityDefinition();
 		if(old_def.getField(old_field_name)== null)
-			throw new PersistenceException("RENAME ENTITY FIELD: FIELD "+old_field_name+" DOES NOT EXIST IN ENTITY");
+			throw new PersistenceException("RENAME ENTITY FIELD: FIELD "+old_field_name+" DOES NOT EXIST IN ENTITY "+entity);
 		if(old_def.getField(new_field_name)!= null)
 			throw new PersistenceException("RENAME ENTITY FIELD: FIELD "+new_field_name+" ALREADY EXISTS IN ENTITY");
 		
@@ -2419,10 +2767,58 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		{
 			
 			BDBSecondaryIndex index 		= all_indexes_for_entity.get(i);
-
-			if(index.indexesField(old_field_name))
-				update_index_field_definition_for_rename(index, old_field_name, new_field_name);
-
+			if(index.isDeepIndex())
+			{
+				//TODO: DEAL WITH RENAMING IN DEEP INDEXES//
+				String[] ref_path = (String[])index.getAttribute(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_LOCATOR_PREFIX+0);
+				List<FieldDefinition>[] ref_path_types = (List<FieldDefinition>[])index.getAttribute(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_TYPE_LOCATOR_PREFIX+0);
+				if(index.getEntityDefinition().getName().equals(old_def.getName()))
+				{
+					if(ref_path[0].equals(old_field_name))
+					{
+						ref_path[0] = new_field_name;
+						index.getAttributes().put(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_LOCATOR_PREFIX+0,ref_path);
+					}
+				}
+				for(int ii = 0;ii < ref_path_types.length-1;ii++)
+				{
+					List<FieldDefinition> dd = ref_path_types[ii];
+					for(int j = 0;j < dd.size();j++)
+					{
+						FieldDefinition type = dd.get(j);
+						if(type.getReferenceType().equals(old_def.getName()) || 
+						   type.getReferenceType().equals(FieldDefinition.REF_TYPE_UNTYPED_ENTITY))
+						{
+							if(ref_path[i+1].equals(old_field_name))
+							{
+								ref_path[i+1].equals(new_field_name);
+								List<FieldDefinition> types = ref_path_types[ii+1];
+								for(int k=0;k< types.size();k++)
+									types.get(k).setName(new_field_name);
+							}
+						}
+					}
+				}
+				try{
+					//update in db
+					delete_entity_index_from_db(index.getEntityDefinition().getName(), index.getEntityIndex());
+					add_entity_index_to_db(index.getEntityDefinition().getName(), index.getEntityIndex());
+					//update meta info
+					Map<String,List<BDBSecondaryIndex>> meta = deep_index_meta_map.get(old_def.getName());
+					meta.put(new_field_name,meta.remove(old_field_name));
+				
+				}catch(DatabaseException dbe)
+				{
+					throw new PersistenceException("FAILED UPDATING DEEP INDEX DEF ON FIELD RENAME.");
+				}
+				
+				continue;
+			}
+			else
+			{
+				if(index.indexesField(old_field_name))
+					update_index_field_definition_for_rename(index, old_field_name, new_field_name);
+			}
 		}
 		return f; 
 	}
@@ -2447,6 +2843,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 					/* this is in case it is using the name of the field for some reason 
 					 * in the filename of its db
 					 */
+					//TODO: get rid of this crap..ha ha
 					index.fieldChangedName(old_field_name, new_field_name);	
 					break;
 				}catch(DatabaseException e)
@@ -2458,8 +2855,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 
 	}
-	
-	public EntityIndex addEntityIndex(String entity,String field_name,int index_type,String index_name, Map<String,String> attributes) throws PersistenceException
+
+	public EntityIndex addEntityIndex(String entity,String field_name,int index_type,String index_name, Map<String,Object> attributes) throws PersistenceException
 	{
 		_store_locker.enterLockerThread();
 		try{
@@ -2476,7 +2873,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}		
 	}
 	
-	public EntityIndex addEntityIndex(String entity,String[] field_names,int index_type,String index_name, Map<String,String> attributes) throws PersistenceException
+	public EntityIndex addEntityIndex(String entity,String[] field_names,int index_type,String index_name, Map<String,Object> attributes) throws PersistenceException
 	{
 		_store_locker.enterLockerThread();
 		try{
@@ -2493,29 +2890,119 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	}
 	
 	
-	protected EntityIndex do_add_entity_index(String entity,String[] field_names,int index_type,String index_name,Map<String,String>attributes) throws PersistenceException
+	protected EntityIndex do_add_entity_index(String entity,String[] field_names,int index_type,String index_name,Map<String,Object>attributes) throws PersistenceException
 	{
 		BDBPrimaryIndex pidx = entity_primary_indexes_as_map.get(entity);
 		if(pidx == null)
 			throw new PersistenceException("ADD ENTITY INDEX: ENTITY "+entity+" DOES NOT EXIST!");
 
 		if (entity_secondary_indexes_as_map.get(entity).get(index_name)!= null)
+		{
 			throw new PersistenceException("ADD ENTITY INDEX: INDEX "+index_name+" ALREADY EXISTS IN ENTITY");
-
-		/* this check is now done in the switch below */
-		//EntityIndexDefinition eid = _entity_index_definition_manager.getDefinition(index_type);
-		//if(eid == null)
-		//	throw new PersistenceException("NO INDEX TYPE "+index_type+"\n"+_entity_index_definition_manager.getDefinitions());
+		}
 		
 		EntityDefinition def 	= pidx.getEntityDefinition();
 		EntityIndex   eii 		= new EntityIndex(index_name,index_type);
 		eii.setEntity(entity);
 		for(int i = 0; i < field_names.length;i++)
 		{
-			FieldDefinition field 	= def.getField(field_names[i]);
-			if (field==null)
-				throw new PersistenceException("ADD ENTITY INDEX: FIELD "+field_names[i]+" DOES NOT EXIST IN ENTITY "+entity);
-			eii.addField(field);
+			String fieldname = field_names[i];
+			if(fieldname.indexOf('.') == -1)
+			{
+				FieldDefinition field 	= def.getField(field_names[i]);
+				if (field==null)
+					throw new PersistenceException("ADD ENTITY INDEX: FIELD "+field_names[i]+" DOES NOT EXIST IN ENTITY "+entity);
+				eii.addField(field);
+			}
+			else
+			{
+				//BEGIN CRAZINESS
+				//this fieldname has a dot in it so they must be dereferencing some
+				//complex field  i.e. "daughter.father.name//
+				String[] parts 		  		= fieldname.split("\\.");
+				List<FieldDefinition>[] path_ref_types = new List[parts.length];
+				resolve_ref_path_ref_types(def,def,parts,path_ref_types,0,attributes);
+				
+				/*now we have parts with all their types matched */
+				for(int ii = 0;ii < path_ref_types.length-1;ii++)
+				{
+					System.out.println("PARTS "+ii+" "+parts[ii]);
+					List<FieldDefinition> l = path_ref_types[ii];
+					System.out.print("REF TYPES "+ii+" ");
+					for(int iii = 0;iii < l.size();iii++)
+					{
+						System.out.print(l.get(iii).getReferenceType()+" ");
+					}
+					System.out.println();
+				}
+				
+				FieldDefinition terminal_field = path_ref_types[path_ref_types.length-1].get(0);
+				System.out.println("TERMINAL FIELD IS "+path_ref_types[path_ref_types.length-1].get(0));
+				//set the field for the index//
+				eii.addField(terminal_field);
+				
+				//DEAL WITH ADDING THE INDEX CHAIN											  //
+				//ADD UPWARD INDEXES IN THE CHAIN IGNORING THE TERMINAL FIELD(parts.length -1)//
+				//START AT THE TOP
+				
+				String aux_index = def.getName()+" IDX_BY_"+parts[0];
+				System.out.println("IF "+aux_index+" DOES NOT EXIST ADD "+aux_index);
+				String aux_index_name = "by"+intercaps(parts[0]);
+				//if(path_ref_types[0].get(0).getReferenceType() == FieldDefinition.REF_TYPE_UNTYPED_ENTITY)
+				//	aux_index_name = 
+				
+				if(do_get_entity_index(def.getName(),aux_index_name) == null )
+				{
+					FieldDefinition type = def.getField(parts[0]);
+					logger.info("ADDING "+aux_index_name+" TO "+def.getName()+" IN THE SERVICE OF "+eii.getName());
+					if(type.isArray())
+					{
+						logger.info("ADDING ARRAY INDEX "+aux_index_name+" TO "+type.getReferenceType()+" IN THE SERVICE OF "+eii.getName());
+						do_add_entity_index(def.getName(), new String[]{parts[0]},EntityIndex.TYPE_ARRAY_MEMBERSHIP_INDEX , aux_index_name,null);
+					}
+					else
+					{
+						logger.info("ADDING SIMPLE INDEX "+aux_index_name+" TO "+type.getReferenceType()+" IN THE SERVICE OF "+eii.getName());
+						do_add_entity_index(def.getName(), new String[]{parts[0]},EntityIndex.TYPE_SIMPLE_SINGLE_FIELD_INDEX , aux_index_name,null);
+					}
+				}
+				//AND MOVE THROUGH PATH//
+				for(int j = 0;j < parts.length-1;j++)
+				{
+					List<FieldDefinition> types = path_ref_types[j];
+					List<FieldDefinition> r_types = path_ref_types[j+1];
+					for(int k = 0; k < types.size();k++)
+					{
+						FieldDefinition left_type = types.get(k);
+						EntityDefinition d = do_get_entity_definition(left_type.getReferenceType());
+						if(d == null)
+							throw new PersistenceException("BAD REF PATH "+left_type.getReferenceType()+" DOES NOT EXIST IN STORE. "+eii.getName());
+						FieldDefinition right_type = d.getField(parts[j+1]);
+						aux_index = left_type.getReferenceType()+" IDX_BY_"+parts[j+1];
+						aux_index_name = "by"+intercaps(parts[j+1]);					
+						if(do_get_entity_index(left_type.getReferenceType(),aux_index_name) == null )
+						{
+							if(right_type.isArray())
+							{
+								logger.info("ADDING ARRAY INDEX "+aux_index_name+" TO "+left_type.getReferenceType()+" IN THE SERVICE OF "+eii.getName());
+								do_add_entity_index(left_type.getReferenceType(), new String[]{parts[j+1]},EntityIndex.TYPE_ARRAY_MEMBERSHIP_INDEX , aux_index_name,null);		
+							}
+							else
+							{
+								logger.info("ADDING SIMPLE INDEX "+aux_index_name+" TO "+left_type.getReferenceType()+" IN THE SERVICE OF "+eii.getName());
+								do_add_entity_index(left_type.getReferenceType(), new String[]{parts[j+1]},EntityIndex.TYPE_SIMPLE_SINGLE_FIELD_INDEX , aux_index_name,null);		
+							}
+						}
+					}
+				}
+				
+				attributes.put(BDBSecondaryIndex.ATTRIBUTE_IS_DEEP_INDEX, BDBSecondaryIndex.ATTRIBUTE_IS_DEEP_INDEX_YES);
+				//TODO: this is only for single field indexes//
+				attributes.put(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_LOCATOR_PREFIX+i,parts);
+				attributes.put(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_TYPE_LOCATOR_PREFIX+i,path_ref_types);
+
+				//END CRAZINESS
+			}
 		}
 		
 		if (attributes!=null)
@@ -2524,7 +3011,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			while(keys.hasNext())
 			{
 				String att_name = keys.next();
-				String att_value = attributes.get(att_name);
+				Object att_value = attributes.get(att_name);
 				eii.setAttribute(att_name, att_value);
 			}
 		}
@@ -2572,7 +3059,9 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			throw new PersistenceException("FAILED INSTANTIATING INSTANCE OF INDEX "+eii.getType());
 		}
 		index.setup(pidx, eii);
-	
+		
+
+		
 		/*** AUTO POPULATE ON INDEX CREATION*******************************/
 		/*** when the index is created fill it up with data from ptable ***/
 		/*** maybe make this optional for the case where you just want to index ***/
@@ -2593,6 +3082,49 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				try{
 					e = entity_binding.entryToEntity(def, data);
 					//System.out.println(index.getName()+">>>> AUTO POPULATE WITH"+e.getType()+" "+e.getId());
+					//if index is complex
+					if(index.getAttribute(BDBSecondaryIndex.ATTRIBUTE_IS_DEEP_INDEX) == BDBSecondaryIndex.ATTRIBUTE_IS_DEEP_INDEX_YES)
+					{
+						/*
+						System.out.println("BEFORE COMPLEX FILL:");
+						Entity ddata 	= null;
+						Entity subdata  = null;
+						String city 	= null;
+						ddata = (Entity)e.getAttribute("Data");
+						System.out.println("\tData is "+ddata);
+						if(ddata != null)
+						{
+							subdata = (Entity)e.getAttribute("SubData");
+							System.out.println("\tSubData is "+subdata);
+
+							if(subdata != null)
+							{
+								city = (String)subdata.getAttribute("City");
+								System.out.println("\tCity is "+city);
+								System.out.println();
+							}
+						}
+						*/
+						expand_all_complex_fields(index, e);
+						/*		
+						System.out.println("AFTER COMPLEX FILL:");
+						ddata = (Entity)e.getAttribute("Data");
+						System.out.println("\tData is "+ddata);
+						if(ddata != null)
+						{
+							subdata = (Entity)ddata.getAttribute("SubData");
+							System.out.println("\tSubData is "+subdata);
+
+							if(subdata != null)
+							{
+								city = (String)subdata.getAttribute("City");
+								System.out.println("\tCity is "+city);
+								System.out.println();
+							}
+						}
+						 */
+					}
+				
 					index.insertIndexEntry(txn, e, pkey);
 				}catch(Exception ee)
 				{
@@ -2619,8 +3151,19 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		/****END AUTO POPULATE**********************************************************/
 		
 		/* maintain runtime cache */
+		/*BEGIN PART OF CRAZINESS*/
+		if(index.getAttribute(BDBSecondaryIndex.ATTRIBUTE_IS_DEEP_INDEX) == BDBSecondaryIndex.ATTRIBUTE_IS_DEEP_INDEX_YES)
+		{
+			System.out.println("UPDATING META INFO FOR DEEP INDEX "+index.getName()+" ADDING TO DEEP INDEX META MAP");
+			//add it to the deep index meta map//			
+			update_deep_index_meta_info(index);
+			//deep_index_list.add(index);
+		}
+		
 		entity_secondary_indexes_as_list.get(entity).add(index);
 		entity_secondary_indexes_as_map.get(entity).put(eii.getName(),index);
+		/*END PART OF CRAZINESS*/
+		
 		try
 		{
 			add_entity_index_to_db(entity, eii);
@@ -2632,7 +3175,218 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}		
 		return eii;
 	}
-				
+	
+/////BEGIN CRAZY DEEP INDEXING SUPPORT STUFF//////////////////////////////////////////////////////
+	
+	private void expand_all_complex_fields(BDBSecondaryIndex complex_index,Entity e) throws PersistenceException
+	{
+		List<FieldDefinition> fields = complex_index.getFields();
+		for(int i=0;i < fields.size();i++)
+		{
+			String[] ref_path = (String[])complex_index.getAttribute(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_LOCATOR_PREFIX+i);
+			List<FieldDefinition>[] ref_path_types = (List<FieldDefinition>[])complex_index.getAttribute(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_TYPE_LOCATOR_PREFIX+i);
+			if(ref_path != null)
+			{				
+				//do_fill_reference_field(e, ref_path_types[0].get(0));
+				expand_ref_path(e,ref_path,ref_path_types,0,new HashSet<Entity>());
+			}
+		}
+	}
+	
+	private void expand_ref_path(Entity e,String[] ref_path,List<FieldDefinition>[] ref_path_types ,int offset,Set<Entity> seen) throws PersistenceException
+	{
+		if(offset == ref_path.length-1)
+			return;
+		
+		String fieldname = ref_path[offset];
+		Object ref 		 = e.getAttribute(fieldname);	
+		if(ref == null || ref != null && seen.contains(ref))//guard against circular references			
+			return;
+		
+		System.out.println("ABOUT TO FILL "+fieldname+" IN "+e);
+		FieldDefinition fill_field 		= do_get_entity_definition(e.getType()).getField(fieldname);
+		do_fill_reference_field(e,fill_field);
+
+		ref = e.getAttribute(fieldname);
+		if(ref == null)
+			return;
+		if(fill_field.isArray())
+		{
+			List<Entity> vals = (List<Entity>)ref;
+			if(vals == null)
+				return;
+			int s = vals.size();
+			
+			for(int i = 0;i < s;i++ )
+			{
+				Entity lref = vals.get(i);
+				seen.add(lref);	
+				expand_ref_path(lref, ref_path,ref_path_types, offset+1,seen);
+			}
+		}
+		else
+		{
+			if( ref == null)
+				return;
+			seen.add((Entity)ref);	
+			expand_ref_path((Entity)ref, ref_path,ref_path_types, offset+1,seen);
+		}
+
+
+
+	}
+	
+	
+	protected Map<String,Map<String,List<BDBSecondaryIndex>>> deep_index_meta_map = new HashMap<String,Map<String,List<BDBSecondaryIndex>>>(); 
+	protected List<BDBSecondaryIndex> deep_index_list 	  						  = new ArrayList<BDBSecondaryIndex>(); 
+	private void update_deep_index_meta_info(BDBSecondaryIndex index) throws PersistenceException
+	{
+		add_to_deep_index_metainfo(index);
+	}
+	
+	private void add_to_deep_index_metainfo(BDBSecondaryIndex index) throws PersistenceException
+	{
+		//TODO: i think we need to be looping through all of the fields of the index here
+		//and looking for REF_PATH_i
+		String[] parts = (String[])index.getAttribute(BDBSecondaryIndex.ATTRIBUTE_DEEP_INDEX_PATH_LOCATOR_PREFIX+0);
+		List<FieldDefinition>[] ref_path_ref_types = new List[parts.length];
+		resolve_ref_path_ref_types(index.getPrimaryIndex().getEntityDefinition(),index.getPrimaryIndex().getEntityDefinition(),parts,ref_path_ref_types,0,index.getAttributes());
+		add_item_to_deep_index_meta_map(index.getPrimaryIndex().getEntityDefinition().getName(), parts[0], index);
+
+		for(int j = 0;j < parts.length-1;j++)
+		{
+			String part 				= parts[j];
+			List<FieldDefinition> types = ref_path_ref_types[j];
+			for(FieldDefinition type:types)
+				add_item_to_deep_index_meta_map(type.getReferenceType(), parts[j+1], index);
+		}
+	}
+
+	private void add_item_to_deep_index_meta_map(String entity_name,String fieldname,BDBSecondaryIndex index)
+	{
+		Map<String,List<BDBSecondaryIndex>> deep_per_entity = deep_index_meta_map.get(entity_name);
+		if(deep_per_entity == null)
+		{
+			deep_per_entity 	= new HashMap<String,List<BDBSecondaryIndex>>();
+			deep_index_meta_map.put(entity_name,deep_per_entity); 
+		}
+		
+		List<BDBSecondaryIndex> deep_per_field = deep_per_entity.get(fieldname);
+		if(deep_per_field == null)
+		{
+			deep_per_field = new ArrayList<BDBSecondaryIndex>();
+			deep_per_entity.put(fieldname,deep_per_field);
+		}
+
+		deep_per_field.add(index);
+		//we add it to the list here too
+		
+		System.out.println("ADD "+entity_name+"->"+fieldname+"->"+index.getName());
+		System.out.println("MAP IS NOW:\n "+index_meta_map_to_string());
+	}
+	
+	private String index_meta_map_to_string()
+	{
+		StringBuilder buf = new StringBuilder();
+		Iterator<String> i = deep_index_meta_map.keySet().iterator();
+		while(i.hasNext())
+		{
+			String entity = i.next();
+			buf.append(entity+"\n");
+			Iterator<String> ii = deep_index_meta_map.get(entity).keySet().iterator();
+			while(ii.hasNext())
+			{
+				String field = ii.next();
+				buf.append("\t"+field+"\n");
+				List<BDBSecondaryIndex> idxs = deep_index_meta_map.get(entity).get(field);
+				for(int iii = 0;iii< idxs.size();iii++)
+					buf.append("\t\t"+idxs.get(iii).getName()+"\n");
+			}
+		}		
+		return buf.toString();
+	}
+	
+	private void resolve_ref_path_ref_types(EntityDefinition top_def,EntityDefinition def,String[] parts,List<FieldDefinition>[] ref_part_types,int parts_offset,Map<String,Object> idx_attributes) throws PersistenceException
+	{
+		FieldDefinition f = def.getField(parts[parts_offset]);
+		if(f == null)
+			throw new PersistenceException("BAD REFERENCE PATH "+ref_path_as_string(top_def, parts)+". CRAPPED OUT ON FIELD "+parts[parts_offset]+". IT DOES NOT EXIST.");
+		
+		List<FieldDefinition> ff = new ArrayList<FieldDefinition>();
+		ref_part_types[parts_offset] = ff;
+		if(parts.length-1 == parts_offset)
+		{
+			//clone the field def.addField(this is the terminal one)
+			FieldDefinition terminal_field_def = new FieldDefinition(ref_path_as_string(parts),f.getType(),f.getReferenceType());
+			ff.add(terminal_field_def);
+			return;
+		}
+		else
+		{
+			if(f.getBaseType()!= Types.TYPE_REFERENCE)
+				throw new PersistenceException("BAD REFERENCE PATH "+ref_path_as_string(top_def, parts)+". CRAPPED OUT ON FIELD "+parts[parts_offset]+" IT IS NOT A REFERENCE TYPE FIELD.");
+			
+			String ref_type 		 = f.getReferenceType();
+			EntityDefinition d		 = null;
+			if(ref_type.equals(FieldDefinition.REF_TYPE_UNTYPED_ENTITY))
+			{
+				String[] union = (String[])idx_attributes.get(parts_offset+"_"+f.getName()+"_can_be");
+				if(union == null)
+					throw new PersistenceException(ref_path_as_string(top_def, parts)+" PLEASE DEFINE INDEX ATTRIBUTE "+parts_offset+"_"+f.getName()+"_can_be TO DECLARE THE UNION OF TYPES FOR UNTYPED REFERENCE "+f.getName());
+				for(int i = 0;i < union.length;i++)
+				{
+					d = do_get_entity_definition(union[i]);
+					//TODO: SHOULD CHECK TO MAKE SURE THAT parts[offeset+1] i.e. the untyped field name is of the same type
+					//in all the unions 
+					//shit could get weird here with chains of untyped references but maybe not. we will see
+					if(d == null)
+						throw new PersistenceException("UNTYPED REFERENCE IN "+ref_path_as_string(top_def, parts)+" INDEX ATTRIBUTE "+f.getName()+"_can_be CONTAINS INVALID UNION MEMBER "+union[i]);
+					
+					FieldDefinition fff = new FieldDefinition(f.getName(),Types.TYPE_REFERENCE,d.getName());
+					ff.add(fff);
+				}
+			}
+			else//dont think we need to clone this//
+			{
+				d = do_get_entity_definition(f.getReferenceType());
+				ff.add(f);
+			}
+			resolve_ref_path_ref_types(top_def, d, parts,ref_part_types, ++parts_offset,idx_attributes);
+		}
+	}
+	
+	private static String ref_path_as_string(EntityDefinition top_def,String[] parts)
+	{
+		StringBuilder path = new StringBuilder();
+		path.append(top_def.getName());
+		for(int i = 0;i < parts.length;i++)
+		{
+			path.append('.');
+			path.append(parts[i]);
+		}
+		return path.toString();
+	}
+	
+	private static String ref_path_as_string(String[] parts)
+	{
+		StringBuilder path = new StringBuilder();
+		for(int i = 0;i < parts.length;i++)
+		{
+			path.append(parts[i]);
+			path.append('.');
+		}
+		path.setLength(path.length()-1);
+		return path.toString();
+	}
+
+	private String intercaps(String string) {
+		char[] cc = string.toCharArray();
+		cc[0] = Character.toUpperCase(cc[0]);
+		for(int i = 1;i < cc.length;i++)
+			cc[i] = Character.toLowerCase(cc[i]);
+		return new String(cc);
+	}
+/////////////////////////END CRAZY DEEP INDEXING STUFF//////////////////////////////////////////
 	public void deleteEntityIndex(String entity,String index_name) throws PersistenceException
 	{
 		_store_locker.enterLockerThread();
@@ -2767,6 +3521,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	
 	private void add_entity_index_to_db(String entity,EntityIndex idx) throws DatabaseException
 	{
+		logger.info("ADDING "+idx.getName()+" TO DB");
 		DatabaseEntry key = new DatabaseEntry();
 		FieldBinding.valueToEntry(Types.TYPE_STRING, entity,key);
 		OperationStatus op_stat = entity_index_db.put(null, key, entity_index_binding.objectToEntry(idx));

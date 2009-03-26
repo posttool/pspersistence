@@ -23,7 +23,7 @@ public class ArrayMembershipIndex extends AbstractSingleFieldIndex
 		super(BDBSecondaryIndex.TYPE_SET_INDEX);
 	}
 	
-	public void init(Map<String,String> attributes)
+	public void init(Map<String,Object> attributes)
 	{
 		
 	}
@@ -37,28 +37,82 @@ public class ArrayMembershipIndex extends AbstractSingleFieldIndex
 	@SuppressWarnings("unchecked")
 	public void getInsertKeys(Entity e,Set<DatabaseEntry> result) throws DatabaseException
 	{
-		/* we know the field is of TYPE_ARRAY */
-		List<?> values = (List<?>) e.getAttribute(field.getName());
-		DatabaseEntry d;
-		if(values == null)
+		
+		String name = field.getName();
+		if(isDeepIndex())
 		{
-			d = new DatabaseEntry();
-			FieldBinding.valueToEntry(field.getBaseType(), null, d);
-			result.add(d);
+			//System.out.println("GETTING DEEP INSERT KEYS FOR "+e);
+			String[] ref_path 					   = (String[])getAttribute(ATTRIBUTE_DEEP_INDEX_PATH_LOCATOR_PREFIX+"0");
+			List<FieldDefinition>[] ref_path_types = (List<FieldDefinition>[])getAttribute(ATTRIBUTE_DEEP_INDEX_PATH_TYPE_LOCATOR_PREFIX+"0");
+			if(ref_path == null || ref_path_types == null)
+				throw new DatabaseException("BAD DEEP INDEX META INFO! WTF");
+			get_deep_insert_keys(e, ref_path, ref_path_types, 0, result);
 		}
 		else
 		{
-			int s = values.size();
-			for(int i = 0; i < s;i++)
+		
+			/* we know the field is of TYPE_ARRAY */
+			List<?> values = (List<?>) e.getAttribute(field.getName());
+			DatabaseEntry d;
+			if(values == null)
 			{
-				Object val = values.get(i);
 				d = new DatabaseEntry();
-				FieldBinding.valueToEntry(field.getBaseType(), val, d);
+				FieldBinding.valueToEntry(field.getBaseType(), null, d);
 				result.add(d);
 			}
+			else
+			{
+				int s = values.size();
+				for(int i = 0; i < s;i++)
+				{
+					Object val = values.get(i);
+					d = new DatabaseEntry();
+					FieldBinding.valueToEntry(field.getBaseType(), val, d);
+					result.add(d);
+				}
+			}
 		}
-
 	}
+	
+	public void get_deep_insert_keys(Entity e,String[] ref_path,List<FieldDefinition>[] ref_path_types,int offset,Set<DatabaseEntry> result) throws DatabaseException
+	{
+		if(offset == ref_path.length-1)
+		{
+			List<Object> 		vals 	= (List<Object>)e.getAttribute(ref_path[offset]);
+			List<DatabaseEntry> entries = getQueryKeys(vals);
+			int s=entries.size();
+			for(int i=0;i < s;i++)
+			{
+				//System.out.println("!!!!!!!!!!!!!!!!!!INSERTING ARRAY INDEX ENTRY "+new String(entries.get(i).getData(),0,entries.get(i).getSize()));
+				result.add(entries.get(i));				
+			}
+
+			return;
+		}
+		
+		FieldDefinition ref_type = ref_path_types[offset].get(0);
+		if(ref_type.isArray())
+		{
+			List<Entity> vals = (List<Entity>)e.getAttribute(ref_path[offset]);
+
+			if(vals == null)//abandon the path
+				return;//TODO: SHOULD WE INSERT A NULL HERE FOR THIS DUDE IF ONE DONT EXIST??//
+					   //....see BDBSecondaryIndex.deleteIndexEntry for related note
+					   //we should be inserting something at some point
+			int s = vals.size();
+			for(int i = 0;i < s;i++)
+				get_deep_insert_keys(vals.get(i), ref_path, ref_path_types, offset+1,result);
+		}
+		else
+		{
+			Entity val = (Entity)e.getAttribute(ref_path[offset]);
+			//System.out.println("TRYING TO GET "+e.getType()+" ATT "+ref_path[offset]+" IT IS "+val);
+			if(val == null)//abandon the path
+				return;//TODO: SHOULD WE INSERT A NULL HERE FOR THIS DUDE IF ONE DONT EXIST??//
+			get_deep_insert_keys(val, ref_path, ref_path_types, offset+1,result);
+		}
+	}
+
 	
 	public List<DatabaseEntry> getQueryKeys(List<Object> values) throws DatabaseException
 	{

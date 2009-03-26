@@ -52,7 +52,7 @@ public class MultiFieldFreeTextIndex extends AbstractMultiFieldIndex
 
 	
 	
-	public void init(Map<String,String> attributes)
+	public void init(Map<String,Object> attributes)
 	{
 		
 		/* this is how we deal with default parameters */

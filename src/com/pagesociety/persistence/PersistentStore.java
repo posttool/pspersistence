@@ -245,7 +245,7 @@ public interface PersistentStore
 	 * @see #addEntityIndex(String, String[], String, String, Map)
 	 */
 	public abstract EntityIndex addEntityIndex(String entity, String field_name,
-			int index_type, String index_name, Map<String, String> attributes)
+			int index_type, String index_name, Map<String, Object> attributes)
 			throws PersistenceException;
 
 	/**
@@ -265,7 +265,7 @@ public interface PersistentStore
 	 * @see #addEntityIndex(String, String, String, String, Map)
 	 */
 	public abstract EntityIndex addEntityIndex(String entity, String[] field_names,
-			int index_type, String index_name, Map<String, String> attributes)
+			int index_type, String index_name, Map<String, Object> attributes)
 			throws PersistenceException;
 
 	/**

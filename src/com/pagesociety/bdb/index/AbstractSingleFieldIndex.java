@@ -96,7 +96,7 @@ public abstract class AbstractSingleFieldIndex extends BDBSecondaryIndex
 	}
 	
 	
-	public abstract void init(Map<String,String> attributes);
+	public abstract void init(Map<String,Object> attributes);
 	public abstract void getInsertKeys(Entity entity,Set<DatabaseEntry> result) throws DatabaseException;
 
 }

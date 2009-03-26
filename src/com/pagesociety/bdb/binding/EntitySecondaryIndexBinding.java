@@ -1,7 +1,14 @@
 package com.pagesociety.bdb.binding;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
@@ -36,29 +43,37 @@ public class EntitySecondaryIndexBinding
 		{
 			logger.debug("WRITING FIELD INTO INDEX INSTANCE "+entity_index.getName()+" FIELD NAME IS "+fields.get(i).getName());
 			to.writeString(fields.get(i).getName());
+			to.writeInt(fields.get(i).getType());
+			to.writeString(fields.get(i).getReferenceType());
 		}
-		//
-		Set<String> keys = entity_index.getAttributes().keySet();
-		to.writeInt(keys.size());
-		Iterator<String> keyiterator = keys.iterator();
-		String attribute;
-		String key;
-		while (keyiterator.hasNext())
+		
+        // Serialize to a byte array
+        ByteArrayOutputStream bos = new ByteArrayOutputStream() ;
+        ObjectOutputStream out;
+		try {
+			out = new ObjectOutputStream(bos);
+	        out.writeObject(entity_index.getAttributes());
+	        out.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new DatabaseException("FAILED SERIALIZING "+entity_index.getName()+". BAD BAD.");
+		}
+
+		//this is here to be backwards compatible with before we were
+		//dealing with attributes as serialized objects...num_attributes//
+		int num_attributes = entity_index.getAttributes().keySet().size();
+		System.out.println("NUM ATTRIBUTES FOR "+entity_index.getName()+" IS "+num_attributes);
+		to.writeInt(num_attributes);
+		if(num_attributes != 0)
 		{
-			key = keyiterator.next();
-			attribute = (String)entity_index.getAttributes().get(key);
-			/* attribute was not set by user so just skip it and let the index
-			 * decide how to handle null attributes. this gets into the required vs non
-			 * required stuff.*/
-			if(attribute == null)
-				continue;
-			to.writeString(key);
-			to.writeString(attribute);
-			//FieldBinding.writeValueToTuple(attribute, entity_index.getAttributes().get(key), to);
+			// Get the bytes of the serialized object
+			to.writeInt(bos.size());
+			to.writeFast(bos.toByteArray());
 		}
 		return new DatabaseEntry(to.toByteArray());
 	}
 
+	//TODO:dont need def here anymore
 	public Object entryToObject(EntityDefinition def, DatabaseEntry data) throws DatabaseException
 	{
 		TupleInput ti 			= new TupleInput(data.getData());
@@ -73,14 +88,29 @@ public class EntitySecondaryIndexBinding
 		/*decode fields*/
 		int size = ti.readInt();
 		for(int i=0;i<size;i++)
-			esi.addField(def.getField(ti.readString()));			
-		/*decode runtime attributes*/
-		size = ti.readInt();
-		for (int i = 0; i < size; i++)
 		{
-			String att_name = ti.readString();
-			String att_val  = ti.readString();
-			esi.setAttribute(att_name,att_val);
+			FieldDefinition f = new FieldDefinition(ti.readString(),ti.readInt(),ti.readString());
+			esi.addField(f);//def.getField(ti.readString()));			
+		}
+		/*decode runtime attributes*/
+		int num_attributes = ti.readInt();
+		if(num_attributes != 0)
+		{	
+		    // Deserialize from a byte array
+			int serialized_size = ti.readInt();
+			byte[] buf = new byte[serialized_size];
+			ti.readFast(buf,0,serialized_size);
+			ObjectInputStream in;
+			Map<String,Object> index_attributes; 
+			try {
+				in = new ObjectInputStream(new ByteArrayInputStream(buf));
+				index_attributes = (Map<String,Object>) in.readObject();
+				in.close();	
+			} catch (Exception e) {
+				e.printStackTrace();
+				throw new DatabaseException("BARF IN DESERIALIZING INDEX ATTRIBUTES");
+			}		
+			esi.setAttributes(index_attributes);
 		}
 		return esi;
 	}

@@ -1919,29 +1919,31 @@ public class QueryTest {
 		int N=150;
 		for(int i = 0;i < N;i++)
 		{
+
 			Entity author 		= _store.getEntityDefinition("Author").createInstance();
 			String first_name   = R(firstNames);
 			String last_name    = R(lastNames);
 			author.setAttribute("FirstName", first_name);
 			author.setAttribute("LastName", last_name);
+
 			_store.saveEntity(author);
-			
+
 			Entity book   		= _store.getEntityDefinition("Book").createInstance();
 			String title 		= R(titles);
 			book.setAttribute("Title",title);
 			_store.saveEntity(book);
-			
+
 			Entity poem   			= _store.getEntityDefinition("Poem").createInstance();
 			String poem_title 		= R(poem_titles);
 			poem.setAttribute("Title",poem_title);
 			_store.saveEntity(poem);
-			
+
 			Entity publisher   	= _store.getEntityDefinition("Publisher").createInstance();
 			publisher.setAttribute("City",R(cities));
 			publisher.setAttribute("Country",R(countries));
 			_store.saveEntity(publisher);	
 		}
-		
+
 		for(int i = 0;i < N;i++)
 		{
 			Entity author 		= _store.getEntityById("Author", i+1);
@@ -1973,10 +1975,10 @@ public class QueryTest {
 		String[] Data_can_be_0 = new String[]{"Book","Poem"};
 		//TODO: fix these names
 		//they probs also need to take into account the field position
-		//
-		index_attributes.put("0_Data_can_be",Data_can_be_0);
+		//..which they do now...field_position_ref_position for untyped untion
+		index_attributes.put("0_0_can_be",Data_can_be_0);
 		String[] SubData_can_be_1 = new String[]{"Publisher"};
-		index_attributes.put("1_SubData_can_be",SubData_can_be_1);
+		index_attributes.put("0_1_can_be",SubData_can_be_1);
 		addSingleFieldEntityIndex("Author","Data.SubData.City", EntityIndex.TYPE_SIMPLE_SINGLE_FIELD_INDEX, "byData.SubData.City", index_attributes);
 		
 		
@@ -2030,9 +2032,9 @@ public class QueryTest {
 		//TODO: fix these names
 		//they probs also need to take into account the field position
 		//
-		index_attributes.put("0_Data_can_be",Data_can_be_0);
+		index_attributes.put("0_0_can_be",Data_can_be_0);
 		String[] SubData_can_be_1 = new String[]{"Publisher"};
-		index_attributes.put("1_SubData_can_be",SubData_can_be_1);
+		index_attributes.put("0_1_can_be",SubData_can_be_1);
 		addSingleFieldEntityIndex("Author","Data.SubData.City", EntityIndex.TYPE_SIMPLE_SINGLE_FIELD_INDEX, "byData.SubData.City", index_attributes);
 
 		
@@ -2092,7 +2094,7 @@ public class QueryTest {
 		result = _store.executeQuery(q);
 		t2 = System.currentTimeMillis()-t1;
 		print(result);
-		System.out.println("DEEP INDEX Author byData.SubData.City " + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+		System.out.println("DEEP INDEX Author byData.SubData.City BOGATA" + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
 		
 		List<Entity> ee = result.getEntities();
 		for(int i = 0;i < ee.size();i++)
@@ -2137,7 +2139,7 @@ public class QueryTest {
 		result = _store.executeQuery(q);
 		t2 = System.currentTimeMillis()-t1;
 		print(result);
-		System.out.println("DEEP INDEX Author byData.SubData.City " + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+		System.out.println("DEEP INDEX Author byData.SubData.City BOGATA" + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
 		
 		ee = result.getEntities();
 		for(int i = 0;i < ee.size();i++)
@@ -2178,7 +2180,7 @@ public class QueryTest {
 		result = _store.executeQuery(q);
 		t2 = System.currentTimeMillis()-t1;
 		print(result);
-		System.out.println("DEEP INDEX Author byData.SubData.City " + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+		System.out.println("DEEP INDEX Author byData.SubData.City MIAMI" + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
 		
 		ee = result.getEntities();
 		for(int i = 0;i < ee.size();i++)
@@ -2267,6 +2269,7 @@ public class QueryTest {
 		
 		
 		_store.deleteEntity(publisher1);
+		
 		t1 = System.currentTimeMillis();
 		result = _store.executeQuery(q);
 		t2 = System.currentTimeMillis()-t1;
@@ -2368,9 +2371,9 @@ public class QueryTest {
 		//they probs also need to take into account the field position
 		//
 		String[] Data_can_be_0 = new String[]{"Book","Poem"};
-		index_attributes.put("0_Data_can_be",Data_can_be_0);
+		index_attributes.put("0_0_can_be",Data_can_be_0);
 		String[] SubData_can_be_1 = new String[]{"Publisher"};
-		index_attributes.put("1_SubData_can_be",SubData_can_be_1);
+		index_attributes.put("0_1_can_be",SubData_can_be_1);
 		addSingleFieldEntityIndex("Author","Data.SubData.City", EntityIndex.TYPE_SIMPLE_SINGLE_FIELD_INDEX, "byData.SubData.City", index_attributes);
 
 		
@@ -2432,8 +2435,8 @@ public class QueryTest {
 		print(result);
 		System.out.println("DEEP INDEX Author byData.SubData.City " + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
 	
-		_store.renameEntityField("Book", "SubData", "subdata");
-		_store.renameEntityField("Poem", "SubData", "subdata");
+		_store.renameEntityField("Book", "SubData", "ssubdata");
+		_store.renameEntityField("Poem", "SubData", "ssubdata");
 		
 		q = new Query("Author");
 		q.pageSize(Query.ALL_RESULTS);
@@ -2444,7 +2447,7 @@ public class QueryTest {
 		result = _store.executeQuery(q);
 		t2 = System.currentTimeMillis()-t1;
 		print(result);
-		System.out.println("DEEP INDEX Author byData.SubData.City " + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+		System.out.println("DEEP INDEX Author byData.SubData.City BOGATA" + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
 	}
 	
 	///CHANGE VARIABLE TO POINT TO A VALID DIRECTORY AND YOU SHOULD BE ABLE TO RUN TEST//

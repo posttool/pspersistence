@@ -34,33 +34,82 @@ public class SimpleMultiFieldIndex extends AbstractMultiFieldIndex
 	
 	public void getInsertKeys(Entity e,Set<DatabaseEntry> result) throws DatabaseException
 	{
-		List<FieldDefinition> fields = getFields();	
-		int s = fields.size();
-		TupleOutput tto = new TupleOutput();
-		for(int i = 0; i < s;i++)
+		if(isDeepIndex())
 		{
-			FieldDefinition f = fields.get(i);
-			Object val = e.getAttributes().get(f.getName());
-
-			if(f.isArray())
+			//System.out.println("GETTING DEEP INSERT KEYS FOR "+e);
+			String[] ref_path 					   = (String[])getAttribute(ATTRIBUTE_DEEP_INDEX_PATH_LOCATOR_PREFIX+"0");
+			List<FieldDefinition>[] ref_path_types = (List<FieldDefinition>[])getAttribute(ATTRIBUTE_DEEP_INDEX_PATH_TYPE_LOCATOR_PREFIX+"0");
+			if(ref_path == null || ref_path_types == null)
+				throw new DatabaseException("BAD DEEP INDEX META INFO! WTF");
+			get_deep_insert_keys(e, ref_path, ref_path_types, 0, result);
+		}
+		else
+		{
+			List<FieldDefinition> fields = getFields();	
+			int s = fields.size();
+			TupleOutput tto = new TupleOutput();
+			for(int i = 0; i < s;i++)
 			{
-				if(val == null)
-					FieldBinding.doWriteValueToTuple(f.getBaseType(), null, tto);
-				else
+				FieldDefinition f = fields.get(i);
+				Object val = e.getAttributes().get(f.getName());
+	
+				if(f.isArray())
 				{
-					List<Comparable<Object>> array = (List<Comparable<Object>>)val;				
-					Collections.sort(array);
-					for(int ii = 0; ii < array.size();ii++)
-						FieldBinding.doWriteValueToTuple(f.getBaseType(), array.get(ii), tto);	
+					if(val == null)
+						FieldBinding.doWriteValueToTuple(f.getBaseType(), null, tto);
+					else
+					{
+						List<Comparable<Object>> array = (List<Comparable<Object>>)val;				
+						Collections.sort(array);
+						for(int ii = 0; ii < array.size();ii++)
+							FieldBinding.doWriteValueToTuple(f.getBaseType(), array.get(ii), tto);	
+					}
 				}
-			}
-			else
-				FieldBinding.doWriteValueToTuple(f.getBaseType(), val, tto);
-		}	
-		DatabaseEntry d = new DatabaseEntry(tto.toByteArray());
-		//System.out.println(">>> KEY IS "+new String(d.getData()));
-		result.add(d);
+				else
+					FieldBinding.doWriteValueToTuple(f.getBaseType(), val, tto);
+			}	
+			DatabaseEntry d = new DatabaseEntry(tto.toByteArray());
+			//System.out.println(">>> KEY IS "+new String(d.getData()));
+			result.add(d);
+		}
 	}
+	
+	public void get_deep_insert_keys(Entity e,String[] ref_path,List<FieldDefinition>[] ref_path_types,int offset,Set<DatabaseEntry> result) throws DatabaseException
+	{
+		/*
+		if(offset == ref_path.length-1)
+		{
+			Object val = e.getAttribute(ref_path[offset]);
+			DatabaseEntry entry = getQueryKey(val);
+			//System.out.println("!!!!!!!!!!!!!!!!!!INSERTING INDEX ENTRY "+new String(entry.getData(),0,entry.getSize()));
+			result.add(entry);
+			return;
+		}
+		
+		FieldDefinition ref_type = ref_path_types[offset].get(0);
+		if(ref_type.isArray())
+		{
+			List<Entity> vals = (List<Entity>)e.getAttribute(ref_path[offset]);
+
+			if(vals == null)//abandon the path
+				return;//TODO: SHOULD WE INSERT A NULL HERE FOR THIS DUDE IF ONE DONT EXIST??//
+					   //....see BDBSecondaryIndex.deleteIndexEntry for related note
+					   //we should be inserting something at some point
+			int s = vals.size();
+			for(int i = 0;i < s;i++)
+				get_deep_insert_keys(vals.get(i), ref_path, ref_path_types, offset+1,result);
+		}
+		else
+		{
+			Entity val = (Entity)e.getAttribute(ref_path[offset]);
+			//System.out.println("TRYING TO GET "+e.getType()+" ATT "+ref_path[offset]+" IT IS "+val);
+			if(val == null)//abandon the path
+				return;//TODO: SHOULD WE INSERT A NULL HERE FOR THIS DUDE IF ONE DONT EXIST??//
+			get_deep_insert_keys(val, ref_path, ref_path_types, offset+1,result);
+		}
+		*/
+	}
+	
 	
 	public DatabaseEntry getQueryKey(List<Object> values) throws DatabaseException
 	{

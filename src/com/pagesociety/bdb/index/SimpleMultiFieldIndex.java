@@ -1,6 +1,8 @@
 package com.pagesociety.bdb.index;
 
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -12,9 +14,11 @@ import com.pagesociety.persistence.Entity;
 import com.pagesociety.persistence.FieldDefinition;
 import com.pagesociety.persistence.PersistenceException;
 import com.pagesociety.persistence.Query;
+import com.sleepycat.bind.tuple.StringBinding;
 import com.sleepycat.bind.tuple.TupleOutput;
 import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
+import com.sleepycat.util.FastOutputStream;
 
 public class SimpleMultiFieldIndex extends AbstractMultiFieldIndex
 {
@@ -36,12 +40,9 @@ public class SimpleMultiFieldIndex extends AbstractMultiFieldIndex
 	{
 		if(isDeepIndex())
 		{
-			//System.out.println("GETTING DEEP INSERT KEYS FOR "+e);
-			String[] ref_path 					   = (String[])getAttribute(ATTRIBUTE_DEEP_INDEX_PATH_LOCATOR_PREFIX+"0");
-			List<FieldDefinition>[] ref_path_types = (List<FieldDefinition>[])getAttribute(ATTRIBUTE_DEEP_INDEX_PATH_TYPE_LOCATOR_PREFIX+"0");
-			if(ref_path == null || ref_path_types == null)
-				throw new DatabaseException("BAD DEEP INDEX META INFO! WTF");
-			get_deep_insert_keys(e, ref_path, ref_path_types, 0, result);
+			//System.out.println("!!!!GET INSERT KEYS FOR "+e.getType()+" "+e.getId());
+			deep_insert_keys_permutator_executor ip = new deep_insert_keys_permutator_executor(e,result);
+			ip.exec();
 		}
 		else
 		{
@@ -52,7 +53,6 @@ public class SimpleMultiFieldIndex extends AbstractMultiFieldIndex
 			{
 				FieldDefinition f = fields.get(i);
 				Object val = e.getAttributes().get(f.getName());
-	
 				if(f.isArray())
 				{
 					if(val == null)
@@ -74,30 +74,155 @@ public class SimpleMultiFieldIndex extends AbstractMultiFieldIndex
 		}
 	}
 	
-	public void get_deep_insert_keys(Entity e,String[] ref_path,List<FieldDefinition>[] ref_path_types,int offset,Set<DatabaseEntry> result) throws DatabaseException
+	private class deep_insert_keys_permutator_executor
+	{		
+		Entity e;
+		private int[] c;
+		private  DatabaseEntry[][] values_as_entries;
+		private boolean is_valid;
+		private Set<DatabaseEntry> keys;
+		private deep_insert_keys_permutator_executor(Entity e,Set<DatabaseEntry> keys) throws DatabaseException
+		{
+			this.e	     		   	= e;
+			int s 				   	= fields.size();
+			this.c 				   	= new int[s];
+			this.values_as_entries 	= new DatabaseEntry[s][];
+			this.is_valid 			= true;
+			this.keys				= keys;
+			for(int i = 0; i < fields.size();i++)
+			{
+				FieldDefinition f = getFields().get(i);
+				Set<Object> vals = new HashSet<Object>();
+				if(f.getName().indexOf('.')!=-1)
+				{
+					String[] ref_path 					   = (String[])getAttribute(ATTRIBUTE_DEEP_INDEX_PATH_LOCATOR_PREFIX+i);
+					List<FieldDefinition>[] ref_path_types = (List<FieldDefinition>[])getAttribute(ATTRIBUTE_DEEP_INDEX_PATH_TYPE_LOCATOR_PREFIX+i);
+					if(ref_path == null || ref_path_types == null)
+						throw new DatabaseException("BAD DEEP INDEX META INFO! WTF");
+					
+					
+					get_deep_insert_vals(e, ref_path, ref_path_types, 0, vals);
+					if(vals.size() == 0)
+					{
+						values_as_entries[i] 	= new DatabaseEntry[1];
+						values_as_entries[i][0] = new DatabaseEntry();
+						//NOTE: TODO: IDEALLY WE WOULD HAVE SOME SPECIAL KEY TO INSERT HERE
+						//WHICH MEANS THIS REF PATH ENDED WITHOUT A TERMINAL VALUE...IT IS
+						//PRETY PHILOSPHICAL
+						//StringBinding.stringToEntry("null_"+f.getName()/*+String.valueOf(Math.random())*/,values_as_entries[i][0] );
+						FieldBinding.valueToEntry(f.getBaseType(), null,values_as_entries[i][0]);		
+					}
+					else
+					{
+						int vs = vals.size();
+						Iterator<Object> iter = vals.iterator();
+						values_as_entries[i] = new DatabaseEntry[vs];
+						int ii = 0;
+						while(iter.hasNext())
+						{
+							Object v = iter.next();
+							values_as_entries[i][ii] = new DatabaseEntry();
+							FieldBinding.valueToEntry(f.getBaseType(), v,values_as_entries[i][ii]);
+							ii++;
+						}
+					}
+				}
+				else if(f.isArray())
+				{
+					List<Object> vvals = (List<Object>)e.getAttribute(f.getName());
+					//System.out.println("HIT ARRAY FIELD "+f.getName()+" WITH VALUE "+vals);
+					if(vvals == null || vvals.size() == 0)
+					{
+						values_as_entries[i] 	= new DatabaseEntry[1];
+						values_as_entries[i][0] = new DatabaseEntry();
+						FieldBinding.valueToEntry(f.getBaseType(), null,values_as_entries[i][0]);		
+					}
+					else
+					{
+						int vs = vvals.size();
+						values_as_entries[i] = new DatabaseEntry[vs];
+						for(int ii = 0; ii < vs;ii++)
+						{
+							values_as_entries[i][ii] = new DatabaseEntry();
+							FieldBinding.valueToEntry(f.getBaseType(), vvals.get(ii),values_as_entries[i][ii]);
+						}
+					}	
+				}
+				else
+				{
+					Object val = e.getAttribute(f.getName());
+					//System.out.println("HIT SINGLE FIELD "+f.getName()+" WITH VALUE "+val);
+					values_as_entries[i] 	= new DatabaseEntry[1];
+					values_as_entries[i][0] = new DatabaseEntry();
+					FieldBinding.valueToEntry(f.getBaseType(), val,values_as_entries[i][0]);
+				}
+				
+				c[i] = 0;
+			}
+		}
+
+
+		private void tick(int p)
+		{
+			if(p == -1)
+			{
+				is_valid = false;
+				return;
+			}
+			c[p]++;			
+			if(c[p] == values_as_entries[p].length)
+			{
+				tick(p-1);
+				c[p] = 0;
+			}
+		}
+				
+		private void exec()
+		{
+			do
+			{
+				FastOutputStream fos = new FastOutputStream();
+				DatabaseEntry d 	 = new DatabaseEntry();
+				for(int i = 0; i < c.length;i++)
+				{
+					DatabaseEntry dbe   = values_as_entries[i][c[i]];
+					if(dbe == null)
+						continue;
+					fos.writeFast(dbe.getData(),dbe.getOffset(),dbe.getSize());
+				}
+				d.setData(fos.toByteArray(),fos.getBufferOffset(),fos.getBufferLength());
+				//System.out.println("ADDING MULTI ARRAY KEY "+new String(d.getData()));
+				keys.add(d);
+				tick(c.length-1);
+			}while(is_valid);
+		}
+	}
+
+	public void get_deep_insert_vals(Entity e,String[] ref_path,List<FieldDefinition>[] ref_path_types,int offset,Set<Object> vals) throws DatabaseException
 	{
-		/*
+		
 		if(offset == ref_path.length-1)
 		{
 			Object val = e.getAttribute(ref_path[offset]);
-			DatabaseEntry entry = getQueryKey(val);
+			//DatabaseEntry entry = getQueryKey(val);
 			//System.out.println("!!!!!!!!!!!!!!!!!!INSERTING INDEX ENTRY "+new String(entry.getData(),0,entry.getSize()));
-			result.add(entry);
+			vals.add(val);
 			return;
 		}
 		
 		FieldDefinition ref_type = ref_path_types[offset].get(0);
 		if(ref_type.isArray())
 		{
-			List<Entity> vals = (List<Entity>)e.getAttribute(ref_path[offset]);
+			List<Entity> vvals = (List<Entity>)e.getAttribute(ref_path[offset]);
 
-			if(vals == null)//abandon the path
-				return;//TODO: SHOULD WE INSERT A NULL HERE FOR THIS DUDE IF ONE DONT EXIST??//
+			if(vvals == null){//abandon the path
+				return;
+			}//TODO: SHOULD WE INSERT A NULL HERE FOR THIS DUDE IF ONE DONT EXIST??//
 					   //....see BDBSecondaryIndex.deleteIndexEntry for related note
 					   //we should be inserting something at some point
-			int s = vals.size();
+			int s = vvals.size();
 			for(int i = 0;i < s;i++)
-				get_deep_insert_keys(vals.get(i), ref_path, ref_path_types, offset+1,result);
+				get_deep_insert_vals(vvals.get(i), ref_path, ref_path_types, offset+1,vals);
 		}
 		else
 		{
@@ -105,9 +230,9 @@ public class SimpleMultiFieldIndex extends AbstractMultiFieldIndex
 			//System.out.println("TRYING TO GET "+e.getType()+" ATT "+ref_path[offset]+" IT IS "+val);
 			if(val == null)//abandon the path
 				return;//TODO: SHOULD WE INSERT A NULL HERE FOR THIS DUDE IF ONE DONT EXIST??//
-			get_deep_insert_keys(val, ref_path, ref_path_types, offset+1,result);
+			get_deep_insert_vals(val, ref_path, ref_path_types, offset+1,vals);
 		}
-		*/
+		
 	}
 	
 	

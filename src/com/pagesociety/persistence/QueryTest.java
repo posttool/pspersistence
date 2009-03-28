@@ -102,6 +102,7 @@ public class QueryTest {
 		//deep_indexing_test_arrays_in_ref_path();
 		//deep_indexing_test_save_array_terminal();
 		deep_indexing_test_field_rename();
+		//deep_indexing_test_multi();
 	}
 	
 	public void id_index_test() throws PersistenceException
@@ -2332,7 +2333,7 @@ public class QueryTest {
 		{
 			Entity book = books.get(i);
 			Query q = new Query("Author");
-			q.idx("byBooks");
+			q.idx("deep_aux_byBooks");
 			q.setContainsAny(q.list(book));
 			QueryResult r = _store.executeQuery(q);
 			book.setAttribute("Publisher", publisher1);
@@ -2435,8 +2436,10 @@ public class QueryTest {
 		print(result);
 		System.out.println("DEEP INDEX Author byData.SubData.City " + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
 	
-		_store.renameEntityField("Book", "SubData", "ssubdata");
-		_store.renameEntityField("Poem", "SubData", "ssubdata");
+		System.out.println("!!!INDEXES ARE "+_store.getEntityIndices("Author"));
+		_store.renameEntityField("Book", "SubData", "zsubdata");
+		System.out.println("!!!INDEXES ARE "+_store.getEntityIndices("Author"));
+		_store.renameEntityField("Poem", "SubData", "zsubdata");
 		
 		q = new Query("Author");
 		q.pageSize(Query.ALL_RESULTS);
@@ -2448,6 +2451,151 @@ public class QueryTest {
 		t2 = System.currentTimeMillis()-t1;
 		print(result);
 		System.out.println("DEEP INDEX Author byData.SubData.City BOGATA" + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+	}
+
+	public void deep_indexing_test_multi() throws PersistenceException
+	{
+		Map<String,Object> index_attributes = new HashMap<String,Object>();
+
+		//TODO: fix these names
+		//they probs also need to take into account the field position
+		//
+		String[] Data_can_be_0 = new String[]{"Book","Poem"};
+		index_attributes.put("0_0_can_be",Data_can_be_0);
+		String[] SubData_can_be_1 = new String[]{"Publisher"};
+		index_attributes.put("0_1_can_be",SubData_can_be_1);
+		index_attributes.put("1_0_can_be",Data_can_be_0);
+		index_attributes.put("1_1_can_be",SubData_can_be_1);
+		addMultiFieldEntityIndex("Author",new String[]{"Data.SubData.City","Data.Title","WorkflowStatus"}, EntityIndex.TYPE_SIMPLE_MULTI_FIELD_INDEX, "byData.SubData.CityByData.TitleByWorkflowStatus", index_attributes);
+		
+		insert_entity_instances(40);
+		int N=10;
+		for(int i = 0;i < N;i++)
+		{
+			Entity author 		= _store.getEntityDefinition("Author").createInstance();
+			String first_name   = R(firstNames);
+			String last_name    = R(lastNames);
+			author.setAttribute("FirstName", first_name);
+			author.setAttribute("LastName", last_name);
+			_store.saveEntity(author);
+			
+			Entity book   		= _store.getEntityDefinition("Book").createInstance();
+			String title 		= R(titles);
+			book.setAttribute("Title",title);
+			_store.saveEntity(book);
+			
+			Entity poem   			= _store.getEntityDefinition("Poem").createInstance();
+			String poem_title 		= R(poem_titles);
+			poem.setAttribute("Title",poem_title);
+			_store.saveEntity(poem);
+			
+			Entity publisher   	= _store.getEntityDefinition("Publisher").createInstance();
+			publisher.setAttribute("City",R(cities));
+			publisher.setAttribute("Country",R(countries));
+			_store.saveEntity(publisher);	
+		}
+
+		Entity author1 = _store.getEntityById("Author", 1);
+		Entity author2 = _store.getEntityById("Author", 2);
+		Entity book1   = _store.getEntityById("Book", 1);
+
+		
+		book1.setAttribute("Title", "how to");
+		System.out.println("!!!SAVING BOOK 1");
+		_store.saveEntity(book1);
+
+		System.out.println("!!!DONE WITH BOOK 1 SAVE");
+		
+		Entity publisher1  = _store.getEntityById("Publisher", 1);
+		publisher1.setAttribute("City", "Bogata");
+		publisher1.setAttribute("Country", "Columbia");
+		
+		book1.setAttribute("SubData", publisher1);
+		author1.setAttribute("Data", book1);
+		author2.setAttribute("Data", book1);
+		author1.setAttribute("WorkflowStatus", "Published");
+		author2.setAttribute("WorkflowStatus", "Archived");
+		
+		_store.saveEntity(book1);
+		_store.saveEntity(author1);
+		_store.saveEntity(author2);
+		/////////////////////////////////////////////
+		Query q = new Query("Author");
+		q.pageSize(Query.ALL_RESULTS);
+		q.idx("byData.SubData.CityByData.TitleByWorkflowStatus");
+		q.eq(q.list("Bogata","how to","Published"));
+		QueryResult result;
+		t1 = System.currentTimeMillis();
+		result = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		print(result);
+		System.out.println("DEEP INDEX Author byData.SubData.City " + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+
+		List<Entity> ee = result.getEntities();
+		for(int i = 0;i < ee.size();i++)
+		{
+			Entity e = ee.get(i);
+			System.out.println(e);
+			Entity ddata 	= null;
+			Entity subdata  = null;
+			String city 	= null;
+			_store.fillReferenceField(e, "Data");
+			ddata = (Entity)e.getAttribute("Data");
+			System.out.println("\tData is "+ddata);
+			if(ddata != null)
+			{
+				_store.fillReferenceField(ddata, "SubData");
+				subdata = (Entity)ddata.getAttribute("SubData");
+				System.out.println("\tSubData is "+subdata);
+	
+				if(subdata != null)
+				{
+					city = (String)subdata.getAttribute("City");
+					System.out.println("\tCity is "+city);
+					System.out.println();
+				}
+			}
+			
+		}
+			
+		q = new Query("Author");
+		q.pageSize(Query.ALL_RESULTS);
+		q.idx("byData.SubData.CityByData.TitleByWorkflowStatus");
+		q.eq(q.list("Bogata","how to","Archived"));
+		//q.between(q.list(Query.VAL_MIN,Query.VAL_MIN),q.list(Query.VAL_MAX,Query.VAL_MAX));
+		//q.eq("Bogata");
+		t1 = System.currentTimeMillis();
+		result = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		print(result);
+		System.out.println("DEEP INDEX Author byData.SubData.City BOGATA" + t2 + "ms RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+	    ee = result.getEntities();
+		for(int i = 0;i < ee.size();i++)
+		{
+			Entity e = ee.get(i);
+			System.out.println(e);
+			Entity ddata 	= null;
+			Entity subdata  = null;
+			String city 	= null;
+			_store.fillReferenceField(e, "Data");
+			ddata = (Entity)e.getAttribute("Data");
+			System.out.println("\tData is "+ddata);
+			if(ddata != null)
+			{
+				_store.fillReferenceField(ddata, "SubData");
+				subdata = (Entity)ddata.getAttribute("SubData");
+				System.out.println("\tSubData is "+subdata);
+	
+				if(subdata != null)
+				{
+					city = (String)subdata.getAttribute("City");
+					System.out.println("\tCity is "+city);
+					System.out.println();
+				}
+			}
+			
+		}
+		//_store.deleteEntity(publisher1);
 	}
 	
 	///CHANGE VARIABLE TO POINT TO A VALID DIRECTORY AND YOU SHOULD BE ABLE TO RUN TEST//
@@ -2789,6 +2937,7 @@ public class QueryTest {
 			_store.addEntityIndex(entity,field_names,index_type,index_name,attributes);		
 		}catch(PersistenceException pe)
 		{
+			pe.printStackTrace();
 			System.out.println(index_name+" ALREADY EXISTS");
 		}
 	}

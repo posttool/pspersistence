@@ -2841,7 +2841,16 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	protected FieldDefinition do_rename_entity_field(String entity, String old_field_name,String new_field_name) throws PersistenceException
 	{
 		if(deep_index_list.size() != 0)
-			throw new PersistenceException("PLEASE DROP ANY DEEP INDEXES BEFORE RENAMING A FIELD. YOU CAN RE ADD THEM AFTER");
+		{
+			System.out.println("WARNING: DEEP IDXS ARE NOT YET DEALT WITH FOR FIELD RENAMES.\n PLEASE REVIEW YOUR DEEP IDXS BASED ON YOUR FIELD RENAME AND DROP IT AND ADD IT IF NECESSARY.");
+			try{
+				throw new Exception();
+			}catch(Exception e)
+			{
+				e.printStackTrace();
+			}
+			
+		}
 		
 		BDBPrimaryIndex pidx = entity_primary_indexes_as_map.get(entity);
 		if(pidx == null)
@@ -3107,15 +3116,20 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				//AND MOVE THROUGH PATH//
 				for(int j = 0;j < parts.length-1;j++)
 				{
+					System.out.println("AT PART "+parts[j]);
 					List<FieldDefinition> types = path_ref_types[j];
-					List<FieldDefinition> r_types = path_ref_types[j+1];
+					System.out.println("TYPES IS "+types);
 					for(int k = 0; k < types.size();k++)
 					{
 						FieldDefinition left_type = types.get(k);
+						System.out.println("LEFT TYPE IS "+left_type);
 						EntityDefinition d = do_get_entity_definition(left_type.getReferenceType());
 						if(d == null)
 							throw new PersistenceException("BAD REF PATH "+left_type.getReferenceType()+" DOES NOT EXIST IN STORE. "+eii.getName());
+						System.out.println("ENTITY DEF IS "+d);
+						System.out.println("PARTS J+1 "+parts[j+1]);
 						FieldDefinition right_type = d.getField(parts[j+1]);
+						System.out.println("R TYPE IS "+right_type);
 						aux_index = left_type.getReferenceType()+" IDX_BY_"+parts[j+1];
 						aux_index_name = "deep_aux_by"+intercaps(parts[j+1]);					
 						if(do_get_entity_index(left_type.getReferenceType(),aux_index_name) == null )

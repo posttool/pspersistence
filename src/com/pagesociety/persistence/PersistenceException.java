@@ -8,6 +8,9 @@ public class PersistenceException extends Exception
 {
 	private static final long serialVersionUID = -8935234016086617561L;
 
+	int code;
+	public static final int NO_SPECIFIC_CODE	  = 0x0000;
+	public static final int ENTITY_DOES_NOT_EXIST = 0x0001;
 	/**
 	 * Constructs a persistence exception with a message.
 	 * 
@@ -15,7 +18,13 @@ public class PersistenceException extends Exception
 	 */
 	public PersistenceException(String msg)
 	{
-		super(msg);
+		this(msg,NO_SPECIFIC_CODE);
+	}
+	
+	
+	public PersistenceException(String msg,int code)
+	{
+		this(msg,null,code);
 	}
 
 	/**
@@ -29,6 +38,19 @@ public class PersistenceException extends Exception
 	 */
 	public PersistenceException(String msg, Exception e)
 	{
-		super(msg, e);
+		this(msg,e,NO_SPECIFIC_CODE);
 	}
+	
+	
+	public PersistenceException(String msg, Exception e,int code)
+	{
+		super(msg, e);
+		this.code = code;
+	}
+	
+	public int getErrorCode()
+	{
+		return code;
+	}
+	
 }

@@ -1235,11 +1235,9 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				resolve_one_to_one(ptxn, operation, e, dirty_field, other_side_type, other_side_fieldname);
 				break;
 			case EntityRelationshipDefinition.TYPE_ONE_TO_MANY:
-				System.out.println("RELATION O TO M");
 				resolve_one_to_many(ptxn, operation, e, dirty_field, other_side_type, other_side_fieldname);
 				break;
 			case EntityRelationshipDefinition.TYPE_MANY_TO_ONE:
-				System.out.println("RELATION M TO O");
 				resolve_many_to_one(ptxn, operation, e, dirty_field, other_side_type, other_side_fieldname);
 				break;
 			case EntityRelationshipDefinition.TYPE_MANY_TO_MANY:

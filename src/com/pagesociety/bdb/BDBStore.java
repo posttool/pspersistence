@@ -32,6 +32,7 @@ import com.pagesociety.bdb.index.query.QueryManager;
 import com.pagesociety.bdb.index.query.QueryManagerConfig;
 import com.pagesociety.bdb.locker.AdminLocker;
 import com.pagesociety.bdb.locker.Locker;
+import com.pagesociety.bdb.queue.PersistentQueueManager;
 import com.pagesociety.persistence.Entity;
 import com.pagesociety.persistence.EntityDefinition;
 import com.pagesociety.persistence.EntityIndex;
@@ -142,9 +143,11 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		init_entity_index_definition_manager();
 		init_deadlock_resolution_scheme(config);
 
-		init_query_manager();
-		
 
+		init_query_manager();
+		init_queue_manager(config);
+		
+		
 		bootstrap_existing_entity_definitions();
 		bootstrap_existing_indices();
 		bootstrap_existing_entity_relationships();
@@ -2187,6 +2190,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				entity_relationship_db.sync();
 				entity_relationship_db.close();
 			}
+			
+			_queue_manager.shutdown();
 			if (environment != null)
 				environment.close();	
 
@@ -2376,6 +2381,11 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	}
 	
 	
+	public DatabaseConfig getDefaultBTreeConfig()
+	{
+		return get_default_primary_db_config();
+	}
+	
 	private DatabaseConfig get_default_primary_db_config()
 	{
 		DatabaseConfig cfg = get_primary_db_config_btree();
@@ -2540,7 +2550,15 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		_query_manager.init();
 
 	}
-	
+
+	private PersistentQueueManager		_queue_manager;
+	private void init_queue_manager(Map<String,Object> config) throws PersistenceException
+	{
+
+		_queue_manager = new PersistentQueueManager();
+		_queue_manager.init(this, config);
+	}
+
 	private void init_field_binding() throws PersistenceException
 	{
 		FieldBinding.initWithPrimaryIndexMap(entity_primary_indexes_as_map);
@@ -4213,6 +4231,94 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		_query_manager.removeCacheDependencies(def);
 	}
 	
+	//////////////////////////////
+	//QUEUE FUNCTIONS
+	//////////////////////////////
+	
+	
+	public String createQueue(String name,int record_size,int num_records_in_extent) throws PersistenceException
+	{
+		_store_locker.enterLockerThread();
+		try{
+			
+			return _queue_manager.createQueue(name, record_size, num_records_in_extent);
+	
+		}catch(PersistenceException pe)
+		{
+			throw pe;
+		}
+		finally
+		{
+			_store_locker.exitLockerThread();	
+		}
+	}
+
+	public void deleteQueue(String name) throws PersistenceException
+	{
+		_store_locker.enterLockerThread();
+		try{
+			_queue_manager.deleteQueue(name);
+		}catch(PersistenceException pe)
+		{
+			throw pe;
+		}
+		finally
+		{
+			_store_locker.exitLockerThread();
+		}
+	}
+	
+	public void enqueue(String queue_name,byte[] queue_item) throws PersistenceException
+	{
+		_store_locker.enterAppThread();
+		try
+		{
+			_queue_manager.enqueue(null, queue_name, queue_item);
+		}catch(PersistenceException pe)
+		{
+			throw pe;
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}
+	}
+	
+	public byte[] dequeue(String queue_name) throws PersistenceException
+	{
+		_store_locker.enterAppThread();
+		try{
+			return _queue_manager.dequeue(null, queue_name);
+		}catch(PersistenceException pe)
+		{
+			throw pe;
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}
+	}
+
+	public List<String> listQueues() throws PersistenceException
+	{
+		_store_locker.enterAppThread();
+		try{
+			return _queue_manager.listQueues();
+		}catch(PersistenceException pe)
+		{
+			throw pe;
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}
+		
+	}
+	
+	//////
+	// END QUEUE FUNCTIONS
+	//
+	
 	private void close_cursors(Cursor... cursors)
 	{
 		try
@@ -4252,6 +4358,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		return environment;
 	}
 
+	
+	
 
 	////BACKUP SUBSYSTEM/////////////////////////////////////////////////////////////
 	//

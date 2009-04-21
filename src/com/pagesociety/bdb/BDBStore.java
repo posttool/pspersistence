@@ -2173,8 +2173,6 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				pidx.close(entity_secondary_indexes_as_list.get(ename));
 			}
 			
-
-			
 			if (entity_index_db != null)
 			{
 				entity_index_db.sync();		
@@ -4268,12 +4266,12 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 	}
 	
-	public void enqueue(String queue_name,byte[] queue_item) throws PersistenceException
+	public void enqueue(String queue_name,byte[] queue_item,boolean durable_commit) throws PersistenceException
 	{
 		_store_locker.enterAppThread();
 		try
 		{
-			_queue_manager.enqueue(null, queue_name, queue_item);
+			_queue_manager.enqueue(null, queue_name, queue_item,durable_commit);
 		}catch(PersistenceException pe)
 		{
 			throw pe;
@@ -4284,11 +4282,11 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 	}
 	
-	public byte[] dequeue(String queue_name) throws PersistenceException
+	public byte[] dequeue(String queue_name,boolean durable_commit,boolean block) throws PersistenceException
 	{
 		_store_locker.enterAppThread();
 		try{
-			return _queue_manager.dequeue(null, queue_name);
+			return _queue_manager.dequeue(null, queue_name,durable_commit,block);
 		}catch(PersistenceException pe)
 		{
 			throw pe;

@@ -175,7 +175,8 @@ public class PersistentQueueManager
 		
 	}
 	
-	public DatabaseEntry enqueue(Transaction parent_txn,String queue_name,byte[] queue_item) throws PersistenceException
+	//commit flag means whether or not to commit
+	public DatabaseEntry enqueue(Transaction parent_txn,String queue_name,byte[] queue_item,boolean durable_commit) throws PersistenceException
 	{
 		PersistentQueue q = queue_map.get(queue_name);
 		if(q == null)
@@ -192,7 +193,10 @@ public class PersistentQueueManager
 				DatabaseEntry key 	= new DatabaseEntry();
 				DatabaseEntry data	= new DatabaseEntry(queue_item);
 				q.getDbh().append(txn, key, data);
-				txn.commitNoSync();
+				if(durable_commit)
+					txn.commit();
+				else
+					txn.commitNoSync();
 				return key;
 				
 			}catch(DatabaseException dle)
@@ -215,7 +219,9 @@ public class PersistentQueueManager
 		return null;//should never get here//	
 	}
 	
-	public byte[] dequeue(Transaction parent_txn,String queue_name) throws PersistenceException
+	//returns null if blocking is false and there is nothing on the queue
+	//commit flag is whether or not we commit the transaction to disk
+	public byte[] dequeue(Transaction parent_txn,String queue_name,boolean durable_commit,boolean block) throws PersistenceException
 	{
 		PersistentQueue q = queue_map.get(queue_name);
 		if(q == null)
@@ -229,8 +235,13 @@ public class PersistentQueueManager
 				txn = context.getEnvironment().beginTransaction(parent_txn, queue_transaction_config);
 				DatabaseEntry key 	= new DatabaseEntry();
 				DatabaseEntry data	= new DatabaseEntry();
-				q.getDbh().consume(txn, key, data,true);
-				txn.commitNoSync();
+				OperationStatus op_stat = q.getDbh().consume(txn, key, data,block);
+				if(durable_commit)
+					txn.commit();
+				else
+					txn.commitNoSync();
+				if(op_stat == OperationStatus.NOTFOUND)
+					return null;
 				return data.getData();
 				
 			}catch(DatabaseException dle)
@@ -261,14 +272,14 @@ public class PersistentQueueManager
 	
 	public void shutdown() throws PersistenceException
 	{
-		logger.info("SHUTTING DOWN QUEUE SUBSYSTEM");
+		System.out.println("SHUTTING DOWN QUEUE SUBSYSTEM");
 		try{
 			queue_manager_meta_db.close();
 		}catch(DatabaseException dbe)
 		{
 			dbe.printStackTrace();
 		}
-		logger.info("CLOSED QUEUE SYBSYSTEM META DB");
+		System.out.println("CLOSED QUEUE SYBSYSTEM META DB");
 			
 			for(int i = 0;i < queue_list.size();i++)
 		{
@@ -282,9 +293,9 @@ public class PersistentQueueManager
 			{
 				dbe.printStackTrace();
 			}
-			logger.info("CLOSED "+q_db_name);
+			System.out.println("CLOSED "+q_db_name);
 		}
-		logger.info("QUEUE SUBSYSTEM SHUTDOWN OK");
+		System.out.println("QUEUE SUBSYSTEM SHUTDOWN OK");
 	}
 	
 	private DatabaseConfig get_queue_config(int record_size, int records_per_extent) 

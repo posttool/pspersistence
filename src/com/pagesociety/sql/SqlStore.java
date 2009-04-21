@@ -620,5 +620,21 @@ public class SqlStore implements PersistentStore
 		// TODO Auto-generated method stub
 		return false;
 	}
+	
+
+
+	@Override
+	public String createQueue(String name, int record_size,
+			int num_records_in_extent) throws PersistenceException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	public void deleteQueue(String name) throws PersistenceException{};
+	public void enqueue(String queue_name,byte[] queue_item) throws PersistenceException{};
+	public byte[] dequeue(String queue_name) throws PersistenceException{return null;}
+	public List<String> listQueues() throws PersistenceException{return null;}
+
+
+
 
 }

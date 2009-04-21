@@ -5,8 +5,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.Environment;
 import com.sleepycat.db.EnvironmentConfig;
+import com.sleepycat.db.Transaction;
 
 
 
@@ -475,7 +477,14 @@ public interface PersistentStore
 	 */
 	public abstract int count(Query q) throws PersistenceException;
 
- 
+	//QUEUE SUB SYSTEM//
+	public String createQueue(String name,int record_size,int num_records_in_extent) throws PersistenceException;
+	public void deleteQueue(String name) throws PersistenceException;
+	public void enqueue(String queue_name,byte[] queue_item) throws PersistenceException;
+	public byte[] dequeue(String queue_name) throws PersistenceException;
+	public List<String> listQueues() throws PersistenceException;
+
+	
 	public void checkpoint() throws PersistenceException;
 	//backup stuff//
 	public boolean supportsFullBackup() throws PersistenceException;	

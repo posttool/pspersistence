@@ -101,8 +101,10 @@ public class QueryTest {
 		//deep_indexing_test_simple_save();
 		//deep_indexing_test_arrays_in_ref_path();
 		//deep_indexing_test_save_array_terminal();
-		deep_indexing_test_field_rename();
+		//deep_indexing_test_field_rename();
 		//deep_indexing_test_multi();
+		//queue_test();
+		queue_test2();
 	}
 	
 	public void id_index_test() throws PersistenceException
@@ -2597,6 +2599,129 @@ public class QueryTest {
 		}
 		//_store.deleteEntity(publisher1);
 	}
+	
+	
+	//runs forever//
+	public void queue_test() throws PersistenceException
+	{
+		_store.createQueue("TEST_QUEUE", 128, 64);
+		int num_readers = 2;
+		int num_writers = 2;
+		final int C = 60;
+		for(int i=0;i < num_writers;i++)
+		{
+			final int I = i;
+			Thread t = new Thread()
+			{
+				public void run()
+				{
+					int c = C;
+					while(true)
+					{
+						c--;
+						System.out.println("Thread "+Thread.currentThread().getName()+" EQ: c "+c);
+						try{
+							_store.enqueue("TEST_QUEUE", new String("QITEM "+I).getBytes());
+							System.out.println("ENQUEUED "+new String("QITEM "+I));
+							Thread.sleep((long) (Math.random() * 500));
+						}catch(Exception e)
+						{
+							e.printStackTrace();
+						}
+					}
+
+				}
+			};
+			
+			try {
+				t.join();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			t.start();
+		}
+		
+		for(int i=0;i < num_readers;i++)
+		{
+			final int I = i;
+			Thread t = new Thread()
+			{
+				public void run()
+				{
+					int c = C;
+					while(true)
+					{
+						System.out.println("Thread "+Thread.currentThread().getName()+" DQ: c "+c);
+						c--;
+						try{
+							String s = new String(_store.dequeue("TEST_QUEUE"));
+							System.out.println("DEQUEUED "+s);
+							Thread.sleep((long) (Math.random() * 1500));
+						}catch(Exception e)
+						{
+							e.printStackTrace();
+						}
+					}
+
+					//System.out.println("DEQUEUE C "+c);
+				}
+			};
+
+			t.start();
+			try {
+				t.join();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		System.out.println("HERE 2");
+
+	}
+	
+	//runs forever//
+	public void queue_test2() throws PersistenceException
+	{
+		try{
+			_store.createQueue("TEST_QUEUE_2", 128, 64);
+		}catch(PersistenceException pe)
+		{
+			System.err.println(pe.getMessage());
+		}
+		
+		long t1 = System.currentTimeMillis();
+		int N = 250;
+		for(int i = 0;i < N;i++)
+		{
+			try{
+				_store.enqueue("TEST_QUEUE_2", new String("QITEM "+i).getBytes());
+			//	System.out.println("ENQUEUED "+new String("QITEM "+i));
+			}catch(Exception e)
+			{
+				e.printStackTrace();
+			}
+		}
+		long t2 = System.currentTimeMillis() - t1;
+		System.out.println("INSERTED "+N+" QUEUE ITEMS IN "+t2+" RPS:"+((float)1000/t2*N));
+	
+		t1 = System.currentTimeMillis();
+		for(int i = 0;i < N/2;i++)
+		{
+			try{
+				String s = new String(_store.dequeue("TEST_QUEUE_2"));
+				//System.out.println("DEQUEUED "+s);
+			}catch(Exception e)
+			{
+				e.printStackTrace();
+			}
+		}
+		t2 = System.currentTimeMillis() - t1;
+		System.out.println("READ "+N/2+" QUEUE ITEMS IN "+t2+" RPS:"+((float)1000/t2*N));
+		System.out.println("FINISHED QUEUE TEST 2");
+
+	}
+	
 	
 	///CHANGE VARIABLE TO POINT TO A VALID DIRECTORY AND YOU SHOULD BE ABLE TO RUN TEST//
 	public void init_store() throws PersistenceException

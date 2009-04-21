@@ -630,8 +630,8 @@ public class SqlStore implements PersistentStore
 		return null;
 	}
 	public void deleteQueue(String name) throws PersistenceException{};
-	public void enqueue(String queue_name,byte[] queue_item) throws PersistenceException{};
-	public byte[] dequeue(String queue_name) throws PersistenceException{return null;}
+	public void enqueue(String queue_name,byte[] queue_item,boolean durable_commit) throws PersistenceException{};
+	public byte[] dequeue(String queue_name,boolean durable_commit,boolean wait) throws PersistenceException{return null;}
 	public List<String> listQueues() throws PersistenceException{return null;}
 
 

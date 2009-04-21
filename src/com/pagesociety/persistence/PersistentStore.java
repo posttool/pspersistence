@@ -480,11 +480,11 @@ public interface PersistentStore
 	//QUEUE SUB SYSTEM//
 	public String createQueue(String name,int record_size,int num_records_in_extent) throws PersistenceException;
 	public void deleteQueue(String name) throws PersistenceException;
-	public void enqueue(String queue_name,byte[] queue_item) throws PersistenceException;
-	public byte[] dequeue(String queue_name) throws PersistenceException;
+	public void enqueue(String queue_name,byte[] queue_item,boolean durable_commit) throws PersistenceException;
+	public byte[] dequeue(String queue_name,boolean durable_commit,boolean block) throws PersistenceException;
 	public List<String> listQueues() throws PersistenceException;
 
-	
+	 
 	public void checkpoint() throws PersistenceException;
 	//backup stuff//
 	public boolean supportsFullBackup() throws PersistenceException;	

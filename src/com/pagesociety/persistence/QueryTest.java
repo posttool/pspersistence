@@ -2621,7 +2621,7 @@ public class QueryTest {
 						c--;
 						System.out.println("Thread "+Thread.currentThread().getName()+" EQ: c "+c);
 						try{
-							_store.enqueue("TEST_QUEUE", new String("QITEM "+I).getBytes());
+							_store.enqueue("TEST_QUEUE", new String("QITEM "+I).getBytes(),true);
 							System.out.println("ENQUEUED "+new String("QITEM "+I));
 							Thread.sleep((long) (Math.random() * 500));
 						}catch(Exception e)
@@ -2655,7 +2655,7 @@ public class QueryTest {
 						System.out.println("Thread "+Thread.currentThread().getName()+" DQ: c "+c);
 						c--;
 						try{
-							String s = new String(_store.dequeue("TEST_QUEUE"));
+							String s = new String(_store.dequeue("TEST_QUEUE",true,true));
 							System.out.println("DEQUEUED "+s);
 							Thread.sleep((long) (Math.random() * 1500));
 						}catch(Exception e)
@@ -2695,7 +2695,7 @@ public class QueryTest {
 		for(int i = 0;i < N;i++)
 		{
 			try{
-				_store.enqueue("TEST_QUEUE_2", new String("QITEM "+i).getBytes());
+				_store.enqueue("TEST_QUEUE_2", new String("QITEM "+i).getBytes(),true);
 			//	System.out.println("ENQUEUED "+new String("QITEM "+i));
 			}catch(Exception e)
 			{
@@ -2709,7 +2709,7 @@ public class QueryTest {
 		for(int i = 0;i < N/2;i++)
 		{
 			try{
-				String s = new String(_store.dequeue("TEST_QUEUE_2"));
+				String s = new String(_store.dequeue("TEST_QUEUE_2",true,true));
 				//System.out.println("DEQUEUED "+s);
 			}catch(Exception e)
 			{

@@ -49,8 +49,8 @@ public abstract class PersistenceAdapter implements PersistentStore
 	public void deleteBackup(String backup_identifier) throws PersistenceException{}
 	public String createQueue(String name,int record_size,int num_records_in_extent) throws PersistenceException{return null;}
 	public void deleteQueue(String name) throws PersistenceException{};
-	public void enqueue(String queue_name,byte[] queue_item) throws PersistenceException{};
-	public byte[] dequeue(String queue_name) throws PersistenceException{return null;}
+	public void enqueue(String queue_name,byte[] queue_item,boolean durable_commit) throws PersistenceException{};
+	public byte[] dequeue(String queue_name,boolean durable_commit,boolean block) throws PersistenceException{return null;}
 	public List<String> listQueues() throws PersistenceException{return null;}
 
 

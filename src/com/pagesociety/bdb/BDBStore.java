@@ -56,6 +56,7 @@ import com.sleepycat.db.EnvironmentConfig;
 import com.sleepycat.db.LockDetectMode;
 import com.sleepycat.db.LockMode;
 import com.sleepycat.db.OperationStatus;
+import com.sleepycat.db.StatsConfig;
 import com.sleepycat.db.Transaction;
 
 public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
@@ -170,6 +171,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				try{
 					System.out.println("SHUTDOWN HOOK IS RUNNING");
 					do_close();
+					
 				}catch(Exception e)
 				{
 					e.printStackTrace();
@@ -2158,11 +2160,27 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	{
 		
 		if(_closed)
+		{
+			System.out.println("STORE HAS ALREADY BEEN CLOSED");
 			return;
-		
-		System.out.println("ENTER CLOSE");
-		
+		}
 		_closed = true;
+		System.out.println("ENTER CLOSE");
+		try{
+			System.out.println("LOCK STATS "+environment.getLockStats(null));
+		}catch(Exception e)
+		{
+			e.printStackTrace();
+		}
+		try{
+			System.out.println("TRANSACTION STATS "+environment.getTransactionStats(null));
+		}catch(Exception e)
+		{
+			e.printStackTrace();
+		}
+
+		
+
 		long t = System.currentTimeMillis();
 		try
 		{			
@@ -2190,6 +2208,10 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			}
 			
 			_queue_manager.shutdown();
+
+			//System.out.println("LOCK STATS "+environment.getLockStats(null));
+			//System.out.println();
+			//System.out.println("CONFIG STATS "+environment.getLockStats(null));
 			if (environment != null)
 				environment.close();	
 
@@ -2253,6 +2275,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				env_cfg.setLockDetectMode(LockDetectMode.OLDEST);
 	
 			environment = new Environment(db_env_home, env_cfg);
+			logger.info("BDB VERSION IS: "+ environment.getVersionString());
 			_closed 	= false;
 		}
 		catch (Exception e)

@@ -205,11 +205,11 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 		catch (Exception e)
 		{
-			checkpoint_policy = new DefaultCheckpointPolicy();
+			checkpoint_policy = new DefaultCheckpointPolicyWithInterval();
 		}
 
 		logger.debug("init_checkpoint_policy(HashMap<Object,Object>) - SETTING CHECKPOINT POLICY TO INSTANCE OF " + checkpoint_policy.getClass().getName());
-		checkpoint_policy.init(config);
+		checkpoint_policy.init(this,config);
 	}
 	
 
@@ -676,8 +676,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			}
 		}//end while
 
-		if (checkpoint_policy.isCheckpointNecessary())
-			do_checkpoint();
+		checkpoint_policy.handleCheckpoint();
+//			do_checkpoint();
 	
 		//we might want a more elaborate policy here//
 		clean_query_cache(e.getType());
@@ -1591,6 +1591,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			/* have a more robust cache expiration policy at some point...probably
 			 * just blow away complex cache */
 			clean_query_cache(entity_type);
+			checkpoint_policy.handleCheckpoint();
 		}catch(DatabaseException de)
 		{
 			abortTxn(txn);

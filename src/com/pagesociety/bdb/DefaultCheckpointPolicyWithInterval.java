@@ -16,12 +16,12 @@ public class DefaultCheckpointPolicyWithInterval implements CheckpointPolicy
 	private static final int DEFAULT_CHECKPOINT_INTERVAL_IN_MINUTES 	= 15;
 	private static String PARAM_CHECKPOINT_THREAD_INTERVAL_IN_MINUTES 	= "checkpoint-interval-in-minutes";
 	
-	protected int checkpoint_interval_in_minutes;
-	private int 	checkpoint_count;
-	protected BDBStore context;
+	protected 	int 		checkpoint_interval_in_minutes;
+	private 	int 		checkpoint_count;
+	protected 	BDBStore	context;
 	
 	Thread checkpoint_thread;
-	private boolean check_point_thread_running;
+	private boolean checkpoint_thread_running;
 	
 	public void init(BDBStore context,Map<String, Object> config)
 	{
@@ -36,16 +36,16 @@ public class DefaultCheckpointPolicyWithInterval implements CheckpointPolicy
 
 	private void start_checkpoint_thread() 
 	{
-		check_point_thread_running = true;
-		checkpoint_thread = new Thread()
+		checkpoint_thread_running = true;
+		checkpoint_thread		  = new Thread()
 		{
 			public void run()
 			{
-				loop:while(check_point_thread_running)
+				loop:while(checkpoint_thread_running)
 				{
 					try{
 						try{
-							Thread.sleep(checkpoint_interval_in_minutes*(1000*60*60));
+							Thread.sleep(checkpoint_interval_in_minutes*(1000*60));
 						}catch(InterruptedException ie)
 						{
 							continue loop;
@@ -64,7 +64,7 @@ public class DefaultCheckpointPolicyWithInterval implements CheckpointPolicy
 				}
 			}
 		};
-
+		checkpoint_thread.start();
 		
 	}
 
@@ -86,7 +86,7 @@ public class DefaultCheckpointPolicyWithInterval implements CheckpointPolicy
 	@Override
 	public void destroy() 
 	{
-		check_point_thread_running = false;
+		checkpoint_thread_running = false;
 		synchronized (this) 
 		{
 			checkpoint_thread.interrupt();

@@ -2165,8 +2165,9 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			System.out.println("STORE HAS ALREADY BEEN CLOSED");
 			return;
 		}
-		_closed = true;
 		System.out.println("ENTER CLOSE");
+		_closed = true;
+		checkpoint_policy.destroy();
 		try{
 			System.out.println("LOCK STATS "+environment.getLockStats(null));
 		}catch(Exception e)

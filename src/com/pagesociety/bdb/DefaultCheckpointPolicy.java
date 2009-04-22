@@ -6,7 +6,7 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 
 import com.sleepycat.db.DatabaseException;
-import com.sun.xml.internal.bind.CycleRecoverable.Context;
+
 
 public class DefaultCheckpointPolicy implements CheckpointPolicy
 {

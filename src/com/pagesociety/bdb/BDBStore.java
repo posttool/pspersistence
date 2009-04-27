@@ -2167,7 +2167,15 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 		System.out.println("ENTER CLOSE");
 		_closed = true;
-		checkpoint_policy.destroy();
+		try{
+			do_checkpoint();
+		}catch(DatabaseException dbe)
+		{
+			System.out.println("FAILED CHECKPOINTING THE DB ON SHUTDOWN ");
+			dbe.printStackTrace();
+		}
+			
+			checkpoint_policy.destroy();
 		try{
 			System.out.println("LOCK STATS "+environment.getLockStats(null));
 		}catch(Exception e)

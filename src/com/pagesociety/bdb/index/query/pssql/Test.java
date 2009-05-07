@@ -10,7 +10,7 @@ public class Test {
     	PSSqlExecutor p = new PSSqlExecutor(null);
     	
     	try{
-    		p.execute(pssql);
+    		p.execute(null,pssql);
     	}catch(Exception e )
     	{
     		e.printStackTrace();

@@ -13,6 +13,7 @@ import com.pagesociety.persistence.EntityDefinition;
 import com.pagesociety.persistence.PersistenceException;
 import com.pagesociety.persistence.Query;
 import com.pagesociety.persistence.QueryResult;
+import com.sleepycat.db.Transaction;
 
 public class PSSqlExecutor 
 {
@@ -24,7 +25,7 @@ public class PSSqlExecutor
 	
 	}
 
-	public QueryResult execute(String pssql) throws PersistenceException
+	public QueryResult execute(Transaction txn,String pssql) throws PersistenceException
 	{
 	 	PSSqlParser parser=null;
     	PSSqlLexer lex=null;
@@ -40,7 +41,7 @@ public class PSSqlExecutor
     			switch(s.getType())
     			{
     				case PSSqlStatement.PSSQL_STATEMENT_TYPE_SELECT:
-    					return do_select((SelectStatement)s);
+    					return do_select(txn,(SelectStatement)s);
     				default:
     						throw PSSqlException.EXEC_EXCEPTION("UNKNOWN TYPE OF PSSQL STATEMENT type:"+s.getType(),pssql);
     			}
@@ -54,7 +55,7 @@ public class PSSqlExecutor
 	}
 
 
-	private QueryResult do_select(SelectStatement s) throws PSSqlException
+	private QueryResult do_select(Transaction txn,SelectStatement s) throws PSSqlException
 	{
 		System.out.println("SELECT STATEMENT");
 		System.out.println("SELECT LIST IS "+s.select_list);
@@ -77,7 +78,8 @@ public class PSSqlExecutor
 		q.cacheResults(false);
 		try{
 			BDBQueryResult result 			= new BDBQueryResult(); 
-			QueryResult  candidate_result 	= _env.getQueryManager().executeQuery(q);
+			//TODO: the first arg shouild be a transaction not null//
+			QueryResult  candidate_result 	= _env.getQueryManager().executeQuery(txn,q);
 			List<Entity> candidates 		= candidate_result.getEntities();
 			
 			int cs = candidates.size();

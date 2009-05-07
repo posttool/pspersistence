@@ -591,8 +591,9 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	
 	public void commitTransaction(int transaction_id) throws PersistenceException
 	{
-		Transaction txn = get_transaction_by_transaction_id(transaction_id);
+
 		try{
+			Transaction txn = get_transaction_by_transaction_id(transaction_id);
 			txn.commitNoSync();
 			System.out.println("COMMITED "+transaction_id);
 			clear_transaction_id(transaction_id);
@@ -605,9 +606,9 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	
 	public void rollbackTransaction(int transaction_id) throws PersistenceException
 	{
-		Transaction txn = get_transaction_by_transaction_id(transaction_id);
-		try{
 
+		try{
+			Transaction txn = get_transaction_by_transaction_id(transaction_id);
 			txn.abort();
 			System.out.println("ROLLED BACK "+transaction_id);
 			clear_transaction_id(transaction_id);
@@ -4569,11 +4570,44 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 	}
 	
+	public void enqueue(int transaction_id,String queue_name,byte[] queue_item,boolean durable_commit) throws PersistenceException
+	{
+		_store_locker.enterAppThread();
+		try
+		{
+			Transaction txn = get_transaction_by_transaction_id(transaction_id);
+			_queue_manager.enqueue(txn, queue_name, queue_item,durable_commit);
+		}catch(PersistenceException pe)
+		{
+			throw pe;
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}
+	}
+	
 	public byte[] dequeue(String queue_name,boolean durable_commit,boolean block) throws PersistenceException
 	{
 		_store_locker.enterAppThread();
 		try{
 			return _queue_manager.dequeue(null, queue_name,durable_commit,block);
+		}catch(PersistenceException pe)
+		{
+			throw pe;
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}
+	}
+
+	public byte[] dequeue(int transaction_id,String queue_name,boolean durable_commit,boolean block) throws PersistenceException
+	{
+		_store_locker.enterAppThread();
+		try{
+			Transaction txn = get_transaction_by_transaction_id(transaction_id);
+			return _queue_manager.dequeue(txn, queue_name,durable_commit,block);
 		}catch(PersistenceException pe)
 		{
 			throw pe;

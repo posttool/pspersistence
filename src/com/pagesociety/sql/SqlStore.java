@@ -637,4 +637,138 @@ public class SqlStore implements PersistentStore
 
 
 
+	
+
+
+
+	@Override
+	public void commitTransaction(int transaction_id)
+			throws PersistenceException {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+
+
+	@Override
+	public void rollbackTransaction(int transaction_id)
+			throws PersistenceException {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+
+
+	@Override
+	public int startTransaction() throws PersistenceException {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+
+
+
+	@Override
+	public void deleteEntity(int transaction_id, Entity e)
+			throws PersistenceException {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+
+
+	@Override
+	public Entity getEntityById(int transaction_id, String entity, long id)
+			throws PersistenceException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+
+
+	@Override
+	public Entity saveEntity(int transaction_id, Entity e)
+			throws PersistenceException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+
+
+	@Override
+	public int count(int transaction_id, Query q) throws PersistenceException {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+
+
+
+	@Override
+	public QueryResult executeQuery(int transaction_id, Query q)
+			throws PersistenceException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+
+
+
+
+	@Override
+	public int startTransaction(int parent_transaction_id)
+			throws PersistenceException {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+
+
+
+	@Override
+	public void fillReferenceField(int transaction_id, List<Entity> es,
+			String fieldname) throws PersistenceException {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+
+
+	@Override
+	public void fillReferenceField(int transaction_id, Entity e,
+			String field_name) throws PersistenceException {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+
+
+	@Override
+	public void fillReferenceFields(int transaction_id, List<Entity> es)
+			throws PersistenceException {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+
+
+	@Override
+	public void fillReferenceFields(int transaction_id, Entity e)
+			throws PersistenceException {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+
+
 }

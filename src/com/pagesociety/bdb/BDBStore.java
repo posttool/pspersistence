@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.log4j.Logger;
 
@@ -56,7 +57,6 @@ import com.sleepycat.db.EnvironmentConfig;
 import com.sleepycat.db.LockDetectMode;
 import com.sleepycat.db.LockMode;
 import com.sleepycat.db.OperationStatus;
-import com.sleepycat.db.StatsConfig;
 import com.sleepycat.db.Transaction;
 
 public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
@@ -552,8 +552,88 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}	
 
 	}
+		
+	/*----------------- TRANSACTION INTERFACE-----------------------------------------------*/
+	public int startTransaction() throws PersistenceException
+	{
+		Transaction txn = null;
+		try{
+			
+			txn = environment.beginTransaction(null, null);
+			int tid = txn.hashCode();
+			System.out.println("ISSUING "+tid);
+			transaction_map.put(tid, txn);
+			return tid;
+		}catch(DatabaseException e)
+		{
+			logger.error("GETTING TRANSACTION ID FAILED"+e);
+			throw new PersistenceException("startTransaction(): UNABLE TO GET NEW TRANSACTION ID");
+		}
+	}
 	
+	public int startTransaction(int parent_transaction_id) throws PersistenceException
+	{
+		Transaction txn = null;
+		try{
+			
+			Transaction parent = get_transaction_by_transaction_id(parent_transaction_id);
+			txn = environment.beginTransaction(parent, null);
+			int tid = txn.hashCode();
+			System.out.println("ISSUING CHILD TXN: "+tid+" PARENT IS:"+parent_transaction_id);
+			transaction_map.put(tid, txn);
+			return tid;
+		}catch(DatabaseException e)
+		{
+			logger.error("GETTING TRANSACTION ID FAILED"+e);
+			throw new PersistenceException("startTransaction(): UNABLE TO GET NEW TRANSACTION ID");
+		}
+	}
 	
+	public void commitTransaction(int transaction_id) throws PersistenceException
+	{
+		Transaction txn = get_transaction_by_transaction_id(transaction_id);
+		try{
+			txn.commitNoSync();
+			System.out.println("COMMITED "+transaction_id);
+			clear_transaction_id(transaction_id);
+		}catch(DatabaseException e)
+		{
+			logger.error("GETTING TRANSACTION ID FAILED"+e);
+			throw new PersistenceException("startTransaction(): UNABLE TO GET NEW TRANSACTION ID");
+		}
+	}
+	
+	public void rollbackTransaction(int transaction_id) throws PersistenceException
+	{
+		Transaction txn = get_transaction_by_transaction_id(transaction_id);
+		try{
+
+			txn.abort();
+			System.out.println("ROLLED BACK "+transaction_id);
+			clear_transaction_id(transaction_id);
+		}catch(DatabaseException e)
+		{
+			logger.error("ROLLBACK OF TRANSACTION FAILED"+e);
+			throw new PersistenceException("startTransaction(): UNABLE TO GET NEW TRANSACTION ID");
+		}
+	}
+	
+	//TODO: probably should reap them after some period of time//
+	private ConcurrentHashMap<Integer,Transaction> transaction_map = new ConcurrentHashMap<Integer, Transaction>(128,0.75f,128);
+	private Transaction get_transaction_by_transaction_id(int transaction_id) throws PersistenceException
+	{
+		Transaction t =  transaction_map.get(transaction_id);
+		if(t == null)
+			throw new PersistenceException("UNABLE TO FIND ACTIVE TRANSACTION FOR TRANSACTION ID "+transaction_id);
+		return t;
+	}
+	
+	private void clear_transaction_id(int transaction_id) throws PersistenceException
+	{
+		transaction_map.remove(transaction_id);
+	}
+	
+	/*------------------------------END TRANSACTION INTERFACE------------------------*/
 	public Entity saveEntity(Entity e) throws PersistenceException
 	{	
 		_store_locker.enterAppThread();
@@ -572,10 +652,31 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			logger.error(pe);
 			throw pe;
 		}
-		catch(DatabaseException dbe)
+		finally
 		{
-			logger.error(dbe);
-			throw new PersistenceException("SAVE OF ENTITY FAILED. TRY AGAIN.\n"+e);	
+			_store_locker.exitAppThread();
+		}	
+		return e;
+	}
+
+	public Entity saveEntity(int transaction_id,Entity e) throws PersistenceException
+	{	
+		_store_locker.enterAppThread();
+		try
+		{
+			String entity_type 		  = e.getType();
+			BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(entity_type);
+			if(pi == null)
+				throw new PersistenceException("ENTITY OF TYPE "+entity_type+" DOES NOT EXIST");
+
+			validate_entity(e);
+			Transaction txn = get_transaction_by_transaction_id(transaction_id);
+			do_save_entity(txn,pi,e,true);
+		}
+		catch(PersistenceException pe)
+		{
+			logger.error(pe);
+			throw pe;
 		}
 		finally
 		{
@@ -584,6 +685,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		return e;
 	}
 
+	
 	private void validate_entity(Entity e) throws PersistenceException
 	{
 		EntityDefinition def = do_get_entity_definition(e.getType());
@@ -598,14 +700,16 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 		//		
 	}
-	protected Entity do_save_entity(Transaction parent_txn,Entity e,boolean resolve_relations) throws DatabaseException
+	
+	
+	protected Entity do_save_entity(Transaction parent_txn,Entity e,boolean resolve_relations) throws PersistenceException
 	{
 		BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(e.getType());
 		return do_save_entity(parent_txn, pi, e,resolve_relations);
 	}
 
 	
-	protected Entity do_save_entity(Transaction parent_txn,BDBPrimaryIndex pi,Entity e, boolean resolve_relations) throws DatabaseException
+	protected Entity do_save_entity(Transaction parent_txn,BDBPrimaryIndex pi,Entity e, boolean resolve_relations) throws PersistenceException
 	{
 
 		boolean update 		= true;
@@ -658,6 +762,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				//save_to_deep_indexes(parent_txn, pkey, e, update);
 				e.undirty();
 				parent_txn.commitNoSync();
+				checkpoint_policy.handleCheckpoint();
 				break;
 			}catch(DatabaseException dbe)
 			{
@@ -666,17 +771,17 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				if(retry_count >= BDBStore.MAX_DEADLOCK_RETRIES)
 				{
 					logger.error(Thread.currentThread().getId()+" FAILING HORRIBLY HERE!!!!!!!!!");
-					throw dbe;
+					throw new PersistenceException("SAVE OF ENTITY "+e+" FAILED",dbe);
 				}
 			}catch(Exception ee)
 			{
 				abortTxn(parent_txn);
 				ee.printStackTrace();
-				throw new DatabaseException("FAILED SAVING ENTITY DUE TO STRANGE EXCEPTION. SEE LOG.");
+				throw new PersistenceException("FAILED SAVING ENTITY DUE TO STRANGE EXCEPTION. SEE LOG.",ee);
 			}
 		}//end while
 
-		checkpoint_policy.handleCheckpoint();
+
 //			do_checkpoint();
 	
 		//we might want a more elaborate policy here//
@@ -706,7 +811,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		return e;	
 	}
 	
-	private void set_default_values(Transaction txn,Entity e) throws DatabaseException
+	private void set_default_values(Transaction txn,Entity e) throws PersistenceException
 	{
 		List<String> dirty_fields = e.getDirtyAttributes();
 		List<FieldDefinition> all_fields = getEntityDefinitionProvider().provideEntityDefinition(e).getFields();
@@ -721,7 +826,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}		
 	}
 	
-	private void set_default_value(Transaction txn,Entity e,FieldDefinition field) throws DatabaseException
+	private void set_default_value(Transaction txn,Entity e,FieldDefinition field) throws PersistenceException
 	{
 		Object val = field.getDefaultValue();
 		if(val == null)
@@ -743,7 +848,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		e.setAttribute(field.getName(), val);
 	}
 	
-	private void set_default_reference_value(Transaction txn,Entity e,Object ev,FieldDefinition field) throws DatabaseException
+	private void set_default_reference_value(Transaction txn,Entity e,Object ev,FieldDefinition field) throws PersistenceException
 	{
 		Entity val = (Entity)ev;
 		if(val.getId() == Entity.UNDEFINED)
@@ -753,7 +858,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 
 	}
 	
-	private void set_default_reference_array_value(Transaction txn,Entity e,Object elv,FieldDefinition field) throws DatabaseException
+	private void set_default_reference_array_value(Transaction txn,Entity e,Object elv,FieldDefinition field) throws PersistenceException
 	{
 		List<Entity> ee = ((List<Entity>)elv);
 		List<Entity> instance_of_default = new ArrayList<Entity>(ee.size());
@@ -827,6 +932,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 
 	}
 
+	///BEGIN DEEP INDEX CRAP//
 	private void save_to_deep_indexes(Transaction parent_txn,DatabaseEntry pkey,Entity e,boolean update) throws DatabaseException
 	{
 		String entity_type = e.getType();
@@ -1076,7 +1182,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			
 			QueryResult r = null;
 			try {
-				r = _query_manager.executeQuery(q);
+				r = _query_manager.executeQuery(null,q);
 			} catch (PersistenceException e1) 
 			{
 				e1.printStackTrace();
@@ -1135,7 +1241,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			//System.out.println("select "+index_type.getReferenceType()+" from "+index_name+" where eq "+e);
 			QueryResult r = null;
 			try{
-				r = _query_manager.executeQuery(q);
+				r = _query_manager.executeQuery(null,q);
 			} catch (PersistenceException e1) 
 			{
 				e1.printStackTrace();
@@ -1187,7 +1293,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	 * @param operation The entity operation (INSERT, UPDATE, DELETE)
 	 * @throws DatabaseException
 	 */
-	private void resolve_relationship_sidefx(Transaction parent_txn,Entity e,int operation) throws DatabaseException
+	private void resolve_relationship_sidefx(Transaction parent_txn,Entity e,int operation) throws PersistenceException
 	{
 		// TODO: get references only
 		List<String> dirty_fields = (operation == DELETE )? getEntityDefinitionProvider().provideEntityDefinition(e).getFieldNames() : e.getDirtyAttributes();
@@ -1221,7 +1327,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	 * @param relationship The dirty field is a part of this relationship.
 	 * @throws DatabaseException
 	 */
-	public void resolve_relationship_sidefekt(Transaction ptxn,Entity e,String dirty_field,int operation,EntityRelationshipDefinition relationship) throws DatabaseException
+	public void resolve_relationship_sidefekt(Transaction ptxn,Entity e,String dirty_field,int operation,EntityRelationshipDefinition relationship) throws PersistenceException
 	{
 		
 		if (e.getType().equals(relationship.getTargetEntity()) 
@@ -1249,12 +1355,12 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				resolve_many_to_many(ptxn, operation, e, dirty_field, other_side_type, other_side_fieldname);
 				break;
 			default:
-				throw new DatabaseException("UNIMPLEMENTED ");
+				throw new PersistenceException("UNIMPLEMENTED ");
 		}	
 	}
 	
 	
-	private void resolve_one_to_one(Transaction ptxn, int operation, Entity e, String dirty_field, String other_side_type, String other_side_fieldname) throws DatabaseException
+	private void resolve_one_to_one(Transaction ptxn, int operation, Entity e, String dirty_field, String other_side_type, String other_side_fieldname) throws PersistenceException
 	{
 		validate_entity_for_relationship((Entity)e.getAttribute(dirty_field));
 		
@@ -1285,7 +1391,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 
 
 	@SuppressWarnings("unchecked")
-	private void resolve_one_to_many(Transaction ptxn, int operation, Entity e, String dirty_field, String other_side_field, String relation_field_to_e) throws DatabaseException
+	private void resolve_one_to_many(Transaction ptxn, int operation, Entity e, String dirty_field, String other_side_field, String relation_field_to_e) throws PersistenceException
 	{
 		//System.out.println("ONE TO MANY E IS "+e.getType()+" "+e.getId()+"\nDIRTY FIELD IS "+dirty_field+" RELATION FIELD "+relation_field_to_e);
 		validate_entity_for_relationship((Entity)e.getAttribute(dirty_field));
@@ -1307,7 +1413,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				old_father = /* fill */ other_pidx.getById(ptxn, old_father.getId());	
 				List<Entity> old_fathers_children = (List<Entity>)old_father.getAttribute(relation_field_to_e);
 				if (old_fathers_children==null)
-					throw new DatabaseException("RESOLVE RELATIONSHIP INTEGRITY ERROR resolve_one_to_many - father of child must have children");
+					throw new PersistenceException("RESOLVE RELATIONSHIP INTEGRITY ERROR resolve_one_to_many - father of child must have children");
 				
 				//System.out.println("\tREMOVING "+old_child_record.getType()+" "+old_child_record.getId()+" FROM "+old_father.getType()+" "+old_father.getId()+" "+relation_field_to_e);
 				old_fathers_children.remove(old_child_record);
@@ -1336,7 +1442,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	
 
 	@SuppressWarnings("unchecked")
-	private void resolve_many_to_one(Transaction ptxn, int operation, Entity e, String dirty_field, String other_side_type, String other_side_fieldname) throws DatabaseException
+	private void resolve_many_to_one(Transaction ptxn, int operation, Entity e, String dirty_field, String other_side_type, String other_side_fieldname) throws PersistenceException
 	{
 		//System.out.println("M TO ONE E IS "+e.getType()+" "+e.getId()+"\nDIRTY FIELD IS "+dirty_field+" RELATION FIELD "+other_side_fieldname);
 		validate_entities_for_relationship((List<Entity>)e.getAttribute(dirty_field));
@@ -1399,7 +1505,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	}
 
 	@SuppressWarnings("unchecked")
-	private void resolve_many_to_many(Transaction ptxn, int operation, Entity e, String dirty_field, String other_side_type, String other_side_fieldname) throws DatabaseException
+	private void resolve_many_to_many(Transaction ptxn, int operation, Entity e, String dirty_field, String other_side_type, String other_side_fieldname) throws PersistenceException
 	{
 		validate_entities_for_relationship((List<Entity>)e.getAttribute(dirty_field));
 		
@@ -1448,18 +1554,18 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	/*
 	 *  utilities for relationship resolution
 	 */
-	private void validate_entity_for_relationship(Entity e) throws DatabaseException
+	private void validate_entity_for_relationship(Entity e) throws PersistenceException
 	{
 		if(e != null)
 		{
 			if(e.getId() == Entity.UNDEFINED)
-				throw new DatabaseException("SAVE DEEP IS NOT SUPPORTED. SAVE CHILD REFERENCES BEFORE SAVING THEM IN A RELATIONSHIP CONTEXT");		
+				throw new PersistenceException("SAVE DEEP IS NOT SUPPORTED. SAVE CHILD REFERENCES BEFORE SAVING THEM IN A RELATIONSHIP CONTEXT");		
 			if(e.isDirty())
-				throw new DatabaseException("CANT SAVE DIRTY MEMBER REFERENCE: "+e);
+				throw new PersistenceException("CANT SAVE DIRTY MEMBER REFERENCE: "+e);
 		}
 	}
 	
-	private void validate_entities_for_relationship(List<Entity> new_children) throws DatabaseException
+	private void validate_entities_for_relationship(List<Entity> new_children) throws PersistenceException
 	{
 		if(new_children != null) 
 		{	
@@ -1472,7 +1578,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	}
 	
 	@SuppressWarnings("unchecked")
-	private void calc_added_and_removed(Transaction ptxn, Entity e, String dirty_field, BDBPrimaryIndex father_pidx, BDBPrimaryIndex child_pidx, int op, List<Entity> added_children, List<Entity> removed_children) throws DatabaseException
+	private void calc_added_and_removed(Transaction ptxn, Entity e, String dirty_field, BDBPrimaryIndex father_pidx, BDBPrimaryIndex child_pidx, int op, List<Entity> added_children, List<Entity> removed_children) throws PersistenceException
 	{
 		//System.out.println("ORIG IS "+e);
 		// e is originating
@@ -1531,12 +1637,12 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 
 	}
 
-	private void expand_entity(Transaction ptxn, BDBPrimaryIndex pidx,Entity entity) throws DatabaseException
+	private void expand_entity(Transaction ptxn, BDBPrimaryIndex pidx,Entity entity) throws PersistenceException
 	{
 		if (!entity.isLightReference()) // THERE IS ALWAYS 1 attribute ("id") in lightly filled references
 			return;
 		if (entity.getId()==Entity.UNDEFINED)
-			throw new DatabaseException("INTEGRITY PROBLEM - all remove & added children is relationships have to be weakly filled at least");
+			throw new PersistenceException("INTEGRITY PROBLEM - all remove & added children is relationships have to be weakly filled at least");
 		Entity e = pidx.getById(ptxn, entity.getId());
 		entity.copyAttributes(e);
 	}
@@ -1561,22 +1667,54 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	 */
 
 	
-	
-	/* TODO:!!!need to make this like save entity at some point so we can call it internally 
-	 * if need be and have indexes dealt with.Lets see when we need to call it internally*/
+
 	public void deleteEntity(Entity e) throws PersistenceException
 	{	
 		_store_locker.enterAppThread();
-		
+
+		try{
+			do_delete_entity(null, e);
+		}catch(PersistenceException pe)
+		{
+			logger.error("deleteEntity(Entity)", pe);
+			throw new PersistenceException("DELETE FAILED FOR ENTITY "+e+"\n",pe);
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}	
+
+	}
+	public void deleteEntity(int transaction_id,Entity e) throws PersistenceException
+	{	
+		_store_locker.enterAppThread();
+
+		try{
+			Transaction txn = get_transaction_by_transaction_id(transaction_id);
+			do_delete_entity(txn, e);
+		}catch(PersistenceException pe)
+		{
+			logger.error("deleteEntity(Entity)", pe);
+			throw new PersistenceException("DELETE FAILED FOR ENTITY "+e+"\n",pe);
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}	
+
+	}
+	
+	public Entity do_delete_entity(Transaction parent_txn,Entity e) throws PersistenceException
+	{
 		Transaction txn = null;
 		DatabaseEntry pkey;
-		
 		try{
 			String entity_type 		  = e.getType();
 			BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(entity_type);
 			if(pi == null)
 				throw new PersistenceException("ENTITY OF TYPE "+entity_type+" DOES NOT EXIST");
-			txn = environment.beginTransaction(null, null);	
+			
+			txn = environment.beginTransaction(parent_txn, null);	
 			resolve_relationship_sidefx(txn,e, DELETE);
 			pkey = pi.deleteEntity(txn,e);
 			if(pkey == null)
@@ -1592,20 +1730,14 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			 * just blow away complex cache */
 			clean_query_cache(entity_type);
 			checkpoint_policy.handleCheckpoint();
-		}catch(DatabaseException de)
+			return e;
+		}catch(DatabaseException dbe)
 		{
 			abortTxn(txn);
-			logger.error("deleteEntity(Entity)", de);
-			throw new PersistenceException("DELETE FAILED FOR ENTITY "+e+". ABORTING");
+			throw new PersistenceException("DELETE OF "+e+" FAILED: ",dbe);
 		}
-		finally
-		{
-			_store_locker.exitAppThread();
-		}	
-
 	}
 	
-
 	private void delete_from_secondary_indexes(Transaction parent_txn,DatabaseEntry pkey,Entity e) throws DatabaseException
 	{
 		List<BDBSecondaryIndex>sec_indexes = entity_secondary_indexes_as_list.get(e.getType());
@@ -2572,6 +2704,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	{
 
 		_query_manager_config = new QueryManagerConfig();
+		_query_manager_config.setContext(this);
 		_query_manager_config.setPrimaryIndexMap(entity_primary_indexes_as_map);
 		_query_manager_config.setSecondaryIndexMap(entity_secondary_indexes_as_map);
 		_query_manager_config.setEntityCacheInitialSize(64);
@@ -3457,14 +3590,14 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			{
 				Entity blah = aref.get(0);
 				if(blah.isLightReference())
-					do_fill_reference_field(e,fill_field);
+					do_fill_reference_field(null,e,fill_field);
 			}
 		}
 		else
 		{
 			Entity asref = (Entity)ref;
 			if(asref.isLightReference())
-				do_fill_reference_field(e,fill_field);				
+				do_fill_reference_field(null,e,fill_field);				
 		}
 		
 		ref = e.getAttribute(fieldname);
@@ -3903,10 +4036,6 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				throw new PersistenceException("ENTITY OF TYPE "+type+" DOES NOT EXIST");
 			
 			e =  pi.getById(null,id);
-		}catch(DatabaseException de)
-		{
-			logger.error("getEntityById(String, long)", de);
-			throw new PersistenceException("GET BY ID FAILED ");
 		}
 		finally
 		{
@@ -3915,8 +4044,25 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		return e;
 	}
 	
+	public Entity getEntityById(int transaction_id,String type, long id) throws PersistenceException
+	{
+		_store_locker.enterAppThread();	
+		Entity e;
+		try{
+			BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(type);
+			if(pi == null)
+				throw new PersistenceException("ENTITY OF TYPE "+type+" DOES NOT EXIST");
+			Transaction txn = get_transaction_by_transaction_id(transaction_id);
+			e =  pi.getById(txn,id);
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}
+		return e;
+	}
 	
-	
+
 	public QueryResult getEntitiesOrderedById(String type, int start, long number_of_records) throws PersistenceException
 	{ 
 		_store_locker.enterAppThread();
@@ -3946,7 +4092,30 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		try{
 			//return do_query_index(q);
 			com.pagesociety.persistence.Query qq = (com.pagesociety.persistence.Query)q;
-			return _query_manager.executeQuery(qq);
+			return _query_manager.executeQuery(null,qq);
+		}catch(PersistenceException pe)
+		{
+			throw pe;
+		}
+		catch(ClassCastException cce)
+		{
+			cce.printStackTrace();
+			throw new PersistenceException("Query "+q+" is not a bdb query");
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}
+	}
+	
+	public QueryResult executeQuery(int transaction_id,Query q) throws PersistenceException
+	{ 
+		_store_locker.enterAppThread();
+		try{
+			//return do_query_index(q);
+			com.pagesociety.persistence.Query qq = (com.pagesociety.persistence.Query)q;
+			Transaction txn = get_transaction_by_transaction_id(transaction_id);
+			return _query_manager.executeQuery(txn,qq);
 		}catch(PersistenceException pe)
 		{
 			throw pe;
@@ -3966,7 +4135,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	{ 
 		_store_locker.enterAppThread();
 		try{
-			return _query_manager.executePSSqlQuery(pssql);
+			return _query_manager.executePSSqlQuery(null,pssql);
 		}catch(PersistenceException pe)
 		{
 			throw pe;
@@ -4013,7 +4182,30 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		try{
 			//return do_query_index(q);
 			com.pagesociety.persistence.Query qq = (com.pagesociety.persistence.Query)q;
-			return _query_manager.executeCount(qq);
+			return _query_manager.executeCount(null,qq);
+		}catch(PersistenceException pe)
+		{
+			throw pe;
+		}
+		catch(ClassCastException cce)
+		{
+			cce.printStackTrace();
+			throw new PersistenceException("Query "+q+" is not a bdb query");
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}
+	}
+	
+	public int count(int transaction_id,Query q) throws PersistenceException
+	{
+		_store_locker.enterAppThread();
+		try{
+			//return do_query_index(q);
+			com.pagesociety.persistence.Query qq = (com.pagesociety.persistence.Query)q;
+			Transaction txn = get_transaction_by_transaction_id(transaction_id);
+			return _query_manager.executeCount(txn,qq);
 		}catch(PersistenceException pe)
 		{
 			throw pe;
@@ -4030,7 +4222,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	}
 	
 
-	/* we assume the entities are homogenous within the list*/
+
 	public void fillReferenceFields(List<Entity> es) throws PersistenceException
 	{
 		_store_locker.enterAppThread();
@@ -4046,7 +4238,36 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 					continue;
 
 				for (int i = 0;i < s;i++)
-					do_fill_reference_field(es.get(i),fd);    
+					do_fill_reference_field(null,es.get(i),fd);    
+
+			}
+		}catch(PersistenceException pe)
+		{
+			throw pe;
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}		
+	}
+	//assumes homgonesous list for some reason//
+	public void fillReferenceFields(int transaction_id,List<Entity> es) throws PersistenceException
+	{
+		_store_locker.enterAppThread();
+		if(es.size() == 0)
+			return;
+		Transaction txn = get_transaction_by_transaction_id(transaction_id);
+		Entity e = es.get(0);
+		EntityDefinition ed = getEntityDefinitionProvider().provideEntityDefinition(e);
+		int s = es.size();
+		try{
+			for(FieldDefinition fd:ed.getFields())
+			{
+				if(fd.getBaseType() != Types.TYPE_REFERENCE)
+					continue;
+
+				for (int i = 0;i < s;i++)
+					do_fill_reference_field(txn,es.get(i),fd);    
 
 			}
 		}catch(PersistenceException pe)
@@ -4070,7 +4291,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		try{
 			int s = es.size();			
 			for (int i = 0;i < s;i++)
-				do_fill_reference_field(es.get(i),fd);    
+				do_fill_reference_field(null,es.get(i),fd);    
 		}catch(PersistenceException pe)
 		{
 			throw pe;
@@ -4080,19 +4301,20 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			_store_locker.exitAppThread();
 		}	
 	}
-	
-	public void fillReferenceFields(List<Entity> es,String fieldname) throws PersistenceException
+
+	public void fillReferenceField(int transaction_id,List<Entity> es,String fieldname) throws PersistenceException
 	{
 		_store_locker.enterAppThread();
 		if(es.size() == 0)
 			return;
+		Transaction txn = get_transaction_by_transaction_id(transaction_id);
 		Entity e = es.get(0);
 		EntityDefinition ed = getEntityDefinitionProvider().provideEntityDefinition(e);
 		FieldDefinition fd = ed.getField(fieldname);
 		try{
 			int s = es.size();			
 			for (int i = 0;i < s;i++)
-				do_fill_reference_field(es.get(i),fd);    
+				do_fill_reference_field(txn,es.get(i),fd);    
 		}catch(PersistenceException pe)
 		{
 			throw pe;
@@ -4102,6 +4324,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			_store_locker.exitAppThread();
 		}	
 	}
+
+	
 
 	public void fillReferenceFields(Entity e) throws PersistenceException
 	{
@@ -4113,7 +4337,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		    {
 		    	if(f.getBaseType() != Types.TYPE_REFERENCE)
 		    		continue;
-		    	do_fill_reference_field(e, f);
+		    	do_fill_reference_field(null,e, f);
 		    }  
 		}catch(PersistenceException pe)
 		{
@@ -4124,14 +4348,37 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			_store_locker.exitAppThread();
 		}		
 	}
-	 
+
+	public void fillReferenceFields(int transaction_id,Entity e) throws PersistenceException
+	{
+		_store_locker.enterAppThread();
+
+	    try{
+	    	Transaction txn = get_transaction_by_transaction_id(transaction_id);
+			EntityDefinition ed = getEntityDefinitionProvider().provideEntityDefinition(e);
+	    	for (FieldDefinition f : ed.getFields())
+		    {
+		    	if(f.getBaseType() != Types.TYPE_REFERENCE)
+		    		continue;
+		    	do_fill_reference_field(txn,e, f);
+		    }  
+		}catch(PersistenceException pe)
+		{
+			throw pe;
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}		
+	}
+
 	public void fillReferenceField(Entity e,String fieldname) throws PersistenceException
 	{
 		_store_locker.enterAppThread();
 
 	    try{
 			FieldDefinition fd = getEntityDefinitionProvider().provideEntityDefinition(e).getField(fieldname);
-			do_fill_reference_field(e, fd);   
+			do_fill_reference_field(null,e, fd);   
 		}catch(PersistenceException pe)
 		{
 			throw pe;
@@ -4141,28 +4388,45 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			_store_locker.exitAppThread();
 		}	
 	}
-	
+
+	public void fillReferenceField(int transaction_id,Entity e,String fieldname) throws PersistenceException
+	{
+		_store_locker.enterAppThread();
+
+	    try{
+	    	Transaction txn = get_transaction_by_transaction_id(transaction_id);
+	    	FieldDefinition fd = getEntityDefinitionProvider().provideEntityDefinition(e).getField(fieldname);
+			do_fill_reference_field(txn,e, fd);   
+		}catch(PersistenceException pe)
+		{
+			throw pe;
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}	
+	}
+
 	@SuppressWarnings("unchecked")
-	private void do_fill_reference_field(Entity e, FieldDefinition f) throws PersistenceException
+	private void do_fill_reference_field(Transaction parent_txn,Entity e, FieldDefinition f) throws PersistenceException
 	{
 		if (f == null || f.getBaseType() != Types.TYPE_REFERENCE)
            throw new PersistenceException("REF FIELD CANT BE FILLED.IT IS EITHER DOES NOT EXIST IN ENTITY OR IS NOT A REFERNCE TYPE");
 
        String type = f.getReferenceType();
        if(type.equals(FieldDefinition.REF_TYPE_UNTYPED_ENTITY))
-    	   do_fill_untyped_reference_field(e, f);
+    	   do_fill_untyped_reference_field(parent_txn,e, f);
        else
-    	   do_fill_typed_reference_field(e, f);
+    	   do_fill_typed_reference_field(parent_txn,e, f);
 
    }
 	
-	private void do_fill_typed_reference_field(Entity e, FieldDefinition f) throws PersistenceException
+	private void do_fill_typed_reference_field(Transaction parent_txn,Entity e, FieldDefinition f) throws PersistenceException
 	{
        BDBPrimaryIndex ref_pidx = entity_primary_indexes_as_map.get(f.getReferenceType());
        if (ref_pidx==null)
     	   throw new PersistenceException("STORE DOES NOT RECOGNIZE REFERENCE TYPE "+f.getReferenceType());
-       try 
-       {
+
 	       if (f.isArray())
 	       {
 	           List<Entity> refs = (List<Entity>) e.getAttribute(f.getName());
@@ -4179,7 +4443,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	              }
 	              else
 	              {
-	            	  filled_refs.add(ref_pidx.getById(null,r.getId()));
+	            	  filled_refs.add(ref_pidx.getById(parent_txn,r.getId()));
 	              }
 	            }
 	           e.getAttributes().put(f.getName(), filled_refs);
@@ -4189,60 +4453,50 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	           Entity ref = (Entity) e.getAttribute(f.getName());
 	           if (ref == null)
 	               return;
-	           e.getAttributes().put(f.getName(),ref_pidx.getById(null,ref.getId()));
+	           e.getAttributes().put(f.getName(),ref_pidx.getById(parent_txn,ref.getId()));
 	       }
-		}catch(DatabaseException de)
-		{
-			logger.error("do_fill_reference_field(Entity, FieldDefinition)", de);
-			throw new PersistenceException("FILL FAILED BECAUSE OF DB EXCEPTION");
-		}
    }
 
-	private void do_fill_untyped_reference_field(Entity e, FieldDefinition f) throws PersistenceException
+	private void do_fill_untyped_reference_field(Transaction parent_txn,Entity e, FieldDefinition f) throws PersistenceException
 	{
 		BDBPrimaryIndex ref_pidx = null;
-		try 
-		{
-	       if (f.isArray())
-	       {
-	           List<Entity> refs = (List<Entity>) e.getAttribute(f.getName());
-	           if (refs == null || refs.size() == 0)
-	               return;
-	           
-	           List<Entity> filled_refs = new ArrayList<Entity>();
-	           Entity r = null;
-	           for (int i=0; i<refs.size(); i++)
-	           {
-	              r = refs.get(i);
-	              if(r == null)
-	            	  filled_refs.add(null);
-	              else
-	              {
-	            	  /* here we need to look up this things per entity since this will probably
-	            	   * be a non homgenous list of entities */
-	                  ref_pidx = entity_primary_indexes_as_map.get(r.getType());
-	                  if (ref_pidx==null)
-	               	   throw new PersistenceException("STORE DOES NOT RECOGNIZE REFERENCE TYPE "+f.getReferenceType());
-	            	  filled_refs.add(ref_pidx.getById(null,r.getId()));
-	              }
-	             }
-	            e.getAttributes().put(f.getName(), filled_refs);
-	       }
-	       else
-	       {
-	    	   Entity ref = (Entity) e.getAttribute(f.getName());
-	           if (ref == null)
-	               return;
-               ref_pidx = entity_primary_indexes_as_map.get(ref.getType());
-               if (ref_pidx==null)
-            	   throw new PersistenceException("STORE DOES NOT RECOGNIZE REFERENCE TYPE "+ref.getType()+" "+f.getReferenceType());
-	           e.getAttributes().put(f.getName(),ref_pidx.getById(null,ref.getId()));
-	       }
-		}catch(DatabaseException de)
-		{
-			logger.error("do_fill_reference_field(Entity, FieldDefinition)", de);
-			throw new PersistenceException("FILL FAILED BECAUSE OF DB EXCEPTION");
-		}
+
+       if (f.isArray())
+       {
+           List<Entity> refs = (List<Entity>) e.getAttribute(f.getName());
+           if (refs == null || refs.size() == 0)
+               return;
+           
+           List<Entity> filled_refs = new ArrayList<Entity>();
+           Entity r = null;
+           for (int i=0; i<refs.size(); i++)
+           {
+              r = refs.get(i);
+              if(r == null)
+            	  filled_refs.add(null);
+              else
+              {
+            	  /* here we need to look up this things per entity since this will probably
+            	   * be a non homgenous list of entities */
+                  ref_pidx = entity_primary_indexes_as_map.get(r.getType());
+                  if (ref_pidx==null)
+               	   throw new PersistenceException("STORE DOES NOT RECOGNIZE REFERENCE TYPE "+f.getReferenceType());
+            	  filled_refs.add(ref_pidx.getById(parent_txn,r.getId()));
+              }
+             }
+            e.getAttributes().put(f.getName(), filled_refs);
+       }
+       else
+       {
+    	   Entity ref = (Entity) e.getAttribute(f.getName());
+           if (ref == null)
+               return;
+           ref_pidx = entity_primary_indexes_as_map.get(ref.getType());
+           if (ref_pidx==null)
+        	   throw new PersistenceException("STORE DOES NOT RECOGNIZE REFERENCE TYPE "+ref.getType()+" "+f.getReferenceType());
+           e.getAttributes().put(f.getName(),ref_pidx.getById(parent_txn,ref.getId()));
+       }
+
    }
 
 	

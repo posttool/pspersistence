@@ -289,7 +289,7 @@ public class BDBPrimaryIndex implements IterableIndex
 	
 	
 		
-	protected Entity getById(Transaction parent_txn,long id) throws DatabaseException/* or persistence exception*/
+	protected Entity getById(Transaction parent_txn,long id) throws PersistenceException
 	{
 		int retry_count = 0;
 		Entity e 		= null;
@@ -324,14 +324,23 @@ public class BDBPrimaryIndex implements IterableIndex
 			}
 			catch (DeadlockException de)
 			{
-				txn.abort();
+				try{
+					txn.abort();
+				}catch(Exception ee)
+				{
+					ee.printStackTrace();
+				}
 				retry_count++;
 				logger.info("READ DEADLOCK OCCURRED FOR " + _def.getName() + " " + id + " retry #:" + retry_count);
 				if (retry_count >= BDBStore.MAX_DEADLOCK_RETRIES)
 				{
-					throw new DatabaseException("108 READ FAILED FOR " + _def.getName() + " " + id
+					throw new PersistenceException("108 READ FAILED FOR " + _def.getName() + " " + id
 							+ " DUE TO DEADLOCKING.RETRY WAS GREATER THAN MAX_NUMBER_RETRYS.");
 				}
+			}
+			catch(DatabaseException dbe)
+			{
+				throw new PersistenceException("FAILED GET BY ID ON PIDX",dbe);
 			}
 
 		}// end while loop

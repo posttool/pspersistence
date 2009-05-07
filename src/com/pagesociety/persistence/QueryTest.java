@@ -104,7 +104,8 @@ public class QueryTest {
 		//deep_indexing_test_field_rename();
 		//deep_indexing_test_multi();
 		//queue_test();
-		queue_test2();
+		//queue_test2();
+
 	}
 	
 	public void id_index_test() throws PersistenceException
@@ -2722,7 +2723,7 @@ public class QueryTest {
 
 	}
 	
-	
+		
 	///CHANGE VARIABLE TO POINT TO A VALID DIRECTORY AND YOU SHOULD BE ABLE TO RUN TEST//
 	public void init_store() throws PersistenceException
 	{
@@ -2854,7 +2855,7 @@ public class QueryTest {
 		{
 			try
 			{
-					Entity author = _store.getEntityDefinition("Author").createInstance();
+				Entity author = _store.getEntityDefinition("Author").createInstance();
 					String first_name = Math.random() > .9 ? null : R(firstNames);
 					//author.setAttribute("FirstName", "Gigi");
 					author.setAttribute("FirstName", first_name);

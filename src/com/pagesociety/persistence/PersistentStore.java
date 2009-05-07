@@ -1,14 +1,9 @@
 package com.pagesociety.persistence;
 
-import java.io.File;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.sleepycat.db.DatabaseEntry;
-import com.sleepycat.db.Environment;
-import com.sleepycat.db.EnvironmentConfig;
-import com.sleepycat.db.Transaction;
+
 
 
 
@@ -333,6 +328,7 @@ public interface PersistentStore
 	 * @see Entity
 	 */
 	public abstract Entity saveEntity(Entity e) throws PersistenceException;
+	public abstract Entity saveEntity(int transaction_id,Entity e) throws PersistenceException;
 	/**
 	 * Used for inserts of existing data as in a bulk restore. an entity. 
 	 * If <code>entity.id == Entity.UNDEFINED</code>, it fails. Otherwise it
@@ -359,8 +355,8 @@ public interface PersistentStore
 	 * @return The populated entity or null if the id is invalid.
 	 * @throws PersistenceException
 	 */
-	public abstract Entity getEntityById(String entity, long id)
-			throws PersistenceException;
+	public abstract Entity getEntityById(String entity, long id) throws PersistenceException;
+	public abstract Entity getEntityById(int transaction_id,String entity, long id) throws PersistenceException;
 
 	/**
 	 * Deletes an entity record from the store. This method is not recursive.
@@ -373,6 +369,7 @@ public interface PersistentStore
 	 * @throws PersistenceException
 	 */
 	public abstract void deleteEntity(Entity e) throws PersistenceException;
+	public abstract void deleteEntity(int transaction_id,Entity e) throws PersistenceException;
 
 	/**
 	 * Truncates or deletes all records from an object store of type
@@ -386,8 +383,7 @@ public interface PersistentStore
 	 * @return 0 or the number of records deleted
 	 * @throws PersistenceException
 	 */
-	public abstract int truncate(String entity_type, boolean count)
-			throws PersistenceException;
+	public abstract int truncate(String entity_type, boolean count)throws PersistenceException;
 
 	/**
 	 * Fill all of the references within a list of entities.
@@ -398,6 +394,7 @@ public interface PersistentStore
 	 * @see #fillReferenceField(Entity, String)
 	 */
 	public abstract void fillReferenceFields(List<Entity> es) throws PersistenceException;
+	public abstract void fillReferenceFields(int transaction_id,List<Entity> es) throws PersistenceException;
 
 	/**
 	 * Fills the named reference within a list of entities.
@@ -410,8 +407,8 @@ public interface PersistentStore
 	 *             If the entities or reference field name is invalid.
 	 * @see #fillReferenceField(Entity, String)
 	 */
-	public abstract void fillReferenceField(List<Entity> es, String fieldname)
-			throws PersistenceException;
+	public abstract void fillReferenceField(List<Entity> es, String fieldname)throws PersistenceException;
+	public abstract void fillReferenceField(int transaction_id,List<Entity> es, String fieldname)throws PersistenceException;
 
 	/**
 	 * Fill all of the references within a single entity.
@@ -422,6 +419,7 @@ public interface PersistentStore
 	 * @see #fillReferenceField(Entity, String)
 	 */
 	public abstract void fillReferenceFields(Entity e) throws PersistenceException;
+	public abstract void fillReferenceFields(int transaction_id,Entity e) throws PersistenceException;
 
 	/**
 	 * Fills the values of a reference field within an entity. By default,
@@ -439,8 +437,8 @@ public interface PersistentStore
 	 * @see FieldDefinition
 	 * @see Types#TYPE_REFERENCE
 	 */
-	public abstract void fillReferenceField(Entity e, String field_name)
-			throws PersistenceException;
+	public abstract void fillReferenceField(Entity e, String field_name)throws PersistenceException;
+	public abstract void fillReferenceField(int transaction_id,Entity e, String field_name)throws PersistenceException;
 
 	/**
 	 * Executes a query and return the results.
@@ -452,7 +450,7 @@ public interface PersistentStore
 	 * @see QueryResult
 	 */
 	public abstract QueryResult executeQuery(Query q) throws PersistenceException;
-
+	public abstract QueryResult executeQuery(int transaction_id,Query q) throws PersistenceException;
 
 	/**
 	 * Returns the distinct keys for any index.
@@ -476,7 +474,14 @@ public interface PersistentStore
 	 * @throws PersistenceException
 	 */
 	public abstract int count(Query q) throws PersistenceException;
+	public abstract int count(int transaction_id,Query q) throws PersistenceException;
 
+	//transaction shite//
+	public int startTransaction() throws PersistenceException;
+	public int startTransaction(int parent_transaction_id) throws PersistenceException;
+	public void commitTransaction(int transaction_id) throws PersistenceException;
+	public void rollbackTransaction(int transaction_id) throws PersistenceException;
+	
 	//QUEUE SUB SYSTEM//
 	public String createQueue(String name,int record_size,int num_records_in_extent) throws PersistenceException;
 	public void deleteQueue(String name) throws PersistenceException;

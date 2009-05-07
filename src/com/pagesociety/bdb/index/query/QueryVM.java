@@ -469,7 +469,8 @@ public class QueryVM
 		}
 		//open the iterator and return it//
 		try{
-			iter.open(idx, param);
+			//TODO: this shoujld be a transaction no null as the first arg
+			iter.open(null,idx, param);
 		}catch(DatabaseException dbe)
 		{
 			try{
@@ -640,7 +641,8 @@ public class QueryVM
 		}
 		//open the iterator and return it//
 		try{
-			iter.open(idx, param,range_param);
+			//TODO:// this should be a transaction as the first arg//
+			iter.open(null,idx, param,range_param);
 		}catch(DatabaseException dbe)
 		{
 			try{
@@ -706,7 +708,8 @@ public class QueryVM
 		}
 		//open the iterator and return it//
 		try{
-			iter.open(idx,globbing,list_param);
+			//TODO:  this should be a transaction not nullas w the first arg
+			iter.open(null,idx,globbing,list_param);
 		}catch(DatabaseException dbe)
 		{
 			try{

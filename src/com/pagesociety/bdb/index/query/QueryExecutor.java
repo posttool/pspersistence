@@ -53,6 +53,7 @@ import com.pagesociety.persistence.util.EntityIdComparator;
 import com.sleepycat.bind.tuple.LongBinding;
 import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
+import com.sleepycat.db.Transaction;
 
 
 public class QueryExecutor 
@@ -67,7 +68,7 @@ public class QueryExecutor
 		_env = env;
 	}
 
-	private QueryResult eval(QueryNode node) throws PersistenceException
+	private QueryResult eval(Transaction txn,QueryNode node) throws PersistenceException
 	{
 		
 		switch(node.type)
@@ -76,41 +77,41 @@ public class QueryExecutor
 // FIXME
 //				if (node.children.size()==0)
 //					throw new RuntimeException("QueryExecutor: THERE MUST BE AT LEAST ONE CHILD OF "+node.type);
-				return eval(node.children.get(0));		
+				return eval(txn,node.children.get(0));		
 			case Query.NODE_TYPE_INTERSECTION:
-				return do_intersection(node);
+				return do_intersection(txn,node);
 			case Query.NODE_TYPE_UNION:
-				return do_union(node);
+				return do_union(txn,node);
 			case Query.NODE_TYPE_ITER:
 				//TODO: we would probably cache on this level
 				//need to review cache keys and how this would
 				//work for simple and complex queries
-				return do_iter(node);
+				return do_iter(txn,node);
 			default:
 					throw new PersistenceException("UNKNOWN NODE TYPE IN QUERY: "+node.type);
 		}
 	}
 	
-	private List<Long> eval_count(QueryNode node) throws PersistenceException
+	private List<Long> eval_count(Transaction txn,QueryNode node) throws PersistenceException
 	{
 		
 		switch(node.type)
 		{
 			case 0: //root node 
-				return eval_count(node.children.get(0));		
+				return eval_count(txn,node.children.get(0));		
 			case Query.NODE_TYPE_INTERSECTION:
-				return count_intersection(node);
+				return count_intersection(txn,node);
 			case Query.NODE_TYPE_UNION:
-				return count_union(node);
+				return count_union(txn,node);
 			case Query.NODE_TYPE_ITER:
-				return count_iter(node);
+				return count_iter(txn,node);
 			default:
 					throw new PersistenceException("UNKNOWN NODE TYPE IN QUERY: "+node.type);
 		}
 	}
 	
 	
-	public QueryResult execute(Query q) throws PersistenceException
+	public QueryResult execute(Transaction txn,Query q) throws PersistenceException
 	{
 		long t1;
 		//System.out.println("EXECUTE "+q);
@@ -139,7 +140,7 @@ public class QueryExecutor
 			//System.out.println("!!!!NO CACHE HIT!!!!! FOR "+real_cache_key);
 			t1 = System.currentTimeMillis();		
 			QueryNode root 	   = q.getRootNode();
-			result = eval(root); 	
+			result = eval(txn,root); 	
 			//System.out.println("INTERNAL EXECUTE TOOK "+(System.currentTimeMillis() - t1));	
 			//if(result.size() != 0)
 				//System.out.println("RESULT SIZE IS "+result.size()+" LAST ID IS "+result.getEntities().get(result.size()-1).getId());	
@@ -169,7 +170,7 @@ public class QueryExecutor
 		return (QueryResult)ret;
 	}
 	
-	public int executeCount(Query q) throws PersistenceException
+	public int executeCount(Transaction txn,Query q) throws PersistenceException
 	{
 		_query_params = copy_params(q.getParams());
 		String real_cache_key 	= get_the_cache_key(q,_query_params);		
@@ -178,7 +179,7 @@ public class QueryExecutor
 		if(c == null)
 		{		
 			QueryNode root 	   = q.getRootNode();
-			int s = eval_count(root).size(); 
+			int s = eval_count(txn,root).size(); 
 			put_cached_count(return_type, real_cache_key, s);
 			return s;
 		}
@@ -260,14 +261,14 @@ public class QueryExecutor
 		}
 	}
 
-	private QueryResult do_intersection(QueryNode intersection_node) throws PersistenceException
+	private QueryResult do_intersection(Transaction txn,QueryNode intersection_node) throws PersistenceException
 	{
 		List<QueryResult> intersectees = new ArrayList<QueryResult>();
 		QueryResult qr;
 		int s = intersection_node.children.size();
 		for(int i = 0;i < s;i++)
 		{
-			qr = eval(intersection_node.children.get(i));
+			qr = eval(txn,intersection_node.children.get(i));
 			if(qr.size() == 0)
 				return BDBQueryResult.EMPTY_RESULT;
 			intersectees.add(qr);
@@ -309,14 +310,14 @@ public class QueryExecutor
 	}
 	
 	private static final List<Long> EMPTY_LONG_LIST = new ArrayList<Long>(0);
-	private List<Long> count_intersection(QueryNode intersection_node) throws PersistenceException
+	private List<Long> count_intersection(Transaction txn,QueryNode intersection_node) throws PersistenceException
 	{
 		List<List<Long>> intersectees = new ArrayList<List<Long>>();
 		List<Long> qr;
 		int s = intersection_node.children.size();
 		for(int i = 0;i < s;i++)
 		{
-			qr = eval_count(intersection_node.children.get(i));
+			qr = eval_count(txn,intersection_node.children.get(i));
 			if(qr.size() == 0)
 				return EMPTY_LONG_LIST;
 			intersectees.add(qr);
@@ -354,14 +355,14 @@ public class QueryExecutor
 		return inter;
 	}
 	
-	private QueryResult do_union(QueryNode union_node) throws PersistenceException
+	private QueryResult do_union(Transaction txn,QueryNode union_node) throws PersistenceException
 	{
 		List<QueryResult> unionees = new ArrayList<QueryResult>();
 		QueryResult qr;
 		int s = union_node.children.size();
 		for(int i = 0;i < s;i++)
 		{
-			qr = eval(union_node.children.get(i));
+			qr = eval(txn,union_node.children.get(i));
 			if(qr.size() == 0)
 				continue;
 			unionees.add(qr);
@@ -383,14 +384,14 @@ public class QueryExecutor
 		 return new BDBQueryResult(tmap.values());	
 	}
 	
-	private List<Long> count_union(QueryNode union_node) throws PersistenceException
+	private List<Long> count_union(Transaction txn,QueryNode union_node) throws PersistenceException
 	{
 		List<List<Long>> unionees = new ArrayList<List<Long>>();
 		List<Long> qr;
 		int s = union_node.children.size();
 		for(int i = 0;i < s;i++)
 		{
-			qr = eval_count(union_node.children.get(i));
+			qr = eval_count(txn,union_node.children.get(i));
 			if(qr.size() == 0)
 				continue;
 			unionees.add(qr);
@@ -412,7 +413,7 @@ public class QueryExecutor
 		 return new ArrayList<Long>(tmap.values());	
 	}
 	
-	private QueryResult do_iter(QueryNode iter_node) throws PersistenceException
+	private QueryResult do_iter(Transaction txn,QueryNode iter_node) throws PersistenceException
 	{
 		//want to take offset and pagesize into account//
 		String return_type 		= (String)iter_node.attributes.get(Query.ATT_RETURN_TYPE);
@@ -423,13 +424,13 @@ public class QueryExecutor
 		BDBPrimaryIndex p_idx 	= _env.getPrimaryIndex(return_type);
 			
 		if(index_name.equals(Query.PRIMARY_IDX))
-			return do_primary_index_iter(p_idx,iter_node,iter_op,offset,page_size);
+			return do_primary_index_iter(txn,p_idx,iter_node,iter_op,offset,page_size);
 		else
-			return do_secondary_index_iter(p_idx,index_name,iter_node,iter_op,offset,page_size);
+			return do_secondary_index_iter(txn,p_idx,index_name,iter_node,iter_op,offset,page_size);
 
 	}
 	
-	private QueryResult do_primary_index_iter(BDBPrimaryIndex pidx,QueryNode iter_node,int iter_op,int offset,int page_size) throws PersistenceException
+	private QueryResult do_primary_index_iter(Transaction txn,BDBPrimaryIndex pidx,QueryNode iter_node,int iter_op,int offset,int page_size) throws PersistenceException
 	{
 		IndexIterator iter;
 		
@@ -488,7 +489,7 @@ public class QueryExecutor
 		
 			//open the iterator and return it//
 			try{
-				iter.open(pidx, param);
+				iter.open(txn,pidx, param);
 			}catch(DatabaseException dbe)
 			{
 				try{
@@ -576,7 +577,7 @@ public class QueryExecutor
 			}
 			//open the iterator and return it//
 			try{
-				iter.open(pidx, param,range_param);
+				iter.open(txn,pidx, param,range_param);
 			}catch(DatabaseException dbe)
 			{
 				try{
@@ -626,7 +627,7 @@ public class QueryExecutor
 		}
 	}
 	
-	private QueryResult do_secondary_index_iter(BDBPrimaryIndex p_idx,String index_name,QueryNode iter_node,int iter_op,int offset,int page_size) throws PersistenceException
+	private QueryResult do_secondary_index_iter(Transaction txn,BDBPrimaryIndex p_idx,String index_name,QueryNode iter_node,int iter_op,int offset,int page_size) throws PersistenceException
 	{
 		
 		IterableIndex idx;
@@ -636,19 +637,19 @@ public class QueryExecutor
 		boolean ismulti = idx.isMultiFieldIndex();
 		if((iter_op & Query.PREDICATE_ITER_TYPE) == Query.PREDICATE_ITER_TYPE)
 		{
-			iter = setup_predicate_iterator(idx,ismulti,iter_op,iter_node);
+			iter = setup_predicate_iterator(txn,idx,ismulti,iter_op,iter_node);
 		}
 		else if((iter_op & Query.BETWEEN_ITER_TYPE) == Query.BETWEEN_ITER_TYPE)
 		{
-			iter = setup_range_iterator(idx,ismulti,iter_op,iter_node);
+			iter = setup_range_iterator(txn,idx,ismulti,iter_op,iter_node);
 		}
 		else if((iter_op & Query.SET_ITER_TYPE) == Query.SET_ITER_TYPE)
 		{
-			iter = setup_set_iterator(idx,ismulti,iter_op,iter_node);
+			iter = setup_set_iterator(txn,idx,ismulti,iter_op,iter_node);
 		}
 		else if((iter_op & Query.FREETEXT_ITER_TYPE) == Query.FREETEXT_ITER_TYPE)
 		{
-			iter = setup_freetext_iterator(idx,ismulti,iter_op,iter_node);
+			iter = setup_freetext_iterator(txn,idx,ismulti,iter_op,iter_node);
 		}
 		else
 		{
@@ -697,8 +698,7 @@ public class QueryExecutor
 			}
 		}		
 	}
-	
-	private List<Long> count_iter(QueryNode iter_node) throws PersistenceException
+	private List<Long> count_iter(Transaction txn,QueryNode iter_node) throws PersistenceException
 	{
 		//want to take offset and pagesize into account//
 		String return_type 		= (String)iter_node.attributes.get(Query.ATT_RETURN_TYPE);
@@ -708,13 +708,13 @@ public class QueryExecutor
 		int iter_op	   	   		= (Integer)iter_node.attributes.get(Query.ATT_ITER_OP);
 		BDBPrimaryIndex p_idx 	= _env.getPrimaryIndex(return_type);
 		if(index_name.equals(Query.PRIMARY_IDX))
-			return do_primary_index_count(p_idx,iter_node,iter_op,offset,page_size);
+			return do_primary_index_count(txn,p_idx,iter_node,iter_op,offset,page_size);
 		else
-			return do_secondary_index_count(p_idx,index_name,iter_node,iter_op,offset,page_size);
+			return do_secondary_index_count(txn,p_idx,index_name,iter_node,iter_op,offset,page_size);
 
 	}
 	
-	private List<Long> do_primary_index_count(BDBPrimaryIndex pidx,QueryNode iter_node,int iter_op,int offset,int page_size) throws PersistenceException
+	private List<Long> do_primary_index_count(Transaction txn,BDBPrimaryIndex pidx,QueryNode iter_node,int iter_op,int offset,int page_size) throws PersistenceException
 	{
 		IndexIterator iter;
 		
@@ -773,7 +773,7 @@ public class QueryExecutor
 		
 			//open the iterator and return it//
 			try{
-				iter.open(pidx, param);
+				iter.open(txn,pidx, param);
 			}catch(DatabaseException dbe)
 			{
 				try{
@@ -861,7 +861,7 @@ public class QueryExecutor
 			}
 			//open the iterator and return it//
 			try{
-				iter.open(pidx, param,range_param);
+				iter.open(txn,pidx, param,range_param);
 			}catch(DatabaseException dbe)
 			{
 				try{
@@ -910,7 +910,7 @@ public class QueryExecutor
 		}	
 	}
 	
-	private List<Long> do_secondary_index_count(BDBPrimaryIndex p_idx,String index_name,QueryNode iter_node,int iter_op,int offset,int page_size) throws PersistenceException
+	private List<Long> do_secondary_index_count(Transaction txn,BDBPrimaryIndex p_idx,String index_name,QueryNode iter_node,int iter_op,int offset,int page_size) throws PersistenceException
 	{
 		
 		IterableIndex idx;
@@ -920,19 +920,19 @@ public class QueryExecutor
 		boolean ismulti = idx.isMultiFieldIndex();
 		if((iter_op & Query.PREDICATE_ITER_TYPE) == Query.PREDICATE_ITER_TYPE)
 		{
-			iter = setup_predicate_iterator(idx,ismulti,iter_op,iter_node);
+			iter = setup_predicate_iterator(txn,idx,ismulti,iter_op,iter_node);
 		}
 		else if((iter_op & Query.BETWEEN_ITER_TYPE) == Query.BETWEEN_ITER_TYPE)
 		{
-			iter = setup_range_iterator(idx,ismulti,iter_op,iter_node);
+			iter = setup_range_iterator(txn,idx,ismulti,iter_op,iter_node);
 		}
 		else if((iter_op & Query.SET_ITER_TYPE) == Query.SET_ITER_TYPE)
 		{
-			iter = setup_set_iterator(idx,ismulti,iter_op,iter_node);
+			iter = setup_set_iterator(txn,idx,ismulti,iter_op,iter_node);
 		}
 		else if((iter_op & Query.FREETEXT_ITER_TYPE) == Query.FREETEXT_ITER_TYPE)
 		{
-			iter = setup_freetext_iterator(idx,ismulti,iter_op,iter_node);
+			iter = setup_freetext_iterator(txn,idx,ismulti,iter_op,iter_node);
 		}
 		else
 		{
@@ -970,7 +970,7 @@ public class QueryExecutor
 		}	
 	}
 	
-	private IndexIterator setup_predicate_iterator(IterableIndex idx,boolean is_multi,int iter_type,QueryNode iter_node) throws PersistenceException
+	private IndexIterator setup_predicate_iterator(Transaction txn,IterableIndex idx,boolean is_multi,int iter_type,QueryNode iter_node) throws PersistenceException
 	{		
 		if(idx.isSetIndex())
 			throw new PersistenceException("UNSUPPORTED OPERATION FOR INDEX."+idx.getName()+"IS NOT A PREDICATE INDEX");
@@ -990,7 +990,7 @@ public class QueryExecutor
 			int last 	 = l_user_param.size()-1;
 			
 			if (l_user_param.get(last) == Query.VAL_GLOB)
-			  return get_globbed_multi_index_predicate_iterator(idx,l_user_param,iter_type,last,iter_node);
+			  return get_globbed_multi_index_predicate_iterator(txn,idx,l_user_param,iter_type,last,iter_node);
 			
 			if(last != idx.getNumIndexedFields()-1 && iter_type != Query.STARTSWITH)
 				throw new PersistenceException("WRONG NUMBER OF ARGUMENTS FOR INDEX. INDEX HAS "+idx.getNumIndexedFields()+" AND "+l_user_param.size()+" WERE PROVIDED");
@@ -1005,7 +1005,7 @@ public class QueryExecutor
 		else
 		{
 			if (user_param == Query.VAL_GLOB)
-				  return get_globbed_single_index_predicate_iterator(idx,iter_type,iter_node);
+				  return get_globbed_single_index_predicate_iterator(txn,idx,iter_type,iter_node);
 			try{
 				param = ((SimpleSingleFieldIndex)idx).getQueryKey(user_param);
 			}catch(DatabaseException dbe)
@@ -1041,7 +1041,7 @@ public class QueryExecutor
 		}
 		//open the iterator and return it//
 		try{
-			iter.open(idx, param);
+			iter.open(txn,idx, param);
 		}catch(DatabaseException dbe)
 		{
 			try{
@@ -1057,7 +1057,7 @@ public class QueryExecutor
 		return iter;
 	}	
 	
-	private IndexIterator get_globbed_multi_index_predicate_iterator(IterableIndex idx,List<Object> params,int iter_type,int glob_idx,QueryNode iter_node) throws PersistenceException
+	private IndexIterator get_globbed_multi_index_predicate_iterator(Transaction txn,IterableIndex idx,List<Object> params,int iter_type,int glob_idx,QueryNode iter_node) throws PersistenceException
 	{
 		int i = glob_idx;
 		switch(iter_type)
@@ -1080,44 +1080,44 @@ public class QueryExecutor
 					iter_node.attributes.put(Query.ATT_RANGE_ITER_USER_BOTTOM_PARAM, new_idx);
 					_query_params[new_idx-1] = top_params;
 					iter_node.attributes.put(Query.ATT_RANGE_ITER_USER_TOP_PARAM, new_idx-1);
-					return setup_range_iterator(idx,true,iter_type,iter_node);
+					return setup_range_iterator(txn,idx,true,iter_type,iter_node);
 			case Query.GT:
 					do	
 					{
 						params.set(i,Query.VAL_MAX);
 					}while(i >= 0 && params.get(--i) == Query.VAL_GLOB);
 					//iter_node.attributes.put(Query.ATT_PREDICATE_ITER_USER_PARAM, params);
-					return setup_predicate_iterator(idx,true,iter_type,iter_node);
+					return setup_predicate_iterator(txn,idx,true,iter_type,iter_node);
 			case Query.GTE:
 					do	
 					{
 						params.set(i,Query.VAL_MIN);
 					}while(i >= 0 && params.get(--i) == Query.VAL_GLOB);
-					return setup_predicate_iterator(idx,true,iter_type,iter_node);
+					return setup_predicate_iterator(txn,idx,true,iter_type,iter_node);
 			case Query.LT:
 				do	
 				{
 					params.set(i,Query.VAL_MIN);
 				}while(i >= 0 && params.get(--i) == Query.VAL_GLOB);
-				return setup_predicate_iterator(idx,true,iter_type,iter_node);
+				return setup_predicate_iterator(txn,idx,true,iter_type,iter_node);
 			case Query.LTE:
 				do	
 				{
 					params.set(i,Query.VAL_MAX);
 				}while(i >= 0 && params.get(--i) == Query.VAL_GLOB);
-				return setup_predicate_iterator(idx,true,iter_type,iter_node);
+				return setup_predicate_iterator(txn,idx,true,iter_type,iter_node);
 			case Query.STARTSWITH:
 				do	
 				{
 					params.remove(i);
 				}while(i >= 0 && params.get(--i) == Query.VAL_GLOB);
-				return setup_predicate_iterator(idx,true,iter_type,iter_node);
+				return setup_predicate_iterator(txn,idx,true,iter_type,iter_node);
 			default:
 					throw new PersistenceException("UNKNOWN ITER TYPE IN SET UP GLOBBED PREDICATE MULTI ITER");
 		}
 	}
 	
-	private IndexIterator get_globbed_single_index_predicate_iterator(IterableIndex idx,int iter_type,QueryNode iter_node) throws PersistenceException
+	private IndexIterator get_globbed_single_index_predicate_iterator(Transaction txn,IterableIndex idx,int iter_type,QueryNode iter_node) throws PersistenceException
 	{
 		switch(iter_type)
 		{
@@ -1130,20 +1130,20 @@ public class QueryExecutor
 				int user_param_idx = (Integer)iter_node.attributes.get(Query.ATT_PREDICATE_ITER_USER_PARAM);
 				_query_params[user_param_idx] = Query.VAL_MIN;
 				iter_node.attributes.put(Query.ATT_PREDICATE_ITER_USER_PARAM, user_param_idx);
-				return setup_predicate_iterator(idx,false,iter_type,iter_node);
+				return setup_predicate_iterator(txn,idx,false,iter_type,iter_node);
 			case Query.LT:
 			case Query.LTE:
 				user_param_idx = (Integer)iter_node.attributes.get(Query.ATT_PREDICATE_ITER_USER_PARAM);
 				_query_params[user_param_idx] = Query.VAL_MAX;
 				iter_node.attributes.put(Query.ATT_PREDICATE_ITER_USER_PARAM, user_param_idx);
-				return setup_predicate_iterator(idx,false,iter_type,iter_node);
+				return setup_predicate_iterator(txn,idx,false,iter_type,iter_node);
 			default:
 					throw new PersistenceException("UNKNOWN ITER TYPE IN SET UP GLOBBED PREDICATE SINGLE ITER");
 		}
 	}
 	
 	@SuppressWarnings("unchecked")
-	private IndexIterator setup_range_iterator(IterableIndex idx,boolean is_multi,int iter_type,QueryNode iter_node) throws PersistenceException
+	private IndexIterator setup_range_iterator(Transaction txn,IterableIndex idx,boolean is_multi,int iter_type,QueryNode iter_node) throws PersistenceException
 	{
 		if(idx.isSetIndex())
 			throw new PersistenceException("UNSUPPORTED OPERATION FOR INDEX."+idx.getName()+"IS NOT A SET INDEX");
@@ -1216,7 +1216,7 @@ public class QueryExecutor
 		}
 		//open the iterator and return it//
 		try{
-			iter.open(idx, param,range_param);
+			iter.open(txn,idx, param,range_param);
 		}catch(DatabaseException dbe)
 		{
 			try{
@@ -1232,7 +1232,7 @@ public class QueryExecutor
 		return iter;
 	}
 	
-	private IndexIterator setup_set_iterator(IterableIndex idx,boolean is_multi,int iter_type,QueryNode iter_node) throws PersistenceException
+	private IndexIterator setup_set_iterator(Transaction txn,IterableIndex idx,boolean is_multi,int iter_type,QueryNode iter_node) throws PersistenceException
 	{
 		if(idx.isNormalIndex())
 			throw new PersistenceException("UNSUPPORTED OPERATION FOR INDEX."+idx.getName()+"IS A SET INDEX AND ONLY SUPPORTS SET QUERY OPERATIONS");
@@ -1297,7 +1297,7 @@ public class QueryExecutor
 		}
 		//open the iterator and return it//
 		try{
-			iter.open(idx,globbing,list_param);
+			iter.open(txn,idx,globbing,list_param);
 		}catch(DatabaseException dbe)
 		{
 			try{
@@ -1313,7 +1313,7 @@ public class QueryExecutor
 		return iter;
 	}
 	
-	private IndexIterator setup_freetext_iterator(IterableIndex idx,boolean is_multi,int iter_type,QueryNode iter_node) throws PersistenceException
+	private IndexIterator setup_freetext_iterator(Transaction txn,IterableIndex idx,boolean is_multi,int iter_type,QueryNode iter_node) throws PersistenceException
 	{
 		if(!idx.isFreeTextIndex())
 			throw new PersistenceException("UNSUPPORTED OPERATION FOR INDEX."+idx.getName()+"IS A FREETEXT INDEX AND ONLY SUPPORTS FREETEXT OPERATIONS.");
@@ -1366,7 +1366,7 @@ public class QueryExecutor
 				throw new PersistenceException("UNABLE TO GENERATE QUERY KEY FOR QUERY VAL");
 			}
 	
-			return open_multi_field_freetext_iterator(iter_type, idx, globbing, multi_list_param);			
+			return open_multi_field_freetext_iterator(txn,iter_type, idx, globbing, multi_list_param);			
 		}
 		else
 		{
@@ -1377,13 +1377,13 @@ public class QueryExecutor
 			{
 				throw new PersistenceException("UNABLE TO GENERATE QUERY KEY FOR QUERY VAL");
 			}
-			return open_single_field_freetext_iterator(iter_type,idx, globbing, list_param);
+			return open_single_field_freetext_iterator(txn,iter_type,idx, globbing, list_param);
 		}
 	
 	}
 
 
-	private IndexIterator open_single_field_freetext_iterator(int iter_type,IterableIndex idx,boolean globbing,Object list_param) throws PersistenceException
+	private IndexIterator open_single_field_freetext_iterator(Transaction txn,int iter_type,IterableIndex idx,boolean globbing,Object list_param) throws PersistenceException
 	{
 		SetIndexIterator iter = null;
 		switch(iter_type)
@@ -1402,7 +1402,7 @@ public class QueryExecutor
 		}
 		//open the iterator and return it//
 		try{
-			iter.open(idx,globbing,list_param);
+			iter.open(txn,idx,globbing,list_param);
 		}catch(DatabaseException dbe)
 		{
 			try{
@@ -1419,13 +1419,13 @@ public class QueryExecutor
 		
 	}
 	
-	private IndexIterator open_multi_field_freetext_iterator(int iter_type,IterableIndex idx,boolean globbing,Object list_param) throws PersistenceException
+	private IndexIterator open_multi_field_freetext_iterator(Transaction txn,int iter_type,IterableIndex idx,boolean globbing,Object list_param) throws PersistenceException
 	{
 		IndexIterator iter;
 		iter = new FREETEXTMULTIWRAPPERIterator();
 		//open the iterator and return it//
 		try{
-			iter.open(idx,globbing,list_param,iter_type);
+			iter.open(txn,idx,globbing,list_param,iter_type);
 		}catch(DatabaseException dbe)
 		{
 			try{

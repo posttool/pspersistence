@@ -4,9 +4,11 @@ import java.util.Map;
 
 import com.pagesociety.bdb.BDBPrimaryIndex;
 import com.pagesociety.bdb.BDBSecondaryIndex;
+import com.pagesociety.bdb.BDBStore;
 
 public class QueryManagerConfig 
 {
+	private BDBStore _context;
 	private Map<String,BDBPrimaryIndex> _primary_index_map;
 	private Map<String,Map<String,BDBSecondaryIndex>> _secondary_index_map;
 	private int   _entity_cache_initial_size;
@@ -62,4 +64,13 @@ public class QueryManagerConfig
 		return _entity_cache_max_size;
 	}
 	
+	public void setContext(BDBStore context)
+	{
+		_context = context;
+	}
+	
+	public BDBStore getContext()
+	{
+		return _context;
+	}
 }

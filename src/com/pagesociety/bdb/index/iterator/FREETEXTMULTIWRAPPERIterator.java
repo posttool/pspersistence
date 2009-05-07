@@ -8,11 +8,13 @@ import com.pagesociety.persistence.Query;
 import com.sleepycat.bind.tuple.LongBinding;
 import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
+import com.sleepycat.db.Transaction;
 
 
 /* this class just does a union on one particualr type of freetext query across fields*/
 public class FREETEXTMULTIWRAPPERIterator extends IndexIterator
 {
+	protected Transaction txn;
 	IndexIterator iterator;
 	int current_idx;
 	List<List<DatabaseEntry>> query_key_sets;
@@ -21,8 +23,9 @@ public class FREETEXTMULTIWRAPPERIterator extends IndexIterator
 	IterableIndex index;
 	HashSet<Long> seen_results;
 	
-	public void open(IterableIndex index,Object... user_args) throws DatabaseException
+	public void open(Transaction txn,IterableIndex index,Object... user_args) throws DatabaseException
 	{
+		this.txn = txn;
 		globbing = (Boolean)user_args[0];
 		query_key_sets = (List<List<DatabaseEntry>>)user_args[1];
 		type = (Integer)user_args[2];
@@ -65,7 +68,7 @@ public class FREETEXTMULTIWRAPPERIterator extends IndexIterator
 		//{
 			//System.out.println("QUERY KEY "+new String(LL.get(i).getData()));
 		//}
-		iterator.open(index, globbing,query_key_sets.get(current_idx));
+		iterator.open(txn,index, globbing,query_key_sets.get(current_idx));
 		return iterator;
 	}
 	

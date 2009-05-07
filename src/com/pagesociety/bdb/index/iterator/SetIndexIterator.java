@@ -12,10 +12,12 @@ import com.sleepycat.db.Cursor;
 import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
 import com.sleepycat.db.OperationStatus;
+import com.sleepycat.db.Transaction;
 
 /* iterator that takes one user param */
 public abstract class SetIndexIterator extends IndexIterator
 {
+	protected Transaction 		  txn;
 	protected List<DatabaseEntry> keys;
 	protected DatabaseEntry 	  data;
 	protected OperationStatus 	  last_opstat;
@@ -27,9 +29,10 @@ public abstract class SetIndexIterator extends IndexIterator
 	private final char 	 DELIM   = ':';
 	private final String DELIM_S = ":";
 	
-	public void open(IterableIndex index,Object... args) throws DatabaseException
+	
+	public void open(Transaction txn,IterableIndex index,Object... args) throws DatabaseException
 	{
-
+		this.txn     = txn;
 		globbing 	 = (Boolean)args[0];
 		keys		 =	(List<DatabaseEntry>)args[1];
 		data 		 = 	new DatabaseEntry();
@@ -110,5 +113,8 @@ public abstract class SetIndexIterator extends IndexIterator
 	}
 
 
+	public void close() throws DatabaseException
+	{
 
+	}
 }

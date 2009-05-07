@@ -4,6 +4,7 @@ package com.pagesociety.bdb.index.iterator;
 import com.pagesociety.bdb.BDBSecondaryIndex;
 import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
+import com.sleepycat.db.Transaction;
 
 
 @SuppressWarnings("unchecked")
@@ -17,15 +18,15 @@ public class SETCONTAINSALLIndexIterator extends SetIndexIterator
 	/* we arent doing the whole smallest key thing anymore. should probably 
 	 * get back to that at some point....just count dupes when we open.
 	 */
-	public void open(IterableIndex index,Object... user_list_of_db_entries) throws DatabaseException
+	public void open(Transaction txn,IterableIndex index,Object... user_list_of_db_entries) throws DatabaseException
 	{
-		super.open(index,user_list_of_db_entries);
+		super.open(txn,index,user_list_of_db_entries);
 		prepare_iterator();
 		first_value_key = keys.get(0);
 		keys_size 		= keys.size();		
-		iter.open(index,first_value_key);
+		iter.open(txn,index,first_value_key);
 		DatabaseEntry first_value_copy = IteratorUtil.cloneDatabaseEntry(first_value_key);
-		((PredicateIndexIterator)r_iter).open(index,first_value_copy);	
+		((PredicateIndexIterator)r_iter).open(txn,index,first_value_copy);	
 		advance_to_next();
 
 	}
@@ -116,6 +117,7 @@ public class SETCONTAINSALLIndexIterator extends SetIndexIterator
 
 	public void close() throws DatabaseException
 	{
+		super.close();
 		iter.close();	
 		((PredicateIndexIterator)r_iter).close();
 	}

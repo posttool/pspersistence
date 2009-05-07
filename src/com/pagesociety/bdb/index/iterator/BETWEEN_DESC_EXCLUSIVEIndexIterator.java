@@ -4,14 +4,15 @@ import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
 import com.sleepycat.db.LockMode;
 import com.sleepycat.db.OperationStatus;
+import com.sleepycat.db.Transaction;
 
 public class BETWEEN_DESC_EXCLUSIVEIndexIterator extends RangeIndexIterator
 {
 	DatabaseEntry original_search_key;
 	/*ARG 1 IS TOP ARG 2 IS BOTTOM i.e. between desc 35 12*/
-	public void open(IterableIndex index,Object... user_args) throws DatabaseException
+	public void open(Transaction txn,IterableIndex index,Object... user_args) throws DatabaseException
 	{
-		super.open(index,user_args);
+		super.open(txn,index,user_args);
 		last_opstat	=	index_cursor.getSearchKeyRange(key, data, LockMode.DEFAULT);
 		if(last_opstat == OperationStatus.SUCCESS)
 			last_opstat = index_cursor.getPrev(key, data, LockMode.DEFAULT);

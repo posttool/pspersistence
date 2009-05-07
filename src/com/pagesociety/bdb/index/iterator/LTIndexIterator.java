@@ -5,13 +5,14 @@ import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
 import com.sleepycat.db.LockMode;
 import com.sleepycat.db.OperationStatus;
+import com.sleepycat.db.Transaction;
 
 public class LTIndexIterator extends PredicateIndexIterator 
 {
 	
-	public void open(IterableIndex index,Object... user_arg) throws DatabaseException
+	public void open(Transaction txn,IterableIndex index,Object... user_arg) throws DatabaseException
 	{
-		super.open(index,user_arg);
+		super.open(txn,index,user_arg);
 
 		last_opstat	=	index_cursor.getSearchKeyRange(key, data, LockMode.DEFAULT);
 		if(last_opstat == OperationStatus.SUCCESS)

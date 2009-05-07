@@ -6,6 +6,7 @@ import java.util.Map;
 import com.sleepycat.bind.tuple.LongBinding;
 import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
+import com.sleepycat.db.Transaction;
 
 
 @SuppressWarnings("unchecked")
@@ -13,9 +14,9 @@ public class FREETEXTCONTAINSANYIndexIterator extends SETCONTAINSANYIndexIterato
 {
 
 	
-	public void open(IterableIndex index,Object... user_list_of_db_entries) throws DatabaseException
+	public void open(Transaction txn,IterableIndex index,Object... user_list_of_db_entries) throws DatabaseException
 	{
-		super.open(index,user_list_of_db_entries);
+		super.open(txn,index,user_list_of_db_entries);
 
 	}
 		

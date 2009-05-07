@@ -5,15 +5,16 @@ import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
 import com.sleepycat.db.LockMode;
 import com.sleepycat.db.OperationStatus;
+import com.sleepycat.db.Transaction;
 
 public class STARTSWITHSTRINGIndexIterator extends PredicateIndexIterator /*implements RespositionableIndexIterator*/
 {
 
 	private int 		  original_param_length;
 	private DatabaseEntry original_param;
-	public void open(IterableIndex index,Object... user_arg) throws DatabaseException
+	public void open(Transaction txn,IterableIndex index,Object... user_arg) throws DatabaseException
 	{
-		super.open(index,user_arg);
+		super.open(txn,index,user_arg);
 		original_param        = IteratorUtil.cloneDatabaseEntry((DatabaseEntry)user_arg[0]);
 		//TODO: NOTE THINGS COULD GET WEIRD HERE IF WE ARE NOT USING STRINGS
 		//HERE WE ARE IGNORING THE NULL BYTE SO THAT IT DOESNT SCREW UP OUR COMPARE

@@ -4,14 +4,15 @@ package com.pagesociety.bdb.index.iterator;
 import com.pagesociety.bdb.BDBSecondaryIndex;
 import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
+import com.sleepycat.db.Transaction;
 
 
 @SuppressWarnings("unchecked")
 public class FREETEXTCONTAINSALLIndexIterator extends SETCONTAINSALLIndexIterator
 {
-	public void open(IterableIndex index,Object... user_list_of_db_entries) throws DatabaseException
+	public void open(Transaction txn,IterableIndex index,Object... user_list_of_db_entries) throws DatabaseException
 	{
-		super.open(index,user_list_of_db_entries);
+		super.open(txn,index,user_list_of_db_entries);
 	}
 
 	protected void advance_to_next() throws DatabaseException

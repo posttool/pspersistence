@@ -5,12 +5,13 @@ import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
 import com.sleepycat.db.LockMode;
 import com.sleepycat.db.OperationStatus;
+import com.sleepycat.db.Transaction;
 
 public class BETWEEN_ASC_INCLUSIVEIndexIterator extends RangeIndexIterator
 {
-	public void open(IterableIndex index,Object... user_args) throws DatabaseException
+	public void open(Transaction txn,IterableIndex index,Object... user_args) throws DatabaseException
 	{
-		super.open(index,user_args);
+		super.open(txn,index,user_args);
 		last_opstat = index_cursor.getSearchKeyRange(key, data, LockMode.DEFAULT);
 		check_terminal_key();
 	}

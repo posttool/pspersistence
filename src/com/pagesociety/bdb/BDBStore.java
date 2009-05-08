@@ -164,6 +164,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		if(_shutdown_hook_is_added)
 			return;
 		
+		/*
 		Runtime.getRuntime().addShutdownHook(new Thread()
 		{
 			public void run()
@@ -178,6 +179,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				}
 			}
 		});
+		*/
 		_shutdown_hook_is_added = true;
 	}
 	
@@ -2298,10 +2300,12 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			System.out.println("STORE HAS ALREADY BEEN CLOSED");
 			return;
 		}
-		System.out.println("ENTER CLOSE");
 		_closed = true;
+		System.out.println("ENTER CLOSE");
 		try{
+			System.out.println("ABOUT TO CHECKPOINT");
 			do_checkpoint();
+			System.out.println("CHECKPOINT COMPLETE");
 		}catch(DatabaseException dbe)
 		{
 			System.out.println("FAILED CHECKPOINTING THE DB ON SHUTDOWN ");

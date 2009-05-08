@@ -2308,7 +2308,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			dbe.printStackTrace();
 		}
 			
-			checkpoint_policy.destroy();
+		checkpoint_policy.destroy();
 		try{
 			System.out.println("LOCK STATS "+environment.getLockStats(null));
 		}catch(Exception e)

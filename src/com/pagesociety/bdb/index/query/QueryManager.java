@@ -8,7 +8,7 @@ import com.pagesociety.persistence.QueryResult;
 import com.sleepycat.db.DatabaseException;
 import com.sleepycat.db.Environment;
 import com.sleepycat.db.Transaction;
-import com.sun.xml.internal.bind.CycleRecoverable.Context;
+
 
 public class QueryManager
 {

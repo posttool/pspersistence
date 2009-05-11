@@ -4358,20 +4358,22 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	public void fillReferenceField(int transaction_id,List<Entity> es,String fieldname) throws PersistenceException
 	{
 		_store_locker.enterAppThread();
-		if(es.size() == 0)
-			return;
-		Transaction txn = get_transaction_by_transaction_id(transaction_id);
-		Entity e = es.get(0);
-		EntityDefinition ed = getEntityDefinitionProvider().provideEntityDefinition(e);
-		FieldDefinition fd = ed.getField(fieldname);
 		try{
 			int s = es.size();			
-			for (int i = 0;i < s;i++)
-				do_fill_reference_field(txn,es.get(i),fd);    
-		}catch(PersistenceException pe)
-		{
-			throw pe;
-		}
+			if(s == 0)
+				return;
+			Transaction txn = get_transaction_by_transaction_id(transaction_id);
+			Entity e = es.get(0);
+			EntityDefinition ed = getEntityDefinitionProvider().provideEntityDefinition(e);
+			FieldDefinition fd = ed.getField(fieldname);
+	
+	
+				for (int i = 0;i < s;i++)
+					do_fill_reference_field(txn,es.get(i),fd);    
+			}catch(PersistenceException pe)
+			{
+				throw pe;
+			}
 		finally
 		{
 			_store_locker.exitAppThread();

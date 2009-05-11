@@ -52,6 +52,7 @@ import com.sleepycat.db.DatabaseConfig;
 import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
 import com.sleepycat.db.DatabaseType;
+import com.sleepycat.db.DeadlockException;
 import com.sleepycat.db.Environment;
 import com.sleepycat.db.EnvironmentConfig;
 import com.sleepycat.db.LockDetectMode;
@@ -648,11 +649,22 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				while(true)
 				{
 					Iterator i = transaction_map.keySet().iterator();
+
+					System.out.println("--RUNNING DEADLOCK DETECTOR");
+					try{
+						environment.detectDeadlocks(LockDetectMode.DEFAULT);
+					}catch(DatabaseException de)
+					{
+						de.printStackTrace();
+					}
+					System.out.println("--DEADLOCK DETECTOR DONE");
+					System.out.println("--TRANSACTION REPORT--");
 					while(i.hasNext())
 					{
-						System.out.println("--TRANSACTION REPORT-- ACTIVE TRANSACTION "+i.next());
-
+						System.out.println("\t--TRANSACTION REPORT-- ACTIVE TRANSACTION "+i.next());
+						
 					}
+					System.out.println("--TRANSACTION REPORT OVER--");
 					try {
 						Thread.sleep(1000 * 60 * 3);
 					} catch (InterruptedException e) {

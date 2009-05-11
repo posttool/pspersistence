@@ -288,7 +288,8 @@ public class BDBPrimaryIndex implements IterableIndex
 	}
 	
 	
-		
+	static TransactionConfig GET_BY_ID_CFG = new TransactionConfig();
+	static {GET_BY_ID_CFG.setReadUncommitted(true);}		
 	protected Entity getById(Transaction parent_txn,long id) throws PersistenceException
 	{
 		int retry_count = 0;
@@ -298,7 +299,7 @@ public class BDBPrimaryIndex implements IterableIndex
 			Transaction txn = null;
 			try
 			{
-				txn = _environment.beginTransaction(parent_txn, null);
+				txn = _environment.beginTransaction(parent_txn, GET_BY_ID_CFG);
 
 				// cache
 				DatabaseEntry key 		= new DatabaseEntry();

@@ -648,8 +648,16 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			{
 				while(true)
 				{
-					Iterator i = transaction_map.keySet().iterator();
 
+					Iterator i = transaction_map.keySet().iterator();
+					System.out.println("--TRANSACTION REPORT--");
+					while(i.hasNext())
+					{
+						System.out.println("\t--TRANSACTION REPORT-- ACTIVE TRANSACTION "+i.next());
+						
+					}
+					System.out.println("--TRANSACTION REPORT OVER--");
+					
 					System.out.println("--RUNNING DEADLOCK DETECTOR");
 					try{
 						environment.detectDeadlocks(LockDetectMode.DEFAULT);
@@ -658,13 +666,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 						de.printStackTrace();
 					}
 					System.out.println("--DEADLOCK DETECTOR DONE");
-					System.out.println("--TRANSACTION REPORT--");
-					while(i.hasNext())
-					{
-						System.out.println("\t--TRANSACTION REPORT-- ACTIVE TRANSACTION "+i.next());
-						
-					}
-					System.out.println("--TRANSACTION REPORT OVER--");
+
 					try {
 						Thread.sleep(1000 * 60 * 3);
 					} catch (InterruptedException e) {

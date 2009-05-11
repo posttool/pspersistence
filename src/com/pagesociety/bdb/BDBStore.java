@@ -4276,12 +4276,13 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	public void fillReferenceFields(List<Entity> es) throws PersistenceException
 	{
 		_store_locker.enterAppThread();
-		if(es.size() == 0)
-			return;
-		Entity e = es.get(0);
-		EntityDefinition ed = getEntityDefinitionProvider().provideEntityDefinition(e);
-		int s = es.size();
-		try{
+		try{	
+			if(es.size() == 0)
+				return;
+			Entity e = es.get(0);
+			EntityDefinition ed = getEntityDefinitionProvider().provideEntityDefinition(e);
+			int s = es.size();
+
 			for(FieldDefinition fd:ed.getFields())
 			{
 				if(fd.getBaseType() != Types.TYPE_REFERENCE)
@@ -4300,17 +4301,18 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			_store_locker.exitAppThread();
 		}		
 	}
-	//assumes homgonesous list for some reason//
+//assume homogenous list of references you want filled//
 	public void fillReferenceFields(int transaction_id,List<Entity> es) throws PersistenceException
 	{
 		_store_locker.enterAppThread();
-		if(es.size() == 0)
-			return;
-		Transaction txn = get_transaction_by_transaction_id(transaction_id);
-		Entity e = es.get(0);
-		EntityDefinition ed = getEntityDefinitionProvider().provideEntityDefinition(e);
-		int s = es.size();
 		try{
+			int s = es.size();
+			if(s == 0)
+				return;
+			Transaction txn = get_transaction_by_transaction_id(transaction_id);
+			Entity e = es.get(0);
+			EntityDefinition ed = getEntityDefinitionProvider().provideEntityDefinition(e);
+		
 			for(FieldDefinition fd:ed.getFields())
 			{
 				if(fd.getBaseType() != Types.TYPE_REFERENCE)
@@ -4333,13 +4335,14 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	public void fillReferenceField(List<Entity> es,String fieldname) throws PersistenceException
 	{
 		_store_locker.enterAppThread();
-		if(es.size() == 0)
-			return;
-		Entity e = es.get(0);
-		EntityDefinition ed = getEntityDefinitionProvider().provideEntityDefinition(e);
-		FieldDefinition fd = ed.getField(fieldname);
 		try{
 			int s = es.size();			
+			if(s == 0)
+				return;
+			Entity e = es.get(0);
+			EntityDefinition ed = getEntityDefinitionProvider().provideEntityDefinition(e);
+			FieldDefinition fd = ed.getField(fieldname);
+
 			for (int i = 0;i < s;i++)
 				do_fill_reference_field(null,es.get(i),fd);    
 		}catch(PersistenceException pe)

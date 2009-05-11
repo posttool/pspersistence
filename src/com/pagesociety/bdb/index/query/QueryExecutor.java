@@ -663,7 +663,7 @@ public class QueryExecutor
 			while(iter.isValid())
 			{
 				//System.out.println("ABOUT TO LOOKUP...CURRENT DATA IS "+new String(iter.currentData().getData()));
-				Entity e = p_idx.getByPrimaryKey(iter.currentData());
+				Entity e = p_idx.getByPrimaryKey(txn,iter.currentData());
 				
 		//		if(e == null)
 		//		{

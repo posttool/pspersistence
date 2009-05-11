@@ -369,7 +369,7 @@ public class QueryVM
 			while(iter.isValid())
 			{
 				data 	 = iter.currentData();
-				Entity e = p_idx.getByPrimaryKey(data);
+				Entity e = p_idx.getByPrimaryKey(null,data);
 				results.add(e);
 				if(++added == page_size)
 				{

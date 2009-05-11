@@ -351,7 +351,7 @@ public class BDBPrimaryIndex implements IterableIndex
 	}
 	
 	/* this is how the secondary indexes use us to get back an entity */
-	public Entity getByPrimaryKey(DatabaseEntry pkey) throws DatabaseException/* or persistence exception*/
+	public Entity getByPrimaryKey(Transaction txn,DatabaseEntry pkey) throws DatabaseException/* or persistence exception*/
 	{
 		int retry_count = 0;
 		Entity e = null;
@@ -360,7 +360,7 @@ public class BDBPrimaryIndex implements IterableIndex
 			try
 			{
 				DatabaseEntry data = new DatabaseEntry();
-				if (_dbh.get(null, pkey, data, LockMode.READ_UNCOMMITTED) == OperationStatus.SUCCESS)
+				if (_dbh.get(txn, pkey, data, LockMode.READ_UNCOMMITTED) == OperationStatus.SUCCESS)
 				{
 					//System.out.println("PKEY IS "+LongBinding.entryToLong(pkey));
 					e = _binding.getEntitySetId(_def, pkey, data);

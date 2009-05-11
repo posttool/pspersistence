@@ -568,7 +568,13 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			txn = environment.beginTransaction(null, null);
 			int tid = txn.hashCode();
 			System.out.println("ISSUING "+tid);
-			transaction_map.put(tid, txn);
+			Transaction r = transaction_map.put(tid, txn);
+			if(r != null)
+			{
+				logger.debug("!!!!! DUDES!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+				logger.debug("!!!!!! WE STARTED A TRANSACTION AND IT HAD THE SAME HASHCODE AS AN EXISTING TRANSACTION. THIS COULD BE DUE TO GARBAGE COLLECTION. HASHCODE COULD CHANGE AND SOMEHOW BE THE SAME AS AN EXISITNG TRANSACTION");
+				logger.debug("!!!!! DUDES!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+			}
 			return tid;
 		}catch(DatabaseException e)
 		{
@@ -586,7 +592,13 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			txn = environment.beginTransaction(parent, null);
 			int tid = txn.hashCode();
 			System.out.println("ISSUING CHILD TXN: "+tid+" PARENT IS:"+parent_transaction_id);
-			transaction_map.put(tid, txn);
+			Transaction r = transaction_map.put(tid, txn);
+			if(r != null)
+			{
+				logger.debug("!!!!! DUDES!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+				logger.debug("!!!!!! WE STARTED A CHILD TRANSACTION AND IT HAD THE SAME HASHCODE AS AN EXISTING TRANSACTION. THIS COULD BE DUE TO GARBAGE COLLECTION. HASHCODE COULD CHANGE AND SOMEHOW BE THE SAME AS AN EXISITNG TRANSACTION");
+				logger.debug("!!!!! DUDES!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+			}
 			return tid;
 		}catch(DatabaseException e)
 		{

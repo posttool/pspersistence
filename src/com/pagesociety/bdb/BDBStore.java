@@ -154,7 +154,10 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		bootstrap_existing_entity_relationships();
 		init_field_binding();
 		init_backup_subsystem(config);
+		
+		start_transaction_reporter();
 		logger.debug("Init - Complete");
+		
 		
 	}
 	
@@ -635,6 +638,34 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	{
 		transaction_map.remove(transaction_id);
 	}
+	
+	private void start_transaction_reporter()
+	{
+		Thread t = new Thread()
+		{	
+			public void run()
+			{
+				while(true)
+				{
+					Iterator i = transaction_map.keySet().iterator();
+					while(i.hasNext())
+					{
+						System.out.println("--TRANSACTION REPORT-- ACTIVE TRANSACTION "+i.next());
+
+					}
+					try {
+						Thread.sleep(1000 * 60 * 3);
+					} catch (InterruptedException e) {
+						
+					}					
+				}
+			}
+		};
+		t.setDaemon(true);
+		t.start();
+		
+	}
+	
 	
 	/*------------------------------END TRANSACTION INTERFACE------------------------*/
 	public Entity saveEntity(Entity e) throws PersistenceException

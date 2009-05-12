@@ -829,7 +829,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			}catch(DatabaseException dbe)
 			{
 				retry_count++;
-				System.out.println("CAUGHT EXCEPTION FROM PROMARY IDX RETRY COUNT IS "+retry_count);
+				System.out.println("CAUGHT EXCEPTION FROM PRIMARY IDX RETRY COUNT IS "+retry_count);
 				abortTxn(txn);
 				if(retry_count >= BDBStore.MAX_DEADLOCK_RETRIES)
 				{

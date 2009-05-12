@@ -270,7 +270,11 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 					}
 					return;
 				}
-				idx_cursor 			    = db_handle.openCursor(txn, null);				
+				idx_cursor 			    = db_handle.openCursor(txn, null);
+				if(idx_cursor == null)
+				{
+					System.out.println("!!!! IDX CURSOR WAS NULL IN DELETE");
+				}
 				do{
 					op_stat = idx_cursor.getSearchBoth(data, pkey, LockMode.DEFAULT);
 					if(op_stat == OperationStatus.NOTFOUND)

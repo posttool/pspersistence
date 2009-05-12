@@ -12,8 +12,8 @@ public class DefaultCheckpointPolicyWithInterval implements CheckpointPolicy
 	private static final Logger logger = Logger.getLogger(DefaultCheckpointPolicyWithInterval.class);
 	
 	// checkpoint on 100 records no matter what
-	private static final int MAX_COUNT 									= 100; 
-	private static final int DEFAULT_CHECKPOINT_INTERVAL_IN_MINUTES 	= 15;
+	private static final int MAX_COUNT 									= 100000000; 
+	private static final int DEFAULT_CHECKPOINT_INTERVAL_IN_MINUTES 	= 1;
 	private static String PARAM_CHECKPOINT_THREAD_INTERVAL_IN_MINUTES 	= "checkpoint-interval-in-minutes";
 	
 	protected 	int 		checkpoint_interval_in_minutes;

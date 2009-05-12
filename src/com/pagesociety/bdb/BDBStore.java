@@ -786,7 +786,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				{
 					/* resolve side effects first so we still have handle to old value */
 					if(resolve_relations)
-						resolve_relationship_sidefx(parent_txn,e, UPDATE);
+						resolve_relationship_sidefx(txn,e, UPDATE);
 
 					//NOTE: the update is canonical. it gets the definitive version
 					//of the object from the store and just updates the fields you
@@ -823,7 +823,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				save_to_secondary_indexes(txn, pkey, e, update);						
 				//save_to_deep_indexes(parent_txn, pkey, e, update);
 				e.undirty();
-				parent_txn.commitNoSync();
+				txn.commitNoSync();
 				checkpoint_policy.handleCheckpoint();
 				break;
 			}catch(DatabaseException dbe)

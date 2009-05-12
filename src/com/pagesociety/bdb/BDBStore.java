@@ -777,18 +777,17 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		int retry_count = 0;
 		if(e.getId() == Entity.UNDEFINED)
 			update = false;
-			
+		Transaction txn = null;	
 		while(true)
 		{
 			try{
-				parent_txn = environment.beginTransaction(parent_txn, null);			
-
+				txn = environment.beginTransaction(parent_txn, null);
 				if (update)
 				{
 					/* resolve side effects first so we still have handle to old value */
 					if(resolve_relations)
 						resolve_relationship_sidefx(parent_txn,e, UPDATE);
-					
+
 					//NOTE: the update is canonical. it gets the definitive version
 					//of the object from the store and just updates the fields you
 					//specify. this avoids problems when relationships side effect
@@ -801,7 +800,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 					//of updating your local copy of the object. it can just
 					//do it in the db.
 
-					Entity ee = pi.getById(parent_txn, e.getId());
+					Entity ee = pi.getById(txn, e.getId());
+
 					List<String> dirty_attributes = e.getDirtyAttributes();
 					int s = dirty_attributes.size();
 					for(int i = 0;i < s;i++)
@@ -809,16 +809,18 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 						String dirty_attribute = dirty_attributes.get(i);
 						ee.setAttribute(dirty_attribute, e.getAttribute(dirty_attribute));
 					}
-					pkey = pi.saveEntity(parent_txn,ee);
+					pkey = pi.saveEntity(txn,ee);
 				} 
 				else 
 				{					
-					set_default_values(parent_txn, e);
-					pkey = pi.saveEntity(parent_txn,e);
+					set_default_values(txn, e);
+					pkey = pi.saveEntity(txn,e);
 					if(resolve_relations)
-						resolve_relationship_sidefx(parent_txn,e,INSERT);
+						resolve_relationship_sidefx(txn,e,INSERT);
+
 				}
-				save_to_secondary_indexes(parent_txn, pkey, e, update);						
+
+				save_to_secondary_indexes(txn, pkey, e, update);						
 				//save_to_deep_indexes(parent_txn, pkey, e, update);
 				e.undirty();
 				parent_txn.commitNoSync();
@@ -826,8 +828,9 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				break;
 			}catch(DatabaseException dbe)
 			{
-				abortTxn(parent_txn);
 				retry_count++;
+				System.out.println("CAUGHT EXCEPTION FROM PROMARY IDX RETRY COUNT IS "+retry_count);
+				abortTxn(txn);
 				if(retry_count >= BDBStore.MAX_DEADLOCK_RETRIES)
 				{
 					logger.error(Thread.currentThread().getId()+" FAILING HORRIBLY HERE!!!!!!!!!");
@@ -835,7 +838,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				}
 			}catch(Exception ee)
 			{
-				abortTxn(parent_txn);
+				abortTxn(txn);
 				ee.printStackTrace();
 				throw new PersistenceException("FAILED SAVING ENTITY DUE TO STRANGE EXCEPTION. SEE LOG.",ee);
 			}
@@ -4733,6 +4736,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			}
 			catch (DatabaseException e)
 			{
+				e.printStackTrace();
 				logger.error("abortTxn(Transaction)", e);
 			}
 			txn = null;

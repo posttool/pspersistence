@@ -230,7 +230,13 @@ public class BDBPrimaryIndex implements IterableIndex
 				break;
 			}
 			catch (DeadlockException de) {
-					txn.abort();
+					try{
+						txn.abort();
+					}catch(DatabaseException dbe2)
+					{
+						logger.debug("FAILED ABORTING TANSACTION IN INSERT ENTITY. DONT KNOW WHAT TO DO.");
+						dbe2.printStackTrace();
+					}
 					retry_count++;
 					logger.info("WRITE DEADLOCK OCCURRED retry count "+retry_count);
 					if (retry_count >= BDBStore.MAX_DEADLOCK_RETRIES) {

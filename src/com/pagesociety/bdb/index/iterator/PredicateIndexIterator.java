@@ -4,6 +4,7 @@ import java.util.StringTokenizer;
 
 
 import com.sleepycat.db.Cursor;
+import com.sleepycat.db.CursorConfig;
 import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
 import com.sleepycat.db.OperationStatus;
@@ -24,11 +25,14 @@ public abstract class PredicateIndexIterator extends IndexIterator
 	private final char 	 DELIM   = ':';
 	private final String DELIM_S = ":";
 	
+
 	public void open(Transaction txn,IterableIndex index,Object... user_args) throws DatabaseException
 	{
 		this.index = index;
 		this.txn   = txn;
-		index_cursor = index.getDbh().openCursor(txn, null);
+		CursorConfig cfg = new CursorConfig();
+		cfg.setReadCommitted(true);
+		index_cursor = index.getDbh().openCursor(txn, CursorConfig.READ_COMMITTED);
 		key			=	(DatabaseEntry)user_args[0];
 		data 		= 	new DatabaseEntry();
 		//original_param = IteratorUtil.cloneDatabaseEntry(key);

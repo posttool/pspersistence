@@ -5,6 +5,7 @@ import java.util.StringTokenizer;
 import com.pagesociety.bdb.BDBSecondaryIndex;
 import com.pagesociety.persistence.Query;
 import com.sleepycat.db.Cursor;
+import com.sleepycat.db.CursorConfig;
 import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
 import com.sleepycat.db.OperationStatus;
@@ -28,7 +29,7 @@ public abstract class RangeIndexIterator extends IndexIterator
 	public void open(Transaction txn,IterableIndex index,Object... user_args) throws DatabaseException
 	{
 		this.txn 	 = txn;
-		index_cursor = index.getDbh().openCursor(txn, null);
+		index_cursor = index.getDbh().openCursor(txn, CursorConfig.READ_COMMITTED);
 		key	  		 =	(DatabaseEntry)user_args[0];
 		data  		 =  new DatabaseEntry();
 		terminal_key = (DatabaseEntry)user_args[1];			

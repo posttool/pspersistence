@@ -46,6 +46,7 @@ import com.pagesociety.persistence.QueryResult;
 import com.pagesociety.persistence.Types;
 import com.sleepycat.bind.tuple.LongBinding;
 import com.sleepycat.bind.tuple.TupleOutput;
+import com.sleepycat.db.CacheFileStats;
 import com.sleepycat.db.Cursor;
 import com.sleepycat.db.Database;
 import com.sleepycat.db.DatabaseConfig;
@@ -4746,7 +4747,81 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	{
 		return environment;
 	}
+	////////////////////////////
+	///	STATS
+	///////////////////////////	
+	
+	public String getStatistics()
+	{
+		StringBuilder buf = new StringBuilder();
+		buf.append(getLockStatistics()+"\n\n");
+		buf.append(getMutexStatistics()+"\n\n");
+		buf.append(getLogStatistics()+"\n\n");
+		buf.append(getCacheStatistics()+"\n\n");
+		buf.append(getCacheFileStatistics()+"\n\n");
+		return buf.toString();
+	}
+	
+	public String getCacheStatistics()
+	{
+		try{
+			return (environment.getCacheStats((null)).toString());
+		}catch(DatabaseException dbe)
+		{
+			logger.error(dbe);
+			return "DB Exception Getting Cache Statistics";
+		}
+	}
 
+	public String getCacheFileStatistics()
+	{
+		StringBuilder b = new StringBuilder();
+		try{
+			CacheFileStats[] ff = environment.getCacheFileStats(null);
+			for(int i= 0;i < ff.length;i++)
+			{
+				b.append(ff[i].toString()+"\n");
+			}
+			return b.toString();
+		}catch(DatabaseException dbe)
+		{
+			logger.error(dbe);
+			return "DB Exception Getting Cache Statistics";
+		}
+	}
+
+	public String getLockStatistics()
+	{
+		try{
+		return (environment.getLockStats(null)).toString();
+		}catch(DatabaseException dbe)
+		{
+			logger.error(dbe);
+			return "DB Exception Getting Lock Statistics";
+		}
+	}
+	
+	public String getLogStatistics()
+	{
+		try{
+		return (environment.getLogStats(null)).toString();
+		}catch(DatabaseException dbe)
+		{
+			logger.error(dbe);
+			return "DB Exception Getting Log Statistics";
+		}
+	}
+	
+	public String getMutexStatistics()
+	{
+		try{
+			return (environment.getMutexStats(null)).toString();
+		}catch(DatabaseException dbe)
+		{
+			logger.error(dbe);
+			return "DB Exception Getting Log Statistics";
+		}
+	}
 	
 	
 

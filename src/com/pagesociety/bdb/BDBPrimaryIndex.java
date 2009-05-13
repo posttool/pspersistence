@@ -230,13 +230,7 @@ public class BDBPrimaryIndex implements IterableIndex
 				break;
 			}
 			catch (DeadlockException de) {
-					try{
-						txn.abort();
-					}catch(DatabaseException dbe2)
-					{
-						logger.debug("FAILED ABORTING TANSACTION IN INSERT ENTITY. DONT KNOW WHAT TO DO.");
-						dbe2.printStackTrace();
-					}
+					txn.abort();
 					retry_count++;
 					logger.info("WRITE DEADLOCK OCCURRED retry count "+retry_count);
 					if (retry_count >= BDBStore.MAX_DEADLOCK_RETRIES) {
@@ -259,7 +253,7 @@ public class BDBPrimaryIndex implements IterableIndex
 		while (retry_count < BDBStore.MAX_DEADLOCK_RETRIES) 
 		{
 			try {
-			    txn = _environment.beginTransaction(parent_txn, null);
+			    txn = _environment.beginTransaction(parent_txn,TransactionConfig.DEFAULT);
 				LongBinding.longToEntry(id,pkey);
 				OperationStatus op_stat = _dbh.delete(txn, pkey);
 				if(op_stat == OperationStatus.NOTFOUND)
@@ -295,7 +289,7 @@ public class BDBPrimaryIndex implements IterableIndex
 	
 	
 	static TransactionConfig GET_BY_ID_CFG = new TransactionConfig();
-	static {GET_BY_ID_CFG.setReadUncommitted(true);}		
+	static {GET_BY_ID_CFG.setReadCommitted(true);}		
 	protected Entity getById(Transaction parent_txn,long id) throws PersistenceException
 	{
 		int retry_count = 0;
@@ -311,7 +305,7 @@ public class BDBPrimaryIndex implements IterableIndex
 				DatabaseEntry key 		= new DatabaseEntry();
 				DatabaseEntry data 		= new DatabaseEntry();
 				LongBinding.longToEntry(id,key);
-				if (_dbh.get(txn, key, data, LockMode.DEFAULT) == OperationStatus.SUCCESS)
+				if (_dbh.get(txn, key, data, LockMode.READ_COMMITTED) == OperationStatus.SUCCESS)
 				{
 					//System.out.println("PIDX GET BY ID "+id+" WAS FOUND");
 					e = _binding.getEntitySetId(_def, key, data);

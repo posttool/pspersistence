@@ -236,8 +236,8 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 		while (retry_count < BDBStore.MAX_DEADLOCK_RETRIES) 
 		{
 		    try {
-				txn = environment.beginTransaction(parent_txn, null);	
-				del_cursor 			    = delete_handle.openCursor(txn, null);
+				txn = environment.beginTransaction(parent_txn, TransactionConfig.DEFAULT);	
+				del_cursor 			    = delete_handle.openCursor(txn, CursorConfig.DEFAULT);
 				op_stat 				= del_cursor.getSearchKey(pkey, data, LockMode.DEFAULT);
 				if(op_stat == OperationStatus.NOTFOUND)
 				{
@@ -270,11 +270,7 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 					}
 					return;
 				}
-				idx_cursor 			    = db_handle.openCursor(txn, null);
-				if(idx_cursor == null)
-				{
-					System.out.println("!!!! IDX CURSOR WAS NULL IN DELETE");
-				}
+				idx_cursor 			    = db_handle.openCursor(txn, CursorConfig.DEFAULT);				
 				do{
 					op_stat = idx_cursor.getSearchBoth(data, pkey, LockMode.DEFAULT);
 					if(op_stat == OperationStatus.NOTFOUND)
@@ -296,8 +292,10 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 				/* we break on succes since we are in deadlock loop */
 				break;
 		    } catch (DeadlockException de) {
-				idx_cursor.close();
-				del_cursor.close();
+				if(idx_cursor != null)
+					idx_cursor.close();
+				if(del_cursor != null)
+					del_cursor.close();
 		    	txn.abort();
 		    	retry_count++;
 	            logger.info(Thread.currentThread().getId()+" SEC INDEX DELETE DEADLOCK OCCURRED retry count "+retry_count);

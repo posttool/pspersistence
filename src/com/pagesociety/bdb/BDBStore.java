@@ -2879,11 +2879,12 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		env_cfg.setCacheSize(1048576 * 500);
 		// we need enough transactions for the number of 
 		// simultaneous threads per environment
-		env_cfg.setTxnMaxActive(1000);
+		env_cfg.setTxnMaxActive(1684);
 		// locks
-		env_cfg.setMaxLocks(2000);
-		env_cfg.setMaxLockObjects(2000);
-		env_cfg.setMaxLockers(2000);
+
+		env_cfg.setMaxLockers((20+150)*2);
+		env_cfg.setMaxLockObjects((20 * 5 + 150)*2);
+		env_cfg.setMaxLocks((20 * 250)*2);		
 
 		//env_cfg.setLockDetectMode(LockDetectMode.MINWRITE);
 		//env_cfg.setVerbose(VerboseConfig.FILEOPS_ALL, true);

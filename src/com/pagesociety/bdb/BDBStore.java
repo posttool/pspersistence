@@ -157,7 +157,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		init_field_binding();
 		init_backup_subsystem(config);
 		
-		start_transaction_reporter();
+		//start_deadlock_detector();
+		start_deadlock_monitor(1000 * 60 * 3);//3 minutes
 		logger.debug("Init - Complete");
 		
 		
@@ -567,8 +568,9 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		try{
 			
 			txn = environment.beginTransaction(null, null);
-			int tid = txn.hashCode();
-			System.out.println("ISSUING "+tid);
+			int tid = txn.getId();
+			//hashCode();
+			System.out.println(Thread.currentThread().getName()+" ISSUING "+tid);
 			Transaction r = transaction_map.put(tid, txn);
 			if(r != null)
 			{
@@ -580,7 +582,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}catch(DatabaseException e)
 		{
 			logger.error("GETTING TRANSACTION ID FAILED"+e);
-			throw new PersistenceException("startTransaction(): UNABLE TO GET NEW TRANSACTION ID");
+			throw new PersistenceException("startTransaction(): UNABLE TO GET NEW TRANSACTION ID",PersistenceException.UNABLE_TO_START_TRANSACTION);
 		}
 	}
 	
@@ -591,7 +593,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			
 			Transaction parent = get_transaction_by_transaction_id(parent_transaction_id);
 			txn = environment.beginTransaction(parent, null);
-			int tid = txn.hashCode();
+			int tid = txn.getId();
+			//hashCode();
 			System.out.println("ISSUING CHILD TXN: "+tid+" PARENT IS:"+parent_transaction_id);
 			Transaction r = transaction_map.put(tid, txn);
 			if(r != null)
@@ -614,7 +617,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		try{
 			Transaction txn = get_transaction_by_transaction_id(transaction_id);
 			txn.commitNoSync();
-			System.out.println("COMMITED "+transaction_id);
+			System.out.println(Thread.currentThread().getName()+" COMMITED "+transaction_id);
 			clear_transaction_id(transaction_id);
 		}catch(DatabaseException e)
 		{
@@ -629,7 +632,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		try{
 			Transaction txn = get_transaction_by_transaction_id(transaction_id);
 			txn.abort();
-			System.out.println("ROLLED BACK "+transaction_id);
+			System.out.println(Thread.currentThread().getName()+" ROLLED BACK "+transaction_id);
 			clear_transaction_id(transaction_id);
 		}catch(DatabaseException e)
 		{
@@ -653,7 +656,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		transaction_map.remove(transaction_id);
 	}
 	
-	private void start_transaction_reporter()
+	private void start_deadlock_detector()
 	{
 		Thread t = new Thread()
 		{	
@@ -662,14 +665,14 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				while(true)
 				{
 
-					Iterator i = transaction_map.keySet().iterator();
-					System.out.println("--TRANSACTION REPORT--");
-					while(i.hasNext())
-					{
-						System.out.println("\t--TRANSACTION REPORT-- ACTIVE TRANSACTION "+i.next());
+					//Iterator i = transaction_map.keySet().iterator();
+					//System.out.println("--TRANSACTION REPORT--");
+					//while(i.hasNext())
+					//{
+					//	System.out.println("\t--TRANSACTION REPORT-- ACTIVE TRANSACTION "+i.next());
 						
-					}
-					System.out.println("--TRANSACTION REPORT OVER--");
+					//}
+					//System.out.println("--TRANSACTION REPORT OVER--");
 					
 					System.out.println("--RUNNING DEADLOCK DETECTOR");
 					try{
@@ -681,7 +684,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 					System.out.println("--DEADLOCK DETECTOR DONE");
 
 					try {
-						Thread.sleep(1000 * 60 * 3);
+						Thread.sleep(1000 * 60 * 3);//sleep three minutes
 					} catch (InterruptedException e) {
 						
 					}					
@@ -802,7 +805,6 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 					//do it in the db.
 
 					Entity ee = pi.getById(txn, e.getId());
-
 					List<String> dirty_attributes = e.getDirtyAttributes();
 					int s = dirty_attributes.size();
 					for(int i = 0;i < s;i++)
@@ -830,13 +832,14 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			}catch(DatabaseException dbe)
 			{
 				retry_count++;
-				System.out.println("CAUGHT EXCEPTION FROM PRIMARY IDX RETRY COUNT IS "+retry_count);
+				//System.out.println(Thread.currentThread().getName()+" CAUGHT EXCEPTION FROM PRIMARY IDX RETRY COUNT IS "+retry_count);
 				abortTxn(txn);
-				if(retry_count >= BDBStore.MAX_DEADLOCK_RETRIES)
-				{
-					logger.error(Thread.currentThread().getId()+" FAILING HORRIBLY HERE!!!!!!!!!");
+				//REMEMBER one_to_many entity clone properties
+				//if(retry_count >= BDBStore.MAX_DEADLOCK_RETRIES)
+				//{
+				//	logger.error(Thread.currentThread().getId()+" FAILING HORRIBLY HERE!!!!!!!!!");
 					throw new PersistenceException("SAVE OF ENTITY "+e+" FAILED",dbe);
-				}
+				//}
 			}catch(Exception ee)
 			{
 				abortTxn(txn);
@@ -1468,34 +1471,49 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			Entity old_child_record = /* fill e */ (Entity)my_pidx.getById(ptxn,e.getId());
 			Entity old_father = (Entity)old_child_record.getAttribute(dirty_field);
 			
-			//System.out.println("OLD CHILD RECORD IS "+old_child_record.getType()+" "+old_child_record.getId());
+			//System.out.println(Thread.currentThread().getName()+" OLD CHILD RECORD IS "+old_child_record.getType()+" "+old_child_record.getId());
 		
 			if(old_father != null)
 			{
-				//System.out.println("OLD FATHER IS "+old_father.getType()+" "+old_father.getId());
+				//System.out.println(Thread.currentThread().getName()+" OLD FATHER IS "+old_father.getType()+" "+old_father.getId());
 				/* remove e from the old father */
 				old_father = /* fill */ other_pidx.getById(ptxn, old_father.getId());	
 				List<Entity> old_fathers_children = (List<Entity>)old_father.getAttribute(relation_field_to_e);
 				if (old_fathers_children==null)
 					throw new PersistenceException("RESOLVE RELATIONSHIP INTEGRITY ERROR resolve_one_to_many - father of child must have children");
 				
-				//System.out.println("\tREMOVING "+old_child_record.getType()+" "+old_child_record.getId()+" FROM "+old_father.getType()+" "+old_father.getId()+" "+relation_field_to_e);
+				//System.out.println("\t"+Thread.currentThread().getName()+" REMOVING "+old_child_record.getType()+" "+old_child_record.getId()+" FROM "+old_father.getType()+" "+old_father.getId()+" "+relation_field_to_e);
 				old_fathers_children.remove(old_child_record);
-				old_father.setAttribute(relation_field_to_e, old_fathers_children);//TODO: same list dirtying idea here..see below.without setting it wont pick up on indexes//
+				old_father.setAttribute(relation_field_to_e, old_fathers_children);//same list dirtying idea here..see below.without setting it wont pick up on indexes//
 				do_save_entity(ptxn,other_pidx, old_father,false);
 			}
 		}
 		if (operation==INSERT || operation==UPDATE)
 		{
-			Entity new_father   = (Entity)e.getAttribute(dirty_field);
+			Entity new_father  = (Entity)e.getAttribute(dirty_field);
 			if(new_father != null)
 			{
+				expand_entity(ptxn, other_pidx,new_father);
 				List<Entity> new_fathers_children = (List<Entity>)new_father.getAttribute(relation_field_to_e);
 				if(new_fathers_children == null)
 				{
 					new_fathers_children = new ArrayList<Entity>();
 				}
 				/* add e to the new relation */
+				if(new_fathers_children.contains(e))
+				{
+					try {
+						System.err.println("!!!!!!!!!!!!!!!ADDING A CHILD THAT ALREADY EXISTS!!!!!!!!!!!!!!!!!!!!");
+						System.err.println(Thread.currentThread().getName()+" CHILD "+e);
+						System.err.println(Thread.currentThread().getName()+" NEW FATHER "+new_father);
+						System.err.println(Thread.currentThread().getName()+" NEW FATHERS CHILDREN "+new_fathers_children);
+						throw new Exception();
+					} catch (Exception e1) {
+						
+						e1.printStackTrace();
+						System.exit(0);
+					}
+				}
 				new_fathers_children.add(e);
 				new_father.setAttribute(relation_field_to_e, new_fathers_children);//TODO: same list dirtying logic
 				do_save_entity(ptxn,other_pidx, new_father,false);
@@ -1759,7 +1777,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}catch(PersistenceException pe)
 		{
 			logger.error("deleteEntity(Entity)", pe);
-			throw new PersistenceException("DELETE FAILED FOR ENTITY "+e+"\n",pe);
+			throw new PersistenceException("DELETE FAILED FOR ENTITY IN TXN DELETE"+e+"\n",pe);
 		}
 		finally
 		{
@@ -1788,7 +1806,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 												"YOU CANNOT DELETE THAT WHICH DOES NOT EXIST.",PersistenceException.ENTITY_DOES_NOT_EXIST);
 			}
 			delete_from_secondary_indexes(txn, pkey, e);
-			delete_from_deep_indexes(txn, pkey, e);
+			//delete_from_deep_indexes(txn, pkey, e);
 			txn.commitNoSync();
 			/* have a more robust cache expiration policy at some point...probably
 			 * just blow away complex cache */
@@ -2640,7 +2658,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		cfg.setType(DatabaseType.HASH);
 		cfg.setAllowCreate(true);
 		cfg.setTransactional(true);
-		cfg.setReadUncommitted(true);
+		//cfg.setReadUncommitted(true);
 		return cfg;
 	}
 	
@@ -2651,7 +2669,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		cfg.setType(DatabaseType.BTREE);
 		cfg.setAllowCreate(true);
 		cfg.setTransactional(true);
-		cfg.setReadUncommitted(true);
+		//cfg.setReadUncommitted(true);
 		return cfg;
 	}	
 	
@@ -2839,7 +2857,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 						logger.debug("run() - WAKING UP");
 					}catch(Exception e)
 					{
-						logger.error("run()", e);
+						//logger.error("run()", e);
 					}	
 				}
 			}
@@ -2854,7 +2872,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		
 		_deadlock_monitor_running = false;
 		try {
-			
+			_deadlock_monitor.interrupt();
 			_deadlock_monitor.join();
 			logger.debug("stop_deadlock_monitor() - STOPPING DEADLOCK MONITOR ");
 			logger.debug("stop_deadlock_monitor() - tTOTAL DEADLOCKS " + _total_num_deadlocks);
@@ -2874,7 +2892,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		env_cfg.setInitializeLogging(true);
 		env_cfg.setRunRecovery(true);
 		env_cfg.setTransactional(true);
-		env_cfg.setErrorStream(System.err);		
+		env_cfg.setErrorStream(System.err);
+		env_cfg.setTxnTimeout(1000 * 1000 * 30);//in microseconds... 30 secconds//
 		//1 megabytes = 1 048 576 bytes
 		env_cfg.setCacheSize(1048576 * 500);
 		// we need enough transactions for the number of 
@@ -2882,7 +2901,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		env_cfg.setTxnMaxActive(1684);
 		// locks
 
-		env_cfg.setMaxLockers((20+150)*2);
+		env_cfg.setMaxLockers((20+150)*4);
 		env_cfg.setMaxLockObjects((20 * 5 + 150)*2);
 		env_cfg.setMaxLocks((20 * 250)*2);		
 
@@ -4755,6 +4774,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	public String getStatistics()
 	{
 		StringBuilder buf = new StringBuilder();
+		buf.append(getTransactionStatistics()+"\n\n");
 		buf.append(getLockStatistics()+"\n\n");
 		buf.append(getMutexStatistics()+"\n\n");
 		buf.append(getLogStatistics()+"\n\n");
@@ -4762,7 +4782,18 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		buf.append(getCacheFileStatistics()+"\n\n");
 		return buf.toString();
 	}
-	
+
+	public String getTransactionStatistics()
+	{
+		try{
+			return (environment.getTransactionStats((null)).toString());
+		}catch(DatabaseException dbe)
+		{
+			logger.error(dbe);
+			return "DB Exception Getting Transaction Statistics";
+		}
+	}
+
 	public String getCacheStatistics()
 	{
 		try{

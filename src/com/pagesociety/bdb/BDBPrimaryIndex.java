@@ -143,7 +143,7 @@ public class BDBPrimaryIndex implements IterableIndex
 	}
 
 	static TransactionConfig DELETE_CFG = new TransactionConfig();
-	static {DELETE_CFG.setReadUncommitted(true);}	
+	//static {DELETE_CFG.setReadUncommitted(false);}	
 	protected DatabaseEntry saveEntity(Transaction parent_txn,Entity e) throws DatabaseException
 	{
 
@@ -261,24 +261,26 @@ public class BDBPrimaryIndex implements IterableIndex
 				txn.commitNoSync();
 				//System.out.println(">>> LOW LEVEL DELETE OF ENTITY "+e);
 				return pkey;
-			}catch (DeadlockException de) {
-				try {
-					txn.abort();
-					retry_count++;
-					logger.error("DELETE ENTITY WRITE DEADLOCK OCCURRED retry count "+retry_count);
-					if (retry_count >= BDBStore.MAX_DEADLOCK_RETRIES) {
-						throw new PersistenceException("108 SAVE FAILED FOR ENTITY DUE TO DEADLOCKING.RETRY WAS GREATER THAN MAX_NUMBER_RETRYS.");
-					}
+			}catch (DeadlockException de) 
+			{
+			try {
+				txn.abort();
 				} catch (DatabaseException ae) {
 					throw new PersistenceException("109 DATABASE EXCEPTION.UNABLE TO ABORT TRANSACTION");
 				}
+				retry_count++;
+				logger.error("DELETE ENTITY WRITE DEADLOCK OCCURRED retry count "+retry_count);
+				if (retry_count >= BDBStore.MAX_DEADLOCK_RETRIES) {
+					throw new PersistenceException("108 DELETE FAILED FOR ENTITY DUE TO DEADLOCKING.RETRY WAS GREATER THAN MAX_NUMBER_RETRYS.");
+				}
+
 			} catch (DatabaseException dbe) {
 	    	try {
 				txn.abort();
 			} catch (DatabaseException e1) {
 				logger.error(e1);
 			}
-	        throw new PersistenceException("110 SAVE FAILED FOR ENTITY DATABASE EXCEPTION." + dbe.toString());
+	        throw new PersistenceException("110 DELETE FAILED FOR ENTITY DATABASE EXCEPTION." + dbe.toString());
 	    }
 	}//end while loop
 		
@@ -305,7 +307,8 @@ public class BDBPrimaryIndex implements IterableIndex
 				DatabaseEntry key 		= new DatabaseEntry();
 				DatabaseEntry data 		= new DatabaseEntry();
 				LongBinding.longToEntry(id,key);
-				if (_dbh.get(txn, key, data, LockMode.READ_COMMITTED) == OperationStatus.SUCCESS)
+				OperationStatus op_stat;
+				if ((op_stat = _dbh.get(txn, key, data, LockMode.READ_COMMITTED)) == OperationStatus.SUCCESS)
 				{
 					//System.out.println("PIDX GET BY ID "+id+" WAS FOUND");
 					e = _binding.getEntitySetId(_def, key, data);
@@ -317,7 +320,14 @@ public class BDBPrimaryIndex implements IterableIndex
 				}
 				else
 				{
-					//System.out.println(id+" NOT FOUND IN PIDX "+getEntityDefinition().getName());
+					System.out.println("!!!!!!!!!!!!!!!!!! "+id+" NOT FOUND IN PIDX "+getEntityDefinition().getName()+" OP STAT WAS "+op_stat);
+					try{
+						throw new Exception();
+					}catch(Exception ee)
+					{
+						ee.printStackTrace();
+						//System.exit(0);
+					}
 					txn.commit();
 					return null;
 				}
@@ -468,6 +478,7 @@ public class BDBPrimaryIndex implements IterableIndex
 		SequenceConfig sequence_config = new SequenceConfig();
 		sequence_config.setAllowCreate(true);
 		sequence_config.setInitialValue(1);
+		sequence_config.setCacheSize(1024*1000);
 		sequence_config.setAutoCommitNoSync(true);
 		_sequence = _sequence_db.openSequence(null, _sequence_key, sequence_config);
 	}
@@ -497,7 +508,7 @@ public class BDBPrimaryIndex implements IterableIndex
 		cfg.setType(DatabaseType.HASH);
 		cfg.setAllowCreate(true);
 		cfg.setTransactional(true);
-		cfg.setReadUncommitted(true);
+		//cfg.setReadUncommitted(true);
 		return cfg;
 	}
 	
@@ -507,7 +518,7 @@ public class BDBPrimaryIndex implements IterableIndex
 		cfg.setType(DatabaseType.BTREE);
 		cfg.setAllowCreate(true);
 		cfg.setTransactional(true);
-		cfg.setReadUncommitted(true);
+		//cfg.setReadUncommitted(true);
 		return cfg;
 	}	
 	

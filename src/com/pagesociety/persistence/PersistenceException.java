@@ -11,6 +11,7 @@ public class PersistenceException extends Exception
 	int code;
 	public static final int NO_SPECIFIC_CODE	  = 0x0000;
 	public static final int ENTITY_DOES_NOT_EXIST = 0x0001;
+	public static final int UNABLE_TO_START_TRANSACTION = 0x0002;
 	/**
 	 * Constructs a persistence exception with a message.
 	 * 

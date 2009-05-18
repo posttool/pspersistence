@@ -320,14 +320,14 @@ public class BDBPrimaryIndex implements IterableIndex
 				}
 				else
 				{
-					System.out.println("!!!!!!!!!!!!!!!!!! "+id+" NOT FOUND IN PIDX "+getEntityDefinition().getName()+" OP STAT WAS "+op_stat);
-					try{
-						throw new Exception();
-					}catch(Exception ee)
-					{
-						ee.printStackTrace();
+					//System.out.println("!!!!!!!!!!!!!!!!!! "+id+" NOT FOUND IN PIDX "+getEntityDefinition().getName()+" OP STAT WAS "+op_stat);
+					//try{
+					//	throw new Exception();
+					//}catch(Exception ee)
+					//{
+						//ee.printStackTrace();
 						//System.exit(0);
-					}
+					//}
 					txn.commit();
 					return null;
 				}

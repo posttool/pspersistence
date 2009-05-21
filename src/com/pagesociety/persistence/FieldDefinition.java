@@ -321,7 +321,7 @@ public class FieldDefinition implements java.io.Serializable
 		if ((type & Types.TYPE_ARRAY) == Types.TYPE_ARRAY)
 		{
 			StringBuffer buf = new StringBuffer();
-			buf.append(toStringBaseType(type)+"[]");
+			buf.append("List<"+toStringBaseType(type & ~Types.TYPE_ARRAY)+">");
 			return buf.toString();
 		}
 		else
@@ -329,6 +329,7 @@ public class FieldDefinition implements java.io.Serializable
 			return toStringBaseType(type);
 		}
 	}
+	
 
 	private static String toStringBaseType(int type)
 	{
@@ -353,9 +354,9 @@ public class FieldDefinition implements java.io.Serializable
 		case Types.TYPE_DATE:
 			return "Date";
 		case Types.TYPE_BLOB:
-			return "Blog";
+			return "Blob";
 		case Types.TYPE_REFERENCE:
-			return "Reference";
+			return "Entity";
 		default:
 			return "Unknown Type(" + type + ")";
 		}
@@ -403,9 +404,17 @@ public class FieldDefinition implements java.io.Serializable
 				return true;
 			break;
 		case Types.TYPE_REFERENCE:
-			if (o.getClass() == Entity.class)
-				return true;
-			break;
+			if (o.getClass() != Entity.class)
+				return false;
+			if(_ref_type != REF_TYPE_UNTYPED_ENTITY)
+			{
+				Entity e = (Entity)o;
+				if(!_ref_type.equals(e.getType()))
+				{
+					return false;
+				}
+			}
+			return true;
 		default:
 			break;
 		}

@@ -406,13 +406,11 @@ public class FieldDefinition implements java.io.Serializable
 		case Types.TYPE_REFERENCE:
 			if (o.getClass() != Entity.class)
 				return false;
-			if(_ref_type != REF_TYPE_UNTYPED_ENTITY)
+			if(!_ref_type.equals(REF_TYPE_UNTYPED_ENTITY))
 			{
 				Entity e = (Entity)o;
 				if(!_ref_type.equals(e.getType()))
-				{
 					return false;
-				}
 			}
 			return true;
 		default:

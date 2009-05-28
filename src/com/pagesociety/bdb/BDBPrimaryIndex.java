@@ -478,7 +478,7 @@ public class BDBPrimaryIndex implements IterableIndex
 		SequenceConfig sequence_config = new SequenceConfig();
 		sequence_config.setAllowCreate(true);
 		sequence_config.setInitialValue(1);
-		sequence_config.setCacheSize(1024*1000);
+		sequence_config.setCacheSize(1000);
 		sequence_config.setAutoCommitNoSync(true);
 		_sequence = _sequence_db.openSequence(null, _sequence_key, sequence_config);
 	}

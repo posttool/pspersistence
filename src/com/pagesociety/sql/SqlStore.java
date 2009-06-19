@@ -771,4 +771,14 @@ public class SqlStore implements PersistentStore
 
 
 
+	@Override
+	public EntityIndex getEntityIndex(String entity, String index_name)
+			throws PersistenceException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+
+
 }

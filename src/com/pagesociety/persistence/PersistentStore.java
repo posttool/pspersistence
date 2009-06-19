@@ -222,7 +222,9 @@ public interface PersistentStore
 	 * @see #addEntityIndex(String, String[], String, String, Map)
 	 */
 	public abstract List<EntityIndex> getEntityIndices(String entity)
-			throws PersistenceException;
+	throws PersistenceException;
+	public abstract EntityIndex getEntityIndex(String entity,String index_name)
+	throws PersistenceException;
 
 	/**
 	 * Adds an index to the store. This add signature indexes one field of an

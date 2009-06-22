@@ -2085,20 +2085,36 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 	}
 	
+	public EntityIndex getEntityIndex(String entity,String index_name) throws PersistenceException
+	{
+		_store_locker.enterAppThread();	
+		
+		try{
+			return do_get_entity_index(entity, index_name);
+		}catch(Exception e)
+		{
+			e.printStackTrace();
+			throw new PersistenceException("PROBLEM GETTING INDICES FOR "+entity);
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}
+	}
+	
 	//TODO: this should be added to interface at some point//
 	public EntityIndex do_get_entity_index(String entity,String index_name) 
 	{
-
-			BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(entity);
-			List<BDBSecondaryIndex> bdb_idx = entity_secondary_indexes_as_list.get(entity);
-			for (int i=0; i<bdb_idx.size(); i++)
-			{
-				EntityIndex idx = bdb_idx.get(i).getEntityIndex(); 
-				if(idx.getName().equals(index_name))
-					return idx;
-			}
+		BDBPrimaryIndex pidx = entity_primary_indexes_as_map.get(entity);
+		if(pidx == null)
 			return null;
+		BDBSecondaryIndex idx;
+		idx = entity_secondary_indexes_as_map.get(entity).get(index_name);
+		if(idx == null)
+			return null;
+		return idx.getEntityIndex();
 	}
+	//entity_secondary_indexes_as_map.get(entity).get(index_name)
 
 	public void addEntityRelationship(EntityRelationshipDefinition r) throws PersistenceException
 	{

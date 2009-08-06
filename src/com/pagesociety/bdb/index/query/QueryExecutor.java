@@ -166,7 +166,13 @@ public class QueryExecutor
 		
 		int to_index   = from_index + q.getPageSize();//to is exclusive		
 		to_index = (to_index > s )?s :to_index;  
-		QueryResult ret = new BDBQueryResult(result.getEntities().subList(from_index, to_index));
+		List<Entity> return_list = result.getEntities().subList(from_index, to_index);		
+		//we do this so that cached results are not affected by setting/masking attributes//
+		//we can rid of this maybe when we redo caching strategy
+		for(int i = 0;i < return_list.size();i++)
+			return_list.set(i,return_list.get(i).clone());
+		
+		QueryResult ret = new BDBQueryResult(return_list);
 		return (QueryResult)ret;
 	}
 	
@@ -222,7 +228,8 @@ public class QueryExecutor
 	
 	private QueryResult get_cached_results(String entity_type,String key)
 	{
-		return (QueryResult)_env.getQueryCacheManager().getQueryCache(entity_type).get(key);
+		QueryResult r =  (QueryResult)_env.getQueryCacheManager().getQueryCache(entity_type).get(key);
+		return r;
 	}
 	
 	private void put_cached_results(String entity_type,String key,QueryResult result)

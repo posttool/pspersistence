@@ -449,6 +449,15 @@ public class Entity implements Comparable<Entity>,java.io.Serializable
 		e.dirtyAllAttributes(); 
 		return e;
 	}
+	
+	public Entity clone()
+	{
+		Entity e = new Entity();
+		e._type = _type;
+		e.setId(_id);
+		e._attributes = (Map<String,Object>)((HashMap<String, Object>)_attributes).clone();
+		return e;
+	}
 
 	public boolean isLightReference()
 	{

@@ -4550,7 +4550,15 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	              }
 	              else
 	              {
-	            	  filled_refs.add(ref_pidx.getById(parent_txn,r.getId()));
+	            	  Entity r1 = ref_pidx.getById(parent_txn,r.getId());
+	            	  if (r1 != null) // if a list is refering to a reference that doesnt exist, we add the lightweight version only
+	            		  filled_refs.add(r1);
+	            	  else
+	            	  {
+	            		  filled_refs.add(r);
+	            		  logger.error("Data Integrity error: "+r.getType()+" "+r.getId()+
+	            			  " does not exist in db (parent="+e.getType()+" "+e.getId()+" field="+f.getName());
+	            	  }
 	              }
 	            }
 	           e.getAttributes().put(f.getName(), filled_refs);

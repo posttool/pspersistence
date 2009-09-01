@@ -165,6 +165,9 @@ public class MultiFieldFreeTextIndex extends AbstractMultiFieldIndex
 				String val;
 				for(;;)
 				{
+					if(words.size() == 0)
+						break;
+
 					val = ((String)words.get(0)).toLowerCase();
 					if(_stoplist.isStop(val))
 					{
@@ -173,6 +176,7 @@ public class MultiFieldFreeTextIndex extends AbstractMultiFieldIndex
 					}
 					break;
 				}
+
 				sw = words.size();
 				for(int ii = 0; ii < sw;ii++)
 				{

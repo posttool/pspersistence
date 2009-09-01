@@ -146,7 +146,7 @@ public class MultiFieldFreeTextIndex extends AbstractMultiFieldIndex
 
 		for(int i = 0;i < sf;i++)
 		{
-			String fieldname = fieldnames.get(i).toLowerCase();
+			String fieldname = fieldnames.get(i);
 			List<DatabaseEntry> l = new ArrayList<DatabaseEntry>(sw);
 			ll.add(l);
 			 /*this is for some bonehead passing null in as a param
@@ -302,9 +302,9 @@ public class MultiFieldFreeTextIndex extends AbstractMultiFieldIndex
 	
 	private void put_row(Transaction parent_txn,Entity e,DatabaseEntry key,DatabaseEntry row) throws DatabaseException
 	{
-		//String K = new String(key.getData());
-		//long ID  = LongBinding.entryToLong(new DatabaseEntry(row.getData(),0,8));
-		//int C 	 = IntegerBinding.entryToInt(new DatabaseEntry(row.getData(),8,12));
+		String K = new String(key.getData());
+		long ID  = LongBinding.entryToLong(new DatabaseEntry(row.getData(),0,8));
+		int C 	 = IntegerBinding.entryToInt(new DatabaseEntry(row.getData(),8,12));
 		//System.out.println("FREE TEXT INDEX PUTTING ROW "+K+" | "+ID+":"+C );
 		
 		Transaction txn 	= null;

@@ -87,7 +87,7 @@ public class QueryTest {
 		//concurrency_test();
 		//untyped_reference_test();
 		//simple_freetext_test();
-		//multi_freetext_test();
+		multi_freetext_test();
 		//multi_freetext_globbing_test();
 		//multi_freetext_globbing_test2();
 		//default_value_test();
@@ -421,16 +421,20 @@ public class QueryTest {
 			b = _store.saveEntity(b);
 			books[i] = b;
 			System.out.println("BOOK "+i+" IS "+b);
-			if(((String)b.getAttribute("Title")).indexOf("Huckleberry Finn") != -1)
+			if(((String)b.getAttribute("Title")).indexOf("Adventures of Huckleberry Finn") != -1)
 				finncount++;
 		}
 		
 		Query q = new Query("Book");
 		q.idx("byTitle");
-		q.textContainsPhrase(q.list("the","adventures","of","Huckleberries"));
+		//q.textContainsAny(q.list("Finn"));
+		//q.textContainsPhrase(q.list("the","adventures","of","Huckleberries"));
+		q.textContainsPhrase(q.list("the","adventures","of","Huckleberry","Finn"));
+
 	/* figure out how phrase and stemming relate */
 		t1 = System.currentTimeMillis();
 		QueryResult result = _store.executeQuery(q);
+		System.out.println("RESULT SIZE IS "+result.size());
 		t2 = System.currentTimeMillis()-t1;
 		for (Entity e : result.getEntities())
 		{
@@ -456,10 +460,10 @@ public class QueryTest {
 			
 			if(status == 1 && (((String)b.getAttribute("Title")).indexOf("Finn")!=-1 ||((String)b.getAttribute("Summary")).indexOf("one")!=-1 ) )
 			{
-				//System.out.println("INSERETING "+b);
+				System.out.println("INSERETING "+b);
 				INSERTC++;
 			}
-		//	System.out.println("BOOK "+i+" IS "+b);
+			//System.out.println("BOOK "+i+" IS "+b);
 		}
 		addMultiFieldEntityIndex("Book", new String[]{"Title","Summary","Status"}, EntityIndex.TYPE_MULTI_FIELD_FREETEXT_INDEX, "BookFreeText", null);
 		Query q = new Query("Book");

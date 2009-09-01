@@ -458,17 +458,17 @@ public class QueryTest {
 			b = _store.saveEntity(b);
 			books[i] = b;
 			
-			if(status == 1 && (((String)b.getAttribute("Title")).indexOf("Finn")!=-1 ||((String)b.getAttribute("Summary")).indexOf("one")!=-1 ) )
+			if(/*status == 1 &&*/ (((String)b.getAttribute("Title")).indexOf("Finn")!=-1 ||((String)b.getAttribute("Summary")).indexOf("one")!=-1 ) )
 			{
 				System.out.println("INSERETING "+b);
 				INSERTC++;
 			}
 			//System.out.println("BOOK "+i+" IS "+b);
 		}
-		addMultiFieldEntityIndex("Book", new String[]{"Title","Summary","Status"}, EntityIndex.TYPE_MULTI_FIELD_FREETEXT_INDEX, "BookFreeText", null);
+		addMultiFieldEntityIndex("Book", new String[]{"Title","Summary"/*,"Status"*/}, EntityIndex.TYPE_MULTI_FIELD_FREETEXT_INDEX, "BookFreeText", null);
 		Query q = new Query("Book");
 		q.idx("BookFreeText");
-		q.textContainsAny(q.list(q.list("Title","Summary"),q.list("Finn","one"),1));
+		q.textContainsAny(q.list(q.list("Title","Summary"),q.list("the")/*,1*/));
 	
 		t1 = System.currentTimeMillis();
 		QueryResult result = _store.executeQuery(q);

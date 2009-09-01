@@ -63,11 +63,11 @@ public class FREETEXTMULTIWRAPPERIterator extends IndexIterator
 				iterator = new FREETEXTCONTAINSPHRASEIndexIterator();
 				break;
 		}
-	//	List<DatabaseEntry> LL = query_key_sets.get(current_idx);
-	//	for(int i = 0;i < LL.size();i++)
-	//	{
-	//		System.out.println("QUERY KEY "+new String(LL.get(i).getData()).substring(0,LL.get(i).getSize()));
-	//	}
+		//List<DatabaseEntry> LL = query_key_sets.get(current_idx);
+		//for(int i = 0;i < LL.size();i++)
+		//{
+		//	System.out.println("QUERY KEY "+new String(LL.get(i).getData()).substring(0,LL.get(i).getSize()));
+		//}
 		iterator.open(txn,index, globbing,query_key_sets.get(current_idx));
 		return iterator;
 	}

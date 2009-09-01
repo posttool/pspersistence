@@ -16,6 +16,7 @@ public class FREETEXTCONTAINSANYIndexIterator extends SETCONTAINSANYIndexIterato
 	
 	public void open(Transaction txn,IterableIndex index,Object... user_list_of_db_entries) throws DatabaseException
 	{
+		
 		super.open(txn,index,user_list_of_db_entries);
 
 	}

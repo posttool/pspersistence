@@ -657,6 +657,8 @@ public class QueryExecutor
 		else if((iter_op & Query.FREETEXT_ITER_TYPE) == Query.FREETEXT_ITER_TYPE)
 		{
 			iter = setup_freetext_iterator(txn,idx,ismulti,iter_op,iter_node);
+			if(iter == null)//this can happen if the person passes in all stop words//there is no real way to make an iterator for nothing so we pass back null//
+				return BDBQueryResult.EMPTY_RESULT;
 		}
 		else
 		{
@@ -940,6 +942,8 @@ public class QueryExecutor
 		else if((iter_op & Query.FREETEXT_ITER_TYPE) == Query.FREETEXT_ITER_TYPE)
 		{
 			iter = setup_freetext_iterator(txn,idx,ismulti,iter_op,iter_node);
+			if(iter == null)//this can happen if the person passes in all stop words//there is no real way to make an iterator for nothing so we pass back null//
+				return EMPTY_LONG_LIST;
 		}
 		else
 		{
@@ -1365,14 +1369,19 @@ public class QueryExecutor
 				}
 				else
 				{
+					
 					multi_list_param = ((MultiFieldFreeTextIndex)idx).getQueryKeys((List<Object>)user_list_param);
+					
 				}
 	
 			}catch(DatabaseException dbe)
 			{
 				throw new PersistenceException("UNABLE TO GENERATE QUERY KEY FOR QUERY VAL");
 			}
-	
+			//this can happen when just stop words are provided/
+			if(multi_list_param.get(0).size()==0)
+				return null;
+				
 			return open_multi_field_freetext_iterator(txn,iter_type, idx, globbing, multi_list_param);			
 		}
 		else

@@ -5,6 +5,7 @@ import com.pagesociety.bdb.BDBSecondaryIndex;
 import com.sleepycat.bind.tuple.LongBinding;
 import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
+import com.sleepycat.db.OperationStatus;
 import com.sleepycat.db.Transaction;
 
 
@@ -19,7 +20,7 @@ public class SETCONTAINSANYIndexIterator extends SetIndexIterator
 	{
 		super.open(txn,index,user_list_of_db_entries);
 		prepare_iterator();
-		iter.open(txn,index,keys.get(current_key));		
+		iter.open(txn,index,keys.get(current_key));	
 		advance_to_next();
 	}
 		

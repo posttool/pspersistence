@@ -61,7 +61,8 @@ public class MultiFieldFreeTextIndex extends AbstractMultiFieldIndex
 		for(int i = 0;i < fields.size();i++)
 		{
 			FieldDefinition f = fields.get(i);
-			if(f.getBaseType() == Types.TYPE_STRING)
+			if(f.getBaseType() == Types.TYPE_STRING ||
+			   f.getBaseType() == Types.TYPE_TEXT)
 				_string_fields.add(f);
 			else
 				_equality_fields.add(f);
@@ -441,7 +442,8 @@ public class MultiFieldFreeTextIndex extends AbstractMultiFieldIndex
 	{
 		for(int i = 0;i < fields.size();i++)
 		{
-			if(fields.get(i).getType() == Types.TYPE_STRING)
+			if(fields.get(i).getType() == Types.TYPE_STRING ||
+			   fields.get(i).getType() == Types.TYPE_TEXT)
 				return;
 		}
 		throw new PersistenceException("MULTIFIELD FREE TEXT INDEX MUST CONTAIN AT LEAST ONE STRING FIELD. THE FIELD TO BE FREE TEXT INDEXED.");

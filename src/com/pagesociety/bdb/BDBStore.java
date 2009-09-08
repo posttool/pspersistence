@@ -570,7 +570,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			txn = environment.beginTransaction(null, null);
 			int tid = txn.getId();
 			//hashCode();
-			System.out.println(Thread.currentThread().getName()+" ISSUING "+tid);
+			//System.out.println(Thread.currentThread().getName()+" ISSUING "+tid);
 			Transaction r = transaction_map.put(tid, txn);
 			if(r != null)
 			{
@@ -617,7 +617,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		try{
 			Transaction txn = get_transaction_by_transaction_id(transaction_id);
 			txn.commitNoSync();
-			System.out.println(Thread.currentThread().getName()+" COMMITED "+transaction_id);
+			//System.out.println(Thread.currentThread().getName()+" COMMITED "+transaction_id);
 			clear_transaction_id(transaction_id);
 		}catch(DatabaseException e)
 		{

@@ -4701,6 +4701,9 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 	}
 	
+	
+	// TODO even though we add variable length byte arrays in enqueue,
+	// dequeue returns fixed length (128) padded with 32
 	public byte[] dequeue(String queue_name,boolean durable_commit,boolean block) throws PersistenceException
 	{
 		_store_locker.enterAppThread();
@@ -4716,6 +4719,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 	}
 
+	// TODO even though we add variable length byte arrays in enqueue,
+	// dequeue returns fixed length (128) padded with 32
 	public byte[] dequeue(int transaction_id,String queue_name,boolean durable_commit,boolean block) throws PersistenceException
 	{
 		_store_locker.enterAppThread();

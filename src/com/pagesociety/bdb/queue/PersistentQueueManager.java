@@ -242,7 +242,7 @@ public class PersistentQueueManager
 					txn.commitNoSync();
 				if(op_stat == OperationStatus.NOTFOUND)
 					return null;
-				return data.getData();
+				return fix_data(data.getData());
 				
 			}catch(DatabaseException dle)
 			{
@@ -262,6 +262,22 @@ public class PersistentQueueManager
 			}		
 		}
 		return null;//should never get here//	
+	}
+
+	// TODO bug in bdb java api
+	// cfg.setRecordPadding(0) dont work!
+	private byte[] fix_data(byte[] data)
+	{
+		int i = data.length-1;
+		while (i!=-1)
+		{
+			if (data[i]!=32)
+				break;
+			i--;
+		}
+		byte[] b = new byte[i+1];
+		System.arraycopy(data, 0, b, 0, i+1);
+		return b;
 	}
 
 	public List<String> listQueues() throws PersistenceException
@@ -307,6 +323,7 @@ public class PersistentQueueManager
 		cfg.setReadUncommitted(true);
 		cfg.setRecordLength(record_size);
 		cfg.setQueueExtentSize(record_size*records_per_extent);
+		cfg.setRecordPad(0x00);
 		return cfg;
 
 	}

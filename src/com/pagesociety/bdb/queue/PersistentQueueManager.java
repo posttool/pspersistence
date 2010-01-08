@@ -96,6 +96,8 @@ public class PersistentQueueManager
 		queue_list.add(queue_name);
 	}
 	
+	//queue extent size //
+	//http://www.oracle.com/technology/documentation/berkeley-db/xml/ref/am_conf/extentsize.html
 	public String createQueue(String name,int record_size,int num_records_in_extent) throws PersistenceException
 	{
 		if(queue_map.get(name) != null)

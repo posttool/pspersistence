@@ -1,5 +1,6 @@
 package com.pagesociety.persistence;
 
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 
@@ -58,6 +59,7 @@ public abstract class PersistenceAdapter implements PersistentStore
 	public String[] getBackupIdentifiers() throws PersistenceException{return null;}
 	public void restoreFromBackup(String backup_identifier) throws PersistenceException{}
 	public void deleteBackup(String backup_identifier) throws PersistenceException{}
+	public File getBackupAsZipFile(String backup_identifier) throws PersistenceException{return null;}
 	public String createQueue(String name,int record_size,int num_records_in_extent) throws PersistenceException{return null;}
 	public void deleteQueue(String name) throws PersistenceException{};
 	public void enqueue(String queue_name,byte[] queue_item,boolean durable_commit) throws PersistenceException{};

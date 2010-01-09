@@ -1,5 +1,6 @@
 package com.pagesociety.persistence;
 
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 
@@ -501,4 +502,5 @@ public interface PersistentStore
 	public String[] getBackupIdentifiers() throws PersistenceException;
 	public void restoreFromBackup(String backup_identifier) throws PersistenceException;
 	public void deleteBackup(String backup_identifier) throws PersistenceException;
+	public File getBackupAsZipFile(String backup_identifier) throws PersistenceException;
 }

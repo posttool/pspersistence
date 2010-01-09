@@ -18,8 +18,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import org.apache.log4j.Logger;
 
@@ -5037,14 +5040,78 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		logger.debug("RESTORE SUCCESSFUL");
 	}
 	
+	public File getBackupAsZipFile(String backup_identifier) throws PersistenceException
+	{
+		try{
+			String shortname = backup_identifier.substring(backup_identifier.lastIndexOf('\\')+1)+new Random().nextInt();
+			File f = new File(System.getProperty("java.io.tmpdir"),shortname+".zip");
+			return zip_dir(f,backup_identifier);
+		}catch(Exception e)
+		{
+			throw new PersistenceException(e.getMessage());
+		}
+	}
 	
+	 private static File zip_dir(File zipFile, String dir) throws PersistenceException
+	    {
+	        File dirObj = new File(dir);
+	        if(!dirObj.isDirectory())
+	           throw new PersistenceException(dir + " is not a directory");
+
+	        try
+	        {
+	            ZipOutputStream out = new ZipOutputStream(new FileOutputStream(zipFile));
+	            System.out.println("Creating : " + zipFile.getAbsolutePath());
+	            add_zip_dir(dirObj, out);
+	            // Complete the ZIP file
+	            out.close();
+	        }
+	        catch (IOException e)
+	        {
+	            e.printStackTrace();
+	            System.exit(1);
+	        }
+	        return zipFile;
+	    }
+
+	    private static void add_zip_dir(File dirObj, ZipOutputStream out) throws IOException
+	    {
+	        File[] files = dirObj.listFiles();
+	        byte[] tmpBuf = new byte[1024];
+
+	        for (int i=0; i<files.length; i++)
+	        {
+	            if(files[i].isDirectory())
+	            {
+	                add_zip_dir(files[i], out);
+	                continue;
+	            }
+
+	            FileInputStream in = new FileInputStream(files[i].getAbsolutePath());
+	            System.out.println(" Adding: " + files[i].getAbsolutePath());
+
+	            out.putNextEntry(new ZipEntry(files[i].getAbsolutePath()));
+
+	            // Transfer from the file to the ZIP file
+	            int len;
+	            while((len = in.read(tmpBuf)) > 0)
+	            {
+	                out.write(tmpBuf, 0, len);
+	            }
+
+	            // Complete the entry
+	            out.closeEntry();
+	            in.close();
+	        }
+	    }
+
 	public void deleteBackup(String backup_token) throws PersistenceException
 	{
 
 		try{
 			logger.debug("D E L E T I N G   B A C K U P "+backup_token);
 			File b = new File((String)backup_token);
-			b.delete();
+			delete_dir(b);
 		}catch(Exception e)
 		{
 			e.printStackTrace();
@@ -5052,9 +5119,30 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 		finally
 		{
-			logger.debug("addEntityRelationship(EntityRelationshipDefinition) - LOCKER THREAD IS EXITING");
+			logger.debug("deleteBackup(String backup_token) - LOCKER THREAD IS EXITING");
 		}	
 	}
+	
+	// Deletes all files and subdirectories under dir.
+	// Returns true if all deletions were successful.
+	// If a deletion fails, the method stops attempting to delete and returns false.
+	private static boolean delete_dir(File dir) 
+	{
+		if (dir.isDirectory())
+		{
+			String[] children = dir.list();
+				for (int i=0; i<children.length; i++)
+				{
+					boolean success = delete_dir(new File(dir, children[i]));
+					if (!success) 
+					{
+						return false;
+					}
+				}
+		}
+		// The directory is now empty so delete it
+		return dir.delete();
+	} 
 
 	//TODO: WE MIGHT INTRODUCE A TYPE PARAM HERE AT SOME POINT  TYPE_BASIC_FILE,TYPE_ZIP_FILE,TYPE_S3,TYPE_REMOTE etc
 	//at which point the backup subsystem becomes some interface that you can set instances of for the store IBDBBackupManager

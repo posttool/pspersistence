@@ -1,5 +1,6 @@
 package com.pagesociety.sql;
 
+import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -570,6 +571,11 @@ public class SqlStore implements PersistentStore
 
 	@Override
 	public String doFullBackup() throws PersistenceException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	
+	public File getBackupAsZipFile(String backup_id) throws PersistenceException {
 		// TODO Auto-generated method stub
 		return null;
 	}

@@ -4928,10 +4928,11 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			backup_dir.mkdir();
 			do_checkpoint();
 			//environment.resetLogSequenceNumber(filename, encrypted)
+			
 			File[] archive_dbs = environment.getArchiveDatabases();
 			for (int i=0; i<archive_dbs.length; i++)
 				copy(archive_dbs[i], backup_dir);
-			
+
 			File[] unneeded_archive_logs = environment.getArchiveLogFiles(false);
 			for (int i=0; i<unneeded_archive_logs.length; i++)
 				unneeded_archive_logs[i].delete();

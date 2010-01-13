@@ -4920,6 +4920,46 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 	}
 	
+	
+	private File[] get_archive_databases() throws PersistenceException
+	{
+		//TODO:
+		//this should be in a method or a local variable
+		String path = (String)_config.get(BDBStoreConfigKeyValues.KEY_STORE_ROOT_DIRECTORY);
+		File db_env_home = null;
+		File db_env_root = new File(path);
+		_db_env_props_file = new File(db_env_root, BDBConstants.ENVIRONMENT_PROPERTIES_FILE_NAME);
+		_db_env_props = new Properties();
+		try 
+		{
+			_db_env_props.load(new FileInputStream(_db_env_props_file));
+            db_env_home = new File(db_env_root, _db_env_props.getProperty(BDBConstants.KEY_ACTIVE_ENVIRONMENT));
+        } 
+		catch (Exception e) 
+		{
+			throw new PersistenceException("FAILED FINDING ACTIVE ENVIRONMENT IN BACKUP", e);
+        }
+		
+		File[] ff 			= db_env_home.listFiles();
+		List<File> f_ret 	= new ArrayList<File>(); 
+		for(int i = 0;i < ff.length;i++)
+		{
+			File f = ff[i];
+			if(f.getAbsolutePath().endsWith(".db"))
+				f_ret.add(f);
+		}
+		File[] fff = new File[f_ret.size()];
+		for(int i = 0;i < fff.length;i++)
+		{
+			File bf = f_ret.get(i);
+			System.out.println("\tADDING DB "+bf.getAbsolutePath()+" TO BACKUP.");
+			fff[i] = bf; 
+		}
+		
+		return fff;
+	}
+	
+	
 	public String do_full_backup(String backup_filename) throws PersistenceException
 	{
 		lock();
@@ -4928,8 +4968,12 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			backup_dir.mkdir();
 			do_checkpoint();
 			//environment.resetLogSequenceNumber(filename, encrypted)
-			
-			File[] archive_dbs = environment.getArchiveDatabases();
+
+			//there is a bug in bdb where this is failing in postera. i
+			//am almost certain it relates to the queue db type used
+			//in the s3 module
+			//File[] archive_dbs = environment.getArchiveDatabases();
+			File[] archive_dbs = get_archive_databases();
 			for (int i=0; i<archive_dbs.length; i++)
 				copy(archive_dbs[i], backup_dir);
 

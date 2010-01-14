@@ -4952,7 +4952,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		for(int i = 0;i < fff.length;i++)
 		{
 			File bf = f_ret.get(i);
-			System.out.println("\tADDING DB "+bf.getAbsolutePath()+" TO BACKUP.");
+			//System.out.println("\tADDING DB "+bf.getAbsolutePath()+" TO BACKUP.");
 			fff[i] = bf; 
 		}
 		

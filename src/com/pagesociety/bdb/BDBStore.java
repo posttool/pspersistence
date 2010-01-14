@@ -4991,6 +4991,14 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			EnvironmentConfig env_cfg = get_run_recovery_config(true);
 			Environment recovered_env = new Environment(backup_dir,env_cfg);
 			recovered_env.close();
+			File[] ff = backup_dir.listFiles();
+			for(int i = 0;i < ff.length;i++)
+			{
+				File f = ff[i];
+				if(f.getName().startsWith("__db"))
+					f.delete();
+			}
+			
 			return backup_dir.getAbsolutePath();
 			
 		}catch(Exception e)

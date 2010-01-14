@@ -5033,10 +5033,10 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 
 			//RUN CATASTROPHIC RECOVERY ON DATABASE ENVIRONMENT//
 			//TODO: pretty sure we need to do this here//
-			logger.debug("\tRUNNING CATASTROPHIC RECOVERY ON "+backup_dir);
-			EnvironmentConfig env_cfg = get_run_recovery_config(true);
-			Environment recovered_env = new Environment(backup_dir,env_cfg);
-			recovered_env.close();
+			//logger.debug("\tRUNNING CATASTROPHIC RECOVERY ON "+backup_dir);
+			//EnvironmentConfig env_cfg = get_run_recovery_config(true);
+			//Environment recovered_env = new Environment(backup_dir,env_cfg);
+			//recovered_env.close();
 			return full_backup_token;
 		}catch(Exception e)
 		{

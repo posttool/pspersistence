@@ -273,7 +273,7 @@ public class PersistentQueueManager
 		int i = data.length-1;
 		while (i!=-1)
 		{
-			if (data[i]!=32)
+			if (data[i]!=32 || data[i] != 0)
 				break;
 			i--;
 		}

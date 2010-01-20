@@ -5096,7 +5096,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	public File getBackupAsZipFile(String backup_identifier) throws PersistenceException
 	{
 		try{
-			String shortname = backup_identifier.substring(backup_identifier.lastIndexOf('\\')+1)+new Random().nextInt();
+			String shortname = backup_identifier.substring(backup_identifier.lastIndexOf(File.separatorChar)+1)+new Random().nextInt();
 			File f = new File(System.getProperty("java.io.tmpdir"),shortname+".zip");
 			return zip_dir(f,backup_identifier);
 		}catch(Exception e)

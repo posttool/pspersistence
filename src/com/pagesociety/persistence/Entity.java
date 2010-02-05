@@ -461,17 +461,8 @@ public class Entity implements Comparable<Entity>,java.io.Serializable
 
 	public boolean isLightReference()
 	{
-		if(getType().equals("Image"))
-		{
-			if(_attributes.size() != 1)
-			{
-				System.out.println("NOT A LITGHT REFERENCE ->"+toString());
-				System.out.println("...ATTRIBUTES SIZE IS "+_attributes.size());
-				
-			}
-		}
-		
-		return (_attributes.size() == 1);
+
+		return (_attributes == null || _attributes.size() <= 1);
 	}
 	
 	

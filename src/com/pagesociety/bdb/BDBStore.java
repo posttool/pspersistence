@@ -768,7 +768,11 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				//this is dealing with the inabily of the admin cms to send a 0 as
 				//a double
 				if(o.getClass() == Integer.class && field.getType() == Types.TYPE_DOUBLE)
+				{
 					o = new Double((Integer)o);
+					e.setAttribute(field.getName(), o);
+					return;
+				}
 				throw new PersistenceException("Field "+field.getName()+" requires a value of type ["+FieldDefinition.typeAsString(field.getType())+"]. Not "+o.getClass());
 			}
 		}

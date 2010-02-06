@@ -763,11 +763,147 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			FieldDefinition field = fields.get(i);
 			Object o = e.getAttribute(field.getName());
 			if (!field.isValidValue(o))
+			{
+				//this could either be more robust coercion or this little fix.
+				//this is dealing with the inabily of the admin cms to send a 0 as
+				//a double
+				if(o.getClass() == Integer.class && field.getType() == Types.TYPE_DOUBLE)
+					o = new Double((Integer)o);
 				throw new PersistenceException("Field "+field.getName()+" requires a value of type ["+FieldDefinition.typeAsString(field.getType())+"]. Not "+o.getClass());
+			}
 		}
 		//		
 	}
-	
+
+	//NOT SURE ABOUT THIS YET SO IT IS UNFINISHED. TALK TO DAVID ABOUT VALUE COERCION.
+	private Object get_coerced_value(FieldDefinition f,Object value) throws Exception
+	{
+		int type = f.getType();
+		switch (type)
+		{
+			case Types.TYPE_UNDEFINED:
+				return "Undefined";
+			case Types.TYPE_BOOLEAN:
+				if (value.getClass() == Integer.class)
+				{
+					int val = (Integer)value;
+					if(val == 1)
+						return true;
+					return false;
+				}
+				if (value.getClass() == Long.class)
+				{
+					long val = (Long) value;
+					if(val == 1)
+						return true;
+					return false;
+				}
+				if (value.getClass() == String.class)
+				{
+					String val = (String) value;
+					if(val.equalsIgnoreCase("true"))
+						return true;
+					else if(val.equalsIgnoreCase("false"))
+						return false;
+				}
+			case Types.TYPE_LONG:
+				if (value.getClass() == Boolean.class)
+					return true;
+				if (value.getClass() == Integer.class)
+					return true;
+				if (value.getClass() == Long.class)
+					return true;
+				if (value.getClass() == Double.class)
+					return true;
+				if (value.getClass() == Float.class)
+					return true;
+				if (value.getClass() == String.class)
+					return true;
+				if (value.getClass() == Date.class)
+					return true;
+			case Types.TYPE_INT:
+				if (value.getClass() == Boolean.class)
+					return true;
+				if (value.getClass() == Integer.class)
+					return true;
+				if (value.getClass() == Long.class)
+					return true;
+				if (value.getClass() == Double.class)
+					return true;
+				if (value.getClass() == Float.class)
+					return true;
+				if (value.getClass() == String.class)
+					return true;
+				if (value.getClass() == Date.class)
+					return true;
+			case Types.TYPE_DOUBLE:
+				if (value.getClass() == Boolean.class)
+					return true;
+				if (value.getClass() == Integer.class)
+					return true;
+				if (value.getClass() == Long.class)
+					return true;
+				if (value.getClass() == Double.class)
+					return true;
+				if (value.getClass() == Float.class)
+					return true;
+				if (value.getClass() == String.class)
+					return true;
+				if (value.getClass() == Date.class)
+					return true;
+			case Types.TYPE_FLOAT:
+				if (value.getClass() == Boolean.class)
+					return true;
+				if (value.getClass() == Integer.class)
+					return true;
+				if (value.getClass() == Long.class)
+					return true;
+				if (value.getClass() == Double.class)
+					return true;
+				if (value.getClass() == Float.class)
+					return true;
+				if (value.getClass() == String.class)
+					return true;
+				if (value.getClass() == Date.class)
+					return true;
+			case Types.TYPE_STRING:
+				if (value.getClass() == Boolean.class)
+					return true;
+				if (value.getClass() == Integer.class)
+					return true;
+				if (value.getClass() == Long.class)
+					return true;
+				if (value.getClass() == Double.class)
+					return true;
+				if (value.getClass() == Float.class)
+					return true;
+				if (value.getClass() == String.class)
+					return true;
+				if (value.getClass() == Date.class)
+					return true;
+			case Types.TYPE_TEXT:
+				if (value.getClass() == Boolean.class)
+					return true;
+				if (value.getClass() == Integer.class)
+					return true;
+				if (value.getClass() == Long.class)
+					return true;
+				if (value.getClass() == Double.class)
+					return true;
+				if (value.getClass() == Float.class)
+					return true;
+				if (value.getClass() == String.class)
+					return true;
+				if (value.getClass() == Date.class)
+					return true;
+			case Types.TYPE_DATE:
+			case Types.TYPE_BLOB:
+			case Types.TYPE_REFERENCE:
+			default:
+				
+		}
+		throw new Exception("CANT COERCE");
+	}
 	
 	protected Entity do_save_entity(Transaction parent_txn,Entity e,boolean resolve_relations) throws PersistenceException
 	{

@@ -772,6 +772,12 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 					o = new Double((Integer)o);
 					e.setAttribute(field.getName(), o);
 					return;
+				}//also coerce doubles to ints
+				else if(o.getClass() == Double.class && field.getType() == Types.TYPE_INT)
+				{
+					o = new Integer((int)((Double)o).doubleValue());
+					e.setAttribute(field.getName(), o);
+					return;
 				}
 				throw new PersistenceException("Field "+field.getName()+" requires a value of type ["+FieldDefinition.typeAsString(field.getType())+"]. Not "+o.getClass());
 			}

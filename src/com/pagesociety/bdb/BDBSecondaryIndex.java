@@ -359,6 +359,7 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 		sec_cfg.setAllowCreate(true);
 		sec_cfg.setSortedDuplicates(true);
 		sec_cfg.setTransactional(true);
+		sec_cfg.setReadUncommitted(true);
 		return sec_cfg;
 	}
 	
@@ -371,6 +372,7 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 		sec_cfg.setAllowCreate(true);
 		sec_cfg.setSortedDuplicates(true);
 		sec_cfg.setTransactional(true);
+		sec_cfg.setReadUncommitted(true);
 		return sec_cfg;
 	}
 	

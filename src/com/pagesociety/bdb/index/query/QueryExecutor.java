@@ -62,6 +62,7 @@ public class QueryExecutor
 	
 	private QueryExecutionEnvironment _env;
 	/* get params out of here so we can have one instance of the executor */
+	private Query _query;
 	private Object[] _query_params;
 	public QueryExecutor(QueryExecutionEnvironment env)
 	{
@@ -119,6 +120,7 @@ public class QueryExecutor
 		/* we want to always check and store results based on this 
 		 * cache key and the data as it is at the beginning of the query
 		 */
+		_query = q;
 		_query_params = q.getParams();//copy_params(q.getParams());
 
 		String real_cache_key 	= get_the_cache_key(q,_query_params);		
@@ -422,11 +424,13 @@ public class QueryExecutor
 	
 	private QueryResult do_iter(Transaction txn,QueryNode iter_node) throws PersistenceException
 	{
-		//want to take offset and pagesize into account//
+		// TODO make query cache happen in pages and remove special logic for cache results!!!!!
+		boolean b = (Boolean) _query.getRootNode().attributes.get(Query.ATT_CACHE_RESULTS);
+		
 		String return_type 		= (String)iter_node.attributes.get(Query.ATT_RETURN_TYPE);
 		String index_name  		= (String)iter_node.attributes.get(Query.ATT_INDEX_NAME);
-		int page_size      		= Query.ALL_RESULTS;  //(Integer)iter_node.attributes.get(Query.ATT_PAGE_SIZE);;
-		int offset		   		= 0;//(Integer)iter_node.attributes.get(Query.ATT_OFFSET);
+		int page_size      		= b || _query.isComplex() ? Query.ALL_RESULTS : _query.getPageSize();
+		int offset		   		= b || _query.isComplex() ? 0 : _query.getOffset();
 		int iter_op	   	   		= (Integer)iter_node.attributes.get(Query.ATT_ITER_OP);
 		BDBPrimaryIndex p_idx 	= _env.getPrimaryIndex(return_type);
 			

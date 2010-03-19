@@ -520,7 +520,7 @@ public class BDBPrimaryIndex implements IterableIndex
 		cfg.setType(DatabaseType.BTREE);
 		cfg.setAllowCreate(true);
 		cfg.setTransactional(true);
-		//cfg.setReadUncommitted(true);
+		cfg.setReadUncommitted(true);
 		return cfg;
 	}	
 	

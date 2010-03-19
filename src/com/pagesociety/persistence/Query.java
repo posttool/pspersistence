@@ -115,6 +115,7 @@ public class Query
 	private QueryNode    _root_node;
 	private StringBuffer _cache_key_buf;
 	private String		 _cache_key_str;
+	private boolean 	 _complex;
 	public Query(String return_type)
 	{
 		setup_root_node(return_type);
@@ -234,9 +235,15 @@ public class Query
 		_root_node.attributes.put(ATT_CACHE_RESULTS, true);				
 	}
 
-//start per block commands//	
+	public boolean isComplex()
+	{
+		return _complex;
+	}
+	
+	//start per block commands//	
 	public Query orderBy(String attribute)
 	{
+		_complex = true;
 		current_block().attributes.put(ATT_ORDER_FIELDNAME, attribute);
 		current_block().attributes.put(ATT_ORDER_ORDER, Query.ASC);
 		_cache_key_buf.append("_OB:"+attribute+(Query.ASC));
@@ -245,6 +252,7 @@ public class Query
 	
 	public Query orderBy(String attribute,int direction)
 	{
+		_complex = true;
 		current_block().attributes.put(ATT_ORDER_FIELDNAME, attribute);
 		current_block().attributes.put(ATT_ORDER_ORDER, direction);
 		_cache_key_buf.append("_OB:"+attribute+direction);
@@ -253,6 +261,7 @@ public class Query
 	
 	public Query startIntersection()
 	{
+		_complex = true;
 		QueryNode intersection = new QueryNode(NODE_TYPE_INTERSECTION);
 		copy_block_context(current_block(), intersection);
 		intersection.attributes.put(ATT_OFFSET, 0);
@@ -280,6 +289,7 @@ public class Query
 		
 	public Query startUnion()
 	{
+		_complex = true;
 		QueryNode union = new QueryNode(NODE_TYPE_UNION);
 		copy_block_context(current_block(), union);
 		union.attributes.put(ATT_OFFSET, 0);

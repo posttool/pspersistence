@@ -662,4 +662,13 @@ public class Query
 			ret.add(vals[i]);
 		return ret;
 	}
+	
+	
+	public static List<?> l(Object ...vals)
+	{
+		List<Object> ret = new ArrayList<Object>();
+		for(int i = 0;i < vals.length;i++)
+			ret.add(vals[i]);
+		return ret;
+	}
 }

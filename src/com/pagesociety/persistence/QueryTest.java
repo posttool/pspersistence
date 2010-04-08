@@ -87,7 +87,7 @@ public class QueryTest {
 		//concurrency_test();
 		//untyped_reference_test();
 		//simple_freetext_test();
-		multi_freetext_test();
+		//multi_freetext_test();
 		//multi_freetext_globbing_test();
 		//multi_freetext_globbing_test2();
 		//default_value_test();
@@ -105,7 +105,7 @@ public class QueryTest {
 		//deep_indexing_test_multi();
 		//queue_test();
 		//queue_test2();
-
+		no_cache_offset_test();
 	}
 	
 	public void id_index_test() throws PersistenceException
@@ -127,7 +127,39 @@ public class QueryTest {
 
 	
 	}
-	
+
+	public void no_cache_offset_test() throws PersistenceException
+	{
+		insert_entity_instances(500);
+		Query q;
+		QueryResult result;
+		
+		q = new Query("Author");
+		q.idx(Query.PRIMARY_IDX);
+		q.eq(Query.VAL_GLOB);
+		q.offset(0);
+		q.pageSize(10);
+		q.cacheResults(false);
+		t1 = System.currentTimeMillis();
+		result  = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		print(result);
+		System.out.println(" PREDICATE offset nocache text  EQ VAL GLOB,VAL GLOB " + t2 + " RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+
+		
+		q = new Query("Author");
+		q.idx(Query.PRIMARY_IDX);
+		q.eq(Query.VAL_GLOB);
+		q.offset(10);
+		q.pageSize(10);
+		q.cacheResults(false);
+		t1 = System.currentTimeMillis();
+		result  = _store.executeQuery(q);
+		t2 = System.currentTimeMillis()-t1;
+		print(result);
+		System.out.println(" PREDICATE offset nocache test  EQ VAL GLOB,VAL GLOB " + t2 + " RESULT SIZE=" + result.size()+" RPS:"+((float)1000/t2*result.size()));
+	}
+
 	public void dump_table(String entity_name) throws PersistenceException
 	{
 		Query q = new Query(entity_name);

@@ -142,7 +142,7 @@ public class QueryExecutor
 			//System.out.println("!!!!NO CACHE HIT!!!!! FOR "+real_cache_key);
 			t1 = System.currentTimeMillis();		
 			QueryNode root 	   = q.getRootNode();
-			result = eval(txn,root); 	
+			result 			   = eval(txn,root); 	
 			//System.out.println("INTERNAL EXECUTE TOOK "+(System.currentTimeMillis() - t1));	
 			//if(result.size() != 0)
 				//System.out.println("RESULT SIZE IS "+result.size()+" LAST ID IS "+result.getEntities().get(result.size()-1).getId());	
@@ -608,12 +608,17 @@ public class QueryExecutor
 		//take offset and pagesize into account here
 		BDBQueryResult results = new BDBQueryResult();
 		int added = 0;
+		int processed = 0;
 		try{
 			while(iter.isValid())
 			{
+				if(++processed < offset)
+					continue;
+				
 				Entity e = pidx.getByRow(iter.currentKey(),iter.currentData());
 				results.add(e);
-				if(++added == page_size)
+				//if(++added == page_size)
+				if((processed - offset) == page_size)
 				{
 					break;
 				}
@@ -672,9 +677,12 @@ public class QueryExecutor
 		//take offset and pagesize into account here
 		BDBQueryResult results = new BDBQueryResult();
 		int added = 0;
+		int processed = 0;
 		try{
 			while(iter.isValid())
 			{
+				if(++processed < offset)
+					continue;
 				//System.out.println("ABOUT TO LOOKUP...CURRENT DATA IS "+new String(iter.currentData().getData()));
 				Entity e = p_idx.getByPrimaryKey(txn,iter.currentData());
 				
@@ -686,7 +694,7 @@ public class QueryExecutor
 		//			System.out.println("ID IS "+LongBinding.entryToLong(new DatabaseEntry(tmp)));
 		//		}
 				results.add(e);
-				if(++added == page_size)
+				if((processed-offset) == page_size)
 				{
 					break;
 				}

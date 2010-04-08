@@ -113,7 +113,7 @@ public class STARTSWITHSTRINGIndexIterator extends PredicateIndexIterator /*impl
 			if((c = IteratorUtil.compareDatabaseEntries(original_param, 0, original_param_length, key, 0, original_param_length)) != 0)
 			{
 				last_opstat = OperationStatus.NOTFOUND;
-				System.out.println("FAILED VALIDATING PROSITION");
+				System.out.println("FAILED VALIDATING POSITION");
 			}
 		}		
 	}

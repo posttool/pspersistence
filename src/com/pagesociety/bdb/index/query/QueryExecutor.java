@@ -161,21 +161,26 @@ public class QueryExecutor
 			//System.out.println("!!!!CACHE HIT!!!!! FOR "+real_cache_key);
 		}
 		
-		int from_index 	= q.getOffset();
-		int s 			= result.size();
-		if(from_index > s)
-			return BDBQueryResult.EMPTY_RESULT;
+		if(cached_query)
+		{
+			int from_index 	= q.getOffset();
+			int s 			= result.size();
+			if(from_index > s)
+				return BDBQueryResult.EMPTY_RESULT;
 		
-		int to_index   = from_index + q.getPageSize();//to is exclusive		
-		to_index = (to_index > s )?s :to_index;  
-		List<Entity> return_list = result.getEntities().subList(from_index, to_index);		
-		//we do this so that cached results are not affected by setting/masking attributes//
-		//we can rid of this maybe when we redo caching strategy
-		for(int i = 0;i < return_list.size();i++)
-			return_list.set(i,return_list.get(i).clone());
+			int to_index   = from_index + q.getPageSize();//to is exclusive		
+			to_index = (to_index > s )?s :to_index;  
+			List<Entity> return_list = result.getEntities().subList(from_index, to_index);		
+			//we do this so that cached results are not affected by setting/masking attributes//
+			//we can rid of this maybe when we redo caching strategy
+			for(int i = 0;i < return_list.size();i++)
+				return_list.set(i,return_list.get(i).clone());
 		
-		QueryResult ret = new BDBQueryResult(return_list);
-		return (QueryResult)ret;
+			QueryResult cached_result = new BDBQueryResult(return_list);
+			return cached_result;
+		}
+		else
+			return result;
 	}
 	
 	public int executeCount(Transaction txn,Query q) throws PersistenceException
@@ -612,8 +617,12 @@ public class QueryExecutor
 		try{
 			while(iter.isValid())
 			{
-				if(++processed < offset)
+				//suck in up to offset
+				if((++processed) <= offset)
+				{
+					iter.next();
 					continue;
+				}
 				
 				Entity e = pidx.getByRow(iter.currentKey(),iter.currentData());
 				results.add(e);
@@ -681,9 +690,12 @@ public class QueryExecutor
 		try{
 			while(iter.isValid())
 			{
-				if(++processed < offset)
+				if(++processed <= offset)
+				{
+					iter.next();
 					continue;
-				//System.out.println("ABOUT TO LOOKUP...CURRENT DATA IS "+new String(iter.currentData().getData()));
+				}
+					//System.out.println("ABOUT TO LOOKUP...CURRENT DATA IS "+new String(iter.currentData().getData()));
 				Entity e = p_idx.getByPrimaryKey(txn,iter.currentData());
 				
 		//		if(e == null)

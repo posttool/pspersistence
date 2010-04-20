@@ -5066,6 +5066,17 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 	}
 	
+	public int removeUnusedLogFiles() throws PersistenceException
+	{
+		try{
+			logger.debug("R E M O V E   U N U S E D   L O G   F I L E S " );
+			return delete_unused_log_files();	
+		}catch(PersistenceException pe)
+		{
+			throw pe;
+		}
+	}
+	
 	
 	private File[] get_archive_databases() throws PersistenceException
 	{
@@ -5342,6 +5353,30 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		// The directory is now empty so delete it
 		return dir.delete();
 	} 
+	
+	
+	public int delete_unused_log_files() throws PersistenceException
+	{
+		lock();
+		try{
+			do_checkpoint();
+
+			File[] unneeded_archive_logs = environment.getArchiveLogFiles(false);
+			for (int i=0; i<unneeded_archive_logs.length; i++)
+				unneeded_archive_logs[i].delete();
+			return unneeded_archive_logs.length;
+			
+		}catch(Exception e)
+		{
+			e.printStackTrace();
+			throw new PersistenceException("FAILED DURING FULL BACKUP");		
+		}
+		finally
+		{
+			unlock();
+		}
+	}
+	
 
 	//TODO: WE MIGHT INTRODUCE A TYPE PARAM HERE AT SOME POINT  TYPE_BASIC_FILE,TYPE_ZIP_FILE,TYPE_S3,TYPE_REMOTE etc
 	//at which point the backup subsystem becomes some interface that you can set instances of for the store IBDBBackupManager

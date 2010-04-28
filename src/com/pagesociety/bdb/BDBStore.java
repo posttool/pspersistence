@@ -687,7 +687,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 					System.out.println("--DEADLOCK DETECTOR DONE");
 
 					try {
-						Thread.sleep(1000 * 60 * 3);//sleep three minutes
+						Thread.sleep(1000 * 60 * 30);//sleep thirty minutes
 					} catch (InterruptedException e) {
 						
 					}					

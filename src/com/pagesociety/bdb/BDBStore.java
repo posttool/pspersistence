@@ -687,7 +687,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 					System.out.println("--DEADLOCK DETECTOR DONE");
 
 					try {
-						Thread.sleep(1000 * 60 * 30);//sleep thirty minutes
+						Thread.sleep(1000 * 60 * 30);//sleep three minutes
 					} catch (InterruptedException e) {
 						
 					}					
@@ -954,6 +954,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 					//do it in the db.
 
 					Entity ee = pi.getById(txn, e.getId());
+					if(ee == null)
+						throw new PersistenceException("UPDATE FAILED. ENTITY OF TYPE "+pi.getName()+" WITH ID "+e.getId()+" DOES NOT EXIST IN STORE.");
 					List<String> dirty_attributes = e.getDirtyAttributes();
 					int s = dirty_attributes.size();
 					for(int i = 0;i < s;i++)
@@ -993,7 +995,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			{
 				abortTxn(txn);
 				ee.printStackTrace();
-				throw new PersistenceException("FAILED SAVING ENTITY DUE TO STRANGE EXCEPTION. SEE LOG.",ee);
+				throw new PersistenceException("FAILED SAVING ENTITY: "+ee.getMessage()+" SEE LOG.",ee);
 			}
 		}//end while
 

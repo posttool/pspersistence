@@ -3068,9 +3068,9 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		env_cfg.setTxnMaxActive(1684);
 		// locks
 
-		env_cfg.setMaxLockers(10000);
-		env_cfg.setMaxLockObjects(10000);
-		env_cfg.setMaxLocks(10000);		
+		env_cfg.setMaxLockers(100000);
+		env_cfg.setMaxLockObjects(100000);
+		env_cfg.setMaxLocks(100000);		
 
 		//env_cfg.setLockDetectMode(LockDetectMode.MINWRITE);
 		//env_cfg.setVerbose(VerboseConfig.FILEOPS_ALL, true);
@@ -5126,7 +5126,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			File backup_dir = new File(backup_root_directory,backup_filename);	
 			backup_dir.mkdir();
 			do_checkpoint();
-			//environment.resetLogSequenceNumber(filename, encrypted)
+
 
 			//there is a bug in bdb where this is failing in postera. i
 			//am almost certain it relates to the queue db type used
@@ -5134,8 +5134,10 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			//File[] archive_dbs = environment.getArchiveDatabases();
 			File[] archive_dbs = get_archive_databases();
 			for (int i=0; i<archive_dbs.length; i++)
+			{
 				copy(archive_dbs[i], backup_dir);
-
+				environment.resetLogSequenceNumber(backup_dir+File.separator+archive_dbs[i].getName(), false);
+			}
 			File[] unneeded_archive_logs = environment.getArchiveLogFiles(false);
 			for (int i=0; i<unneeded_archive_logs.length; i++)
 				unneeded_archive_logs[i].delete();

@@ -5137,6 +5137,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			{
 				copy(archive_dbs[i], backup_dir);
 				environment.resetLogSequenceNumber(backup_dir+File.separator+archive_dbs[i].getName(), false);
+				System.out.println("RESET LOG SEQUENCE NUMBER ON "+backup_dir+File.separator+archive_dbs[i].getName());
 			}
 			File[] unneeded_archive_logs = environment.getArchiveLogFiles(false);
 			for (int i=0; i<unneeded_archive_logs.length; i++)
@@ -5148,6 +5149,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				copy(archive_logs[i], backup_dir);
 
 			//TODO: dont know if we need to do this here//
+			/*
 			logger.debug("\tRUNNING CATASTROPHIC RECOVERY ON "+backup_dir);
 			EnvironmentConfig env_cfg = get_run_recovery_config(true);
 			Environment recovered_env = new Environment(backup_dir,env_cfg);
@@ -5159,7 +5161,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				if(f.getName().startsWith("__db"))
 					f.delete();
 			}
-			
+			*/
 			return backup_dir.getAbsolutePath();
 			
 		}catch(Exception e)

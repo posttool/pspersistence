@@ -5137,7 +5137,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			{
 				copy(archive_dbs[i], backup_dir);
 				environment.resetLogSequenceNumber(backup_dir+File.separator+archive_dbs[i].getName(), false);
-				System.out.println("RESET LOG SEQUENCE NUMBER ON "+backup_dir+File.separator+archive_dbs[i].getName());
+				//System.out.println("RESET LOG SEQUENCE NUMBER ON "+backup_dir+File.separator+archive_dbs[i].getName());
 			}
 			File[] unneeded_archive_logs = environment.getArchiveLogFiles(false);
 			for (int i=0; i<unneeded_archive_logs.length; i++)

@@ -7,14 +7,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-
 import com.pagesociety.bdb.BDBSecondaryIndex;
 import com.pagesociety.bdb.binding.FieldBinding;
 import com.pagesociety.persistence.Entity;
 import com.pagesociety.persistence.FieldDefinition;
 import com.pagesociety.persistence.PersistenceException;
 import com.pagesociety.persistence.Query;
-import com.sleepycat.bind.tuple.StringBinding;
+import com.pagesociety.persistence.Types;
 import com.sleepycat.bind.tuple.TupleOutput;
 import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
@@ -25,6 +24,9 @@ public class SimpleMultiFieldIndex extends AbstractMultiFieldIndex
 
 	public static final String NAME = SimpleMultiFieldIndex.class.getSimpleName();
 
+	public static final String ATTR_USE_LOWER_CASE 	= "use lower case";
+	
+//	private boolean _use_lower_case = false;
 
 	public SimpleMultiFieldIndex()
 	{
@@ -33,7 +35,13 @@ public class SimpleMultiFieldIndex extends AbstractMultiFieldIndex
 	
 	public void init(Map<String,Object> attributes)
 	{
-
+// LOOP & CHECK FOR STRING FIELDS
+//		Object lc = attributes.get(ATTR_USE_LOWER_CASE);
+//		if (lc!=null)
+//			if (field.getBaseType()==Types.TYPE_STRING || field.getBaseType()==Types.TYPE_TEXT)
+//				_use_lower_case = (Boolean)lc;
+//			else
+//				throw new PersistenceException("CAN'T USE LOWER CASE ATTRIBUTE ON NON TEXT INDEX");
 	}
 	
 	public void getInsertKeys(Entity e,Set<DatabaseEntry> result) throws DatabaseException
@@ -73,7 +81,17 @@ public class SimpleMultiFieldIndex extends AbstractMultiFieldIndex
 			result.add(d);
 		}
 	}
+
 	
+//	private Object transform_value(Object val, Field field)
+//	{
+//		if (_use_lower_case && val instanceof String)
+//		{
+//			return ((String)val).toLowerCase();
+//		}
+//		
+//		return val;
+//	}
 	private class deep_insert_keys_permutator_executor
 	{		
 		Entity e;
@@ -305,6 +323,11 @@ public class SimpleMultiFieldIndex extends AbstractMultiFieldIndex
 								  " with one field being able to be a range field. There are"+
 								  " no set query operations supported.It just makes a compound key"+
 								  " of all fields");
+//TODO		
+//		FieldDefinition use_lower_case = new FieldDefinition();
+//		use_lower_case.setName(ATTR_USE_LOWER_CASE);
+//		use_lower_case.setType(Types.TYPE_BOOLEAN);
+//		definition.addAttribute(use_lower_case);
 		
 
 		return definition;

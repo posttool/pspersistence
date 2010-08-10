@@ -5,11 +5,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 import com.pagesociety.bdb.BDBSecondaryIndex;
 import com.pagesociety.bdb.binding.FieldBinding;
 import com.pagesociety.persistence.Entity;
 import com.pagesociety.persistence.FieldDefinition;
+import com.pagesociety.persistence.PersistenceException;
 import com.pagesociety.persistence.Query;
+import com.pagesociety.persistence.Types;
 import com.sleepycat.bind.tuple.TupleOutput;
 import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
@@ -17,8 +20,11 @@ import com.sleepycat.db.DatabaseException;
 
 public class SimpleSingleFieldIndex extends AbstractSingleFieldIndex
 {
-	public static final String NAME 			  = SimpleSingleFieldIndex.class.getSimpleName();
-
+	public static final String NAME 			 	= SimpleSingleFieldIndex.class.getSimpleName();
+	
+	public static final String ATTR_USE_LOWER_CASE 	= "use lower case";
+	
+	private boolean _use_lower_case = false;
 	
 	public SimpleSingleFieldIndex()
 	{
@@ -26,9 +32,14 @@ public class SimpleSingleFieldIndex extends AbstractSingleFieldIndex
 	}
 	
 	
-	public void init(Map<String,Object> attributes)
+	public void init(Map<String,Object> attributes) throws PersistenceException
 	{
-		
+		Object lc = attributes.get(ATTR_USE_LOWER_CASE);
+		if (lc!=null)
+			if (field.getBaseType()==Types.TYPE_STRING || field.getBaseType()==Types.TYPE_TEXT)
+				_use_lower_case = (Boolean)lc;
+			else
+				throw new PersistenceException("CAN'T USE LOWER CASE ATTRIBUTE ON NON TEXT INDEX");
 	}
 
 	@SuppressWarnings("unchecked")
@@ -47,16 +58,24 @@ public class SimpleSingleFieldIndex extends AbstractSingleFieldIndex
 		}
 		else
 		{	
-			Object val = e.getAttribute(name);
+			Object val = transform_value(e.getAttribute(name));
 			result.add(getQueryKey(val));
 		}
+	}
+	
+	private Object transform_value(Object val)
+	{
+		if (_use_lower_case)
+			return ((String)val).toLowerCase();
+		
+		return val;
 	}
 
 	public void get_deep_insert_keys(Entity e,String[] ref_path,List<FieldDefinition>[] ref_path_types,int offset,Set<DatabaseEntry> result) throws DatabaseException
 	{
 		if(offset == ref_path.length-1)
 		{
-			Object val = e.getAttribute(ref_path[offset]);
+			Object val = transform_value(e.getAttribute(ref_path[offset]));
 			DatabaseEntry entry = getQueryKey(val);
 			//System.out.println("!!!!!!!!!!!!!!!!!!INSERTING INDEX ENTRY "+new String(entry.getData(),0,entry.getSize()));
 			result.add(entry);
@@ -112,7 +131,7 @@ public class SimpleSingleFieldIndex extends AbstractSingleFieldIndex
 		}
 		else
 		{
-			FieldBinding.valueToEntry(field.getBaseType(), val, d);
+			FieldBinding.valueToEntry(field.getBaseType(), transform_value(val), d);
 		}
 		return d;
 	}
@@ -128,7 +147,7 @@ public class SimpleSingleFieldIndex extends AbstractSingleFieldIndex
 		int type = field.getBaseType();
 		
 		for(int i=0;i < s;i++)
-			FieldBinding.doWriteValueToTuple(type, array.get(i), to);
+			FieldBinding.doWriteValueToTuple(type, transform_value(array.get(i)), to);
 
 		return new DatabaseEntry(to.getBufferBytes());
 	}
@@ -148,12 +167,10 @@ public class SimpleSingleFieldIndex extends AbstractSingleFieldIndex
 									" entity type by the specified field.Simple query support" +
 									" using =,>,<,>=,<=,STARTSWITH(String fields only),BETWEEN operators.");
 		
-		//NOTE there are no attributes here
-		//but something like this: 
-		//FieldDef use_lower_case = new FieldDef();
-		//use_lower_case.setName("use lower case");
-		//use_lower_case.setType(Types.TYPE_BOOLEAN);
-		//definition.addAttribute(use_lower_case);
+		FieldDefinition use_lower_case = new FieldDefinition();
+		use_lower_case.setName(ATTR_USE_LOWER_CASE);
+		use_lower_case.setType(Types.TYPE_BOOLEAN);
+		definition.addAttribute(use_lower_case);
 
 		return definition;
 	}

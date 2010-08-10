@@ -107,7 +107,7 @@ public abstract class AbstractMultiFieldIndex extends BDBSecondaryIndex
 		return es;
 	}
 
-	public abstract void init(Map<String,Object> attributes);
+	public abstract void init(Map<String,Object> attributes)  throws PersistenceException;
 	public abstract void getInsertKeys(Entity e,Set<DatabaseEntry> result) throws DatabaseException;
 
 }

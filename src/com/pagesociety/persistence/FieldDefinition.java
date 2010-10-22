@@ -3,6 +3,8 @@ package com.pagesociety.persistence;
 import java.util.ArrayList;
 import java.util.Date;
 
+import sun.security.action.GetBooleanAction;
+
 /**
  * Defines a field including its name, type and other attributes. Field
  * definition are used by entity definitions as well as entity indexes.
@@ -286,27 +288,17 @@ public class FieldDefinition implements java.io.Serializable
 	 */
 	public String toString()
 	{
+		
+		
 		StringBuffer buf = new StringBuffer();
-		buf.append("Field: " + getName() + " is ");
 		int type = getType();
-		if ((type & Types.TYPE_ARRAY) == Types.TYPE_ARRAY)
-		{
-			type = getBaseType();
-			buf.append("an array of ");
-			buf.append(toStringBaseType(type));
-			buf.append(" Default value: "+getDefaultValue());
-			return buf.toString();
-		}
-		else
-		{
-			String t = toStringBaseType(type);
-			buf.append("a");
-			if (t.startsWith("I"))
-				buf.append("n");
-			buf.append(" ");
-			buf.append(t);
-		}
-		buf.append(" Default value: "+getDefaultValue());
+		int basetype = getBaseType();
+		buf.append("{ "
+				+getName()+":"+toStringBaseType(basetype)+
+				(((basetype & Types.TYPE_REFERENCE) == Types.TYPE_REFERENCE)?"-"+getReferenceType():"")+
+				(((type & Types.TYPE_ARRAY) == Types.TYPE_ARRAY)?"[]":"")+
+				((getDefaultValue()!=null)?" default:"+getDefaultValue():"")+
+				" }");
 		return buf.toString();
 	}
 

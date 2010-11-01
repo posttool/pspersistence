@@ -6,6 +6,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import sun.reflect.ReflectionFactory.GetReflectionFactoryAction;
+
 /**
  * <p>
  * Represents an instance of an object to be stored or one that has been
@@ -446,9 +448,10 @@ public class Entity implements Comparable<Entity>,java.io.Serializable
 		//it wouldnt be populated with default
 		//values. see BDBStore set_default_values
 		//which is called by saveEntity
-		e.dirtyAllAttributes(); 
+		e.dirtyAllAttributes(); 	
 		return e;
 	}
+	
 	
 	public Entity clone()
 	{
@@ -456,6 +459,8 @@ public class Entity implements Comparable<Entity>,java.io.Serializable
 		e._type = _type;
 		e.setId(_id);
 		e._attributes = (Map<String,Object>)((HashMap<String, Object>)_attributes).clone();
+		//see above//
+		e.dirtyAllAttributes(); 
 		return e;
 	}
 

@@ -937,9 +937,13 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				txn = environment.beginTransaction(parent_txn, null);
 				if (update)
 				{
+					Entity db_instance = pi.getById(txn, e.getId());
+					if(db_instance == null)
+						throw new PersistenceException("UPDATE FAILED. ENTITY OF TYPE "+pi.getName()+" WITH ID "+e.getId()+" DOES NOT EXIST IN STORE.");
+					List<String> dirty_attributes = calculate_dirty_attributes(db_instance, e);
 					/* resolve side effects first so we still have handle to old value */
 					if(resolve_relations)
-						resolve_relationship_sidefx(txn,e, UPDATE);
+						resolve_relationship_sidefx(txn,e, UPDATE,dirty_attributes);
 
 					//NOTE: the update is canonical. it gets the definitive version
 					//of the object from the store and just updates the fields you
@@ -953,30 +957,31 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 					//of updating your local copy of the object. it can just
 					//do it in the db.
 
-					Entity ee = pi.getById(txn, e.getId());
-					if(ee == null)
-						throw new PersistenceException("UPDATE FAILED. ENTITY OF TYPE "+pi.getName()+" WITH ID "+e.getId()+" DOES NOT EXIST IN STORE.");
-					List<String> dirty_attributes = e.getDirtyAttributes();
+
+
+
 					int s = dirty_attributes.size();
 					for(int i = 0;i < s;i++)
 					{
 						String dirty_attribute = dirty_attributes.get(i);
-						ee.setAttribute(dirty_attribute, e.getAttribute(dirty_attribute));
+						db_instance.setAttribute(dirty_attribute, e.getAttribute(dirty_attribute));
 					}
-					pkey = pi.saveEntity(txn,ee);
+					pkey = pi.saveEntity(txn,db_instance);
+					save_to_secondary_indexes(txn, pkey, e, update,dirty_attributes);						
 				} 
 				else 
 				{					
 					set_default_values(txn, e);
 					pkey = pi.saveEntity(txn,e);
 					if(resolve_relations)
-						resolve_relationship_sidefx(txn,e,INSERT);
+						resolve_relationship_sidefx(txn,e,INSERT,RESOLVE_ALL_RELATIONS);
 
+					save_to_secondary_indexes(txn, pkey, e, update,ALL_FIELDS);						
 				}
 
-				save_to_secondary_indexes(txn, pkey, e, update);						
+
 				//save_to_deep_indexes(parent_txn, pkey, e, update);
-				e.undirty();
+				//e.undirty();
 				txn.commitNoSync();
 				checkpoint_policy.handleCheckpoint();
 				break;
@@ -1017,10 +1022,10 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		LongBinding.longToEntry(eid, pkey);
 		Transaction txn = environment.beginTransaction(parent_txn, null);
 		pi.insertEntity(txn,pkey,e);
-		save_to_secondary_indexes(txn, pkey, e, false);
-		save_to_deep_indexes(parent_txn, pkey, e, false);
+		save_to_secondary_indexes(txn, pkey, e, false,ALL_FIELDS);
+		//save_to_deep_indexes(parent_txn, pkey, e, false);
 		txn.commitNoSync();
-		e.undirty();
+		//e.undirty();
 		//we might want a more elaborate policy here//
 		if(blow_cache)
 			clean_query_cache(e.getType());
@@ -1029,16 +1034,31 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		return e;	
 	}
 	
+	private List<String> calculate_dirty_attributes(Entity db_instance,Entity update_instance)
+	{
+		List<String> dirty_fields = new ArrayList<String>();
+		List<FieldDefinition> all_fields = getEntityDefinitionProvider().provideEntityDefinition(update_instance).getFields();
+		for(int i = 0;i < all_fields.size();i++)
+		{
+			String fieldname = all_fields.get(i).getName();
+			if((update_instance.getAttribute(fieldname) == null && db_instance.getAttribute(fieldname) == null) ||
+				update_instance.getAttribute(fieldname).equals(db_instance.getAttribute(fieldname)))
+				
+				continue;
+			dirty_fields.add(fieldname);
+		}
+		return dirty_fields;
+	}
+	
 	private void set_default_values(Transaction txn,Entity e) throws PersistenceException
 	{
-		List<String> dirty_fields = e.getDirtyAttributes();
 		List<FieldDefinition> all_fields = getEntityDefinitionProvider().provideEntityDefinition(e).getFields();
 		int s = all_fields.size();
 		for(int i = 0;i < s;i++)
 		{
 			FieldDefinition f = all_fields.get(i);
 			/* don't default the ones the user has intentionally set */
-			if(dirty_fields.contains(f.getName()))
+			if(e.getAttribute(f.getName()) != null)
 				continue;
 			set_default_value(txn, e, f);
 		}		
@@ -1070,7 +1090,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	{
 		Entity val = (Entity)ev;
 		if(val.getId() == Entity.UNDEFINED)
-			e.setAttribute(field.getName(), do_save_entity(txn,val.cloneShallow(),true));	
+			e.setAttribute(field.getName(), do_save_entity(txn,val.copy(),true));	
 		else
 			e.setAttribute(field.getName(),val);	
 
@@ -1085,7 +1105,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			Entity eee = ee.get(i);
 			if(eee.getId() == Entity.UNDEFINED)
 			{
-				eee = do_save_entity(txn,eee.cloneShallow(),true);	
+				eee = do_save_entity(txn,eee.copy(),true);	
 				instance_of_default.add(eee);
 			}
 			else
@@ -1096,17 +1116,13 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		e.setAttribute(field.getName(),instance_of_default);	
 	}
 	
-	private void save_to_secondary_indexes(Transaction parent_txn,DatabaseEntry pkey,Entity e,boolean update) throws DatabaseException
+	private List<String> ALL_FIELDS = new ArrayList<String>();
+	private void save_to_secondary_indexes(Transaction parent_txn,DatabaseEntry pkey,Entity e,boolean update,List<String> dirty_fields) throws DatabaseException
 	{
 		List<BDBSecondaryIndex>sec_indexes = entity_secondary_indexes_as_list.get(e.getType());
-		List<String> dirty_fields;
-		if(update)
-			dirty_fields = e.getDirtyAttributes();
-		else
-		{
-			//get all the fields on insert//
+		if(dirty_fields == ALL_FIELDS)
 			dirty_fields = getEntityDefinitionProvider().provideEntityDefinition(e).getFieldNames();
-		}
+
 		
 		int ss 					  = dirty_fields.size();
 		int s 					  = sec_indexes.size();
@@ -1151,21 +1167,16 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	}
 
 	///BEGIN DEEP INDEX CRAP//
-	private void save_to_deep_indexes(Transaction parent_txn,DatabaseEntry pkey,Entity e,boolean update) throws DatabaseException
+	private void save_to_deep_indexes(Transaction parent_txn,DatabaseEntry pkey,Entity e,boolean update,List<String> dirty_fields) throws DatabaseException
 	{
 		String entity_type = e.getType();
 		Map<String,List<BDBSecondaryIndex>> deep_indexes_by_entity = deep_index_meta_map.get(entity_type);
 		if(deep_indexes_by_entity == null)
 			return;
 		
-		List<String> dirty_fields;
-		if(update)
-			dirty_fields = e.getDirtyAttributes();
-		else
-		{
-			//get all the fields on insert//
+		if(dirty_fields == ALL_FIELDS)
 			dirty_fields = getEntityDefinitionProvider().provideEntityDefinition(e).getFieldNames();
-		}
+
 
 		//need to get all possible indexes for dirty fields of initiaing entity
 		List<BDBSecondaryIndex> deep_indexes_by_field = new ArrayList<BDBSecondaryIndex>();
@@ -1511,10 +1522,16 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	 * @param operation The entity operation (INSERT, UPDATE, DELETE)
 	 * @throws DatabaseException
 	 */
-	private void resolve_relationship_sidefx(Transaction parent_txn,Entity e,int operation) throws PersistenceException
+	private List<String> RESOLVE_ALL_RELATIONS = new ArrayList<String>();
+	private void resolve_relationship_sidefx(Transaction parent_txn,Entity e,int operation,List<String> resolve_fields) throws PersistenceException
 	{
 		// TODO: get references only
-		List<String> dirty_fields = (operation == DELETE )? getEntityDefinitionProvider().provideEntityDefinition(e).getFieldNames() : e.getDirtyAttributes();
+		List<String> dirty_fields = null;
+		if(resolve_fields == RESOLVE_ALL_RELATIONS)
+			dirty_fields = getEntityDefinitionProvider().provideEntityDefinition(e).getReferenceFieldNames();
+		else
+			dirty_fields = resolve_fields;
+		
 		int s = dirty_fields.size();
 		
 		String dirty_fieldname = null;
@@ -1793,8 +1810,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		{
 			if(e.getId() == Entity.UNDEFINED)
 				throw new PersistenceException("SAVE DEEP IS NOT SUPPORTED. SAVE CHILD REFERENCES BEFORE SAVING THEM IN A RELATIONSHIP CONTEXT");		
-			if(e.isDirty())
-				throw new PersistenceException("CANT SAVE DIRTY MEMBER REFERENCE: "+e);
+			//if(e.isDirty())
+			//	throw new PersistenceException("CANT SAVE DIRTY MEMBER REFERENCE: "+e);
 		}
 	}
 	
@@ -1948,7 +1965,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				throw new PersistenceException("ENTITY OF TYPE "+entity_type+" DOES NOT EXIST");
 			
 			txn = environment.beginTransaction(parent_txn, null);	
-			resolve_relationship_sidefx(txn,e, DELETE);
+			resolve_relationship_sidefx(txn,e, DELETE,RESOLVE_ALL_RELATIONS);
 			pkey = pi.deleteEntity(txn,e);
 			if(pkey == null)
 			{

@@ -45,6 +45,7 @@ public class EntityDefinition implements java.io.Serializable
 	private List<FieldDefinition> _fields;//all fields for this entity
 	private List<String> _field_names;//all fields for this entity
 	private List<FieldDefinition> _reference_fields;//cache of reference fields for this entity
+	private List<String> _reference_field_names;//all fields for this entity
 	private Map<String, FieldDefinition> _fields_cache = new HashMap<String, FieldDefinition>();
 
 	/**
@@ -59,6 +60,7 @@ public class EntityDefinition implements java.io.Serializable
 		_fields = new ArrayList<FieldDefinition>();
 		_field_names = new ArrayList<String>();
 		_reference_fields = new ArrayList<FieldDefinition>();
+		_reference_field_names = new ArrayList<String>();
 		addField(new FieldDefinition(Entity.ID_ATTRIBUTE,Types.TYPE_LONG).setDefaultValue(Entity.UNDEFINED));
 	}
 
@@ -76,7 +78,10 @@ public class EntityDefinition implements java.io.Serializable
 			_fields.add(f);
 			_field_names.add(f.getName());
 			if((f.getBaseType() & Types.TYPE_REFERENCE) == Types.TYPE_REFERENCE)
+			{
 				_reference_fields.add(f);
+				_reference_field_names.add(f.getName());
+			}
 		}
 	}
 
@@ -118,6 +123,12 @@ public class EntityDefinition implements java.io.Serializable
 	public List<String> getFieldNames()
 	{
 		return _field_names;
+	}
+
+	
+	public List<String> getReferenceFieldNames()
+	{
+		return _reference_field_names;
 	}
 
 	

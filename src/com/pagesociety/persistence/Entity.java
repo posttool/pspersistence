@@ -57,7 +57,7 @@ public class Entity implements Comparable<Entity>,java.io.Serializable
 	private String _type;
 	private long _id;
 	private Map<String, Object> _attributes;
-	private List<String> _dirty_attributes;
+	//private List<String> _dirty_attributes;
 	public static final long UNDEFINED = -1;
 	public static final String ID_ATTRIBUTE = "id";
 	
@@ -88,7 +88,7 @@ public class Entity implements Comparable<Entity>,java.io.Serializable
 	{
 		_type 		= type;
 		_attributes = new HashMap<String,Object>();
-		_dirty_attributes = new ArrayList<String>();
+	//	_dirty_attributes = new ArrayList<String>();
 		setId(id);
 	}
 
@@ -180,7 +180,7 @@ public class Entity implements Comparable<Entity>,java.io.Serializable
 		setId(e._id);
 		_type = e._type;
 		_attributes = e._attributes;
-		_dirty_attributes = e._dirty_attributes;
+		//_dirty_attributes = e._dirty_attributes;
 	}
 
 	
@@ -196,8 +196,8 @@ public class Entity implements Comparable<Entity>,java.io.Serializable
 	public void setAttribute(String name, Object value)
 	{
 		_attributes.put(name, value);
-		if (!_dirty_attributes.contains(name))
-			_dirty_attributes.add(name);
+	//	if (!_dirty_attributes.contains(name))
+	//		_dirty_attributes.add(name);
 	}
 
 	/**
@@ -205,41 +205,41 @@ public class Entity implements Comparable<Entity>,java.io.Serializable
 	 * 
 	 * @return A list of field names
 	 */
-	public List<String> getDirtyAttributes()
-	{
-		return _dirty_attributes;
-	}
+	//public List<String> getDirtyAttributes()
+	//{
+	//	return _dirty_attributes;
+	//}
 	
 	/**
 	 * Sets a list of dirty attribute field names. Advanced or serialization use only! 
 	 * 
 	 * @return A list of field names
 	 */
-	public void setDirtyAttributes(List<String> attr)
-	{
-		_dirty_attributes = attr;
-	}
+	//public void setDirtyAttributes(List<String> attr)
+	//{
+	//	_dirty_attributes = attr;
+	//}
 	
-	public void dirtyAllAttributes()
-	{
-		List<String> all_attributes = new ArrayList<String>();
-		Iterator<String> i = _attributes.keySet().iterator();
-		while(i.hasNext())
-		{
-			String a = i.next();
-			if(!a.equals(ID_ATTRIBUTE))
-				all_attributes.add(a);
-		}
-		_dirty_attributes = all_attributes;
-	}
+	//public void dirtyAllAttributes()
+	//{
+	//	List<String> all_attributes = new ArrayList<String>();
+	//	Iterator<String> i = _attributes.keySet().iterator();
+	//	while(i.hasNext())
+	//	{
+	////		String a = i.next();
+	//		if(!a.equals(ID_ATTRIBUTE))
+	//			all_attributes.add(a);
+	//	}
+	//	_dirty_attributes = all_attributes;
+	//}
 
 	/**
 	 * Clears the list of dirty attributes.
 	 */
-	public void undirty()
-	{
-		_dirty_attributes.clear();
-	}
+	//public void undirty()
+	//{
+	//	_dirty_attributes.clear();
+	//}
 
 	/**
 	 * Removes the field name from the list.
@@ -247,20 +247,20 @@ public class Entity implements Comparable<Entity>,java.io.Serializable
 	 * @param name
 	 *            The name of the field.
 	 */
-	public void undirty(String name)
-	{
-		_dirty_attributes.remove(name);
-	}
+	//public void undirty(String name)
+	//{
+	//	_dirty_attributes.remove(name);
+	//}
 
 	/**
 	 * Is this entity dirty? ie Have any of the fields been set?
 	 * 
 	 * @return true if their are dirty fields, otherwise false.
 	 */
-	public boolean isDirty()
-	{
-		return (_dirty_attributes.size() != 0);
-	}
+	//public boolean isDirty()
+	//{
+	//	return (_dirty_attributes.size() != 0);
+	//}
 
 	/**
 	 * Checks if a specific attribute is dirty.
@@ -269,10 +269,10 @@ public class Entity implements Comparable<Entity>,java.io.Serializable
 	 *            The name of the field.
 	 * @return true if its dirty, otherwise false.
 	 */
-	public boolean isDirty(String name)
-	{
-		return _dirty_attributes.contains(name);
-	}
+//	public boolean isDirty(String name)
+//	{
+//		return _dirty_attributes.contains(name);
+//	}
 
 	/**
 	 * Returns the entity name and a description of its fields.
@@ -437,7 +437,7 @@ public class Entity implements Comparable<Entity>,java.io.Serializable
 		}
 	}
 	
-	public Entity cloneShallow()
+	public Entity copy()
 	{
 		Entity e = new Entity();
 		e._type = _type;
@@ -448,7 +448,7 @@ public class Entity implements Comparable<Entity>,java.io.Serializable
 		//it wouldnt be populated with default
 		//values. see BDBStore set_default_values
 		//which is called by saveEntity
-		e.dirtyAllAttributes(); 	
+		//e.dirtyAllAttributes(); 	
 		return e;
 	}
 	
@@ -459,8 +459,6 @@ public class Entity implements Comparable<Entity>,java.io.Serializable
 		e._type = _type;
 		e.setId(_id);
 		e._attributes = (Map<String,Object>)((HashMap<String, Object>)_attributes).clone();
-		//see above//
-		e.dirtyAllAttributes(); 
 		return e;
 	}
 

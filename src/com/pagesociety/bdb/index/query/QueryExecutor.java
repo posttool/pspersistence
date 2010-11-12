@@ -4,6 +4,7 @@
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
 import java.util.TreeMap;
 
@@ -125,7 +126,7 @@ public class QueryExecutor
 
 		String real_cache_key 	= get_the_cache_key(q,_query_params);		
 		String return_type 		= q.getReturnType();
-		boolean cached_query 	= q.getCacheResults();	
+		boolean cached_query 	= false;//q.getCacheResults();	
 		
 		QueryResult result = null;
 		if(cached_query)
@@ -171,6 +172,7 @@ public class QueryExecutor
 			int to_index   = from_index + q.getPageSize();//to is exclusive		
 			to_index = (to_index > s )?s :to_index;  
 			List<Entity> return_list = result.getEntities().subList(from_index, to_index);		
+			//TODO: THIS NEEDS TO CLONE DEEP IN MEMEORY IF AT ALL. NOT DEALING WITH REFERENCES AT ALL!! 11/2010
 			//we do this so that cached results are not affected by setting/masking attributes//
 			//we can rid of this maybe when we redo caching strategy
 			for(int i = 0;i < return_list.size();i++)
@@ -228,9 +230,27 @@ public class QueryExecutor
 		for(int i = 0;i < q.getNumParams();i++)
 		{
 			//System.out.println("\t"+query_params[i]);
-			param_key.append(query_params[i]);
+			Object param = query_params[i];
+			if(param.getClass() == ArrayList.class)
+			{
+				List<Object> list_vals = (ArrayList<Object>)param;
+				for(int ii = 0;ii < list_vals.size();ii++)
+					param_key.append(get_cache_key_val(list_vals.get(ii)));		
+			}
+			else
+				param_key.append(get_cache_key_val(param));
 		}
 		return q.getCacheKey()+param_key.toString();
+	}
+	
+	private static String get_cache_key_val(Object param)
+	{
+		if(param == null)
+			return "null";
+		if(param.getClass() == Entity.class)
+			return((Entity)param).getType()+":"+((Entity)param).getId();
+		else
+			return param.toString();
 	}
 	
 	private QueryResult get_cached_results(String entity_type,String key)

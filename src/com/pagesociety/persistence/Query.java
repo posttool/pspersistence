@@ -112,6 +112,7 @@ public class Query
 		public List<QueryNode> children;
 		
 	}
+	
 	private QueryNode    _root_node;
 	private StringBuffer _cache_key_buf;
 	private String		 _cache_key_str;
@@ -256,6 +257,12 @@ public class Query
 		current_block().attributes.put(ATT_ORDER_FIELDNAME, attribute);
 		current_block().attributes.put(ATT_ORDER_ORDER, direction);
 		_cache_key_buf.append("_OB:"+attribute+direction);
+		return this;
+	}
+	
+	public Query insertQueryNode(QueryNode node)
+	{
+		current_block().children.add(node);
 		return this;
 	}
 	

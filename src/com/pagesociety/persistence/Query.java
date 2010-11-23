@@ -260,9 +260,15 @@ public class Query
 		return this;
 	}
 	
-	public Query insertQueryNode(QueryNode node)
+	public Query insertQuery(Query q)
 	{
-		current_block().children.add(node);
+		QueryNode root = q.getRootNode();
+		for(int i = 0;i < root.children.size();i++)
+			current_block().children.add(root.children.get(i));
+		for(int i = 0;i < q._current_param_idx;i++)
+			define_param(q._params[i]);
+		
+		//define_param(val);
 		return this;
 	}
 	

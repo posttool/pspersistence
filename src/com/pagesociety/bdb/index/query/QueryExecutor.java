@@ -182,7 +182,25 @@ public class QueryExecutor
 			return cached_result;
 		}
 		else
-			return result;
+		{
+			if(q.isComplex())
+			{
+				
+				int from_index 	= q.getOffset();
+				int s 			= result.size();
+				if(from_index > s)
+					return BDBQueryResult.EMPTY_RESULT;
+			
+				int to_index   = from_index + q.getPageSize();//to is exclusive		
+				to_index = (to_index > s )?s :to_index;  
+				List<Entity> return_list = result.getEntities().subList(from_index, to_index);		
+				return new BDBQueryResult(return_list);
+			}
+			else
+				return result;
+	
+		}
+		
 	}
 	
 	public int executeCount(Transaction txn,Query q) throws PersistenceException
@@ -450,12 +468,12 @@ public class QueryExecutor
 	private QueryResult do_iter(Transaction txn,QueryNode iter_node) throws PersistenceException
 	{
 		// TODO make query cache happen in pages and remove special logic for cache results!!!!!
-		boolean b = (Boolean) _query.getRootNode().attributes.get(Query.ATT_CACHE_RESULTS);
+		/*boolean b = (Boolean) _query.getRootNode().attributes.get(Query.ATT_CACHE_RESULTS);*/
 		
 		String return_type 		= (String)iter_node.attributes.get(Query.ATT_RETURN_TYPE);
 		String index_name  		= (String)iter_node.attributes.get(Query.ATT_INDEX_NAME);
-		int page_size      		= b || _query.isComplex() ? Query.ALL_RESULTS : _query.getPageSize();
-		int offset		   		= b || _query.isComplex() ? 0 : _query.getOffset();
+		int page_size      		= /*b ||*/ _query.isComplex() ? Query.ALL_RESULTS : _query.getPageSize();
+		int offset		   		= /*b ||*/ _query.isComplex() ? 0 : _query.getOffset();
 		int iter_op	   	   		= (Integer)iter_node.attributes.get(Query.ATT_ITER_OP);
 		BDBPrimaryIndex p_idx 	= _env.getPrimaryIndex(return_type);
 			

@@ -3,8 +3,6 @@ package com.pagesociety.persistence;
 import java.util.ArrayList;
 import java.util.Date;
 
-import sun.security.action.GetBooleanAction;
-
 /**
  * Defines a field including its name, type and other attributes. Field
  * definition are used by entity definitions as well as entity indexes.

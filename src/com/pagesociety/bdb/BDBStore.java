@@ -1042,8 +1042,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		{
 			String fieldname = all_fields.get(i).getName();
 			if((update_instance.getAttribute(fieldname) == null && db_instance.getAttribute(fieldname) == null) ||
-				update_instance.getAttribute(fieldname).equals(db_instance.getAttribute(fieldname)))
-				
+			   (update_instance.getAttribute(fieldname) != null && update_instance.getAttribute(fieldname).equals(db_instance.getAttribute(fieldname))))				
 				continue;
 			dirty_fields.add(fieldname);
 		}

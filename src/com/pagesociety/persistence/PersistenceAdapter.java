@@ -29,6 +29,10 @@ public abstract class PersistenceAdapter implements PersistentStore
 	public List<EntityRelationshipDefinition> getEntityRelationships()throws PersistenceException{return null;}
 	public Entity saveEntity(Entity e) throws PersistenceException{return null;}
 	public Entity saveEntity(int transaction_id,Entity e) throws PersistenceException{return null;}
+	public Entity createEntity(String type,Map<String,Object> value_map) throws PersistenceException{return null;}
+	public Entity createEntity(int transaction_id,String type,Map<String,Object> value_map) throws PersistenceException{return null;}
+	public Entity updateEntity(String type,long id,Map<String,Object> value_map) throws PersistenceException{return null;}
+	public Entity updateEntity(int transaction_id,String type,long id,Map<String,Object> value_map) throws PersistenceException{return null;}
 	public void insertEntity(Entity e) throws PersistenceException{}
 	public void insertEntities(List<Entity> entities) throws PersistenceException{}
 	public Entity getEntityById(String entity, long id)throws PersistenceException{return null;}

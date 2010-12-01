@@ -332,6 +332,11 @@ public interface PersistentStore
 	 */
 	public abstract Entity saveEntity(Entity e) throws PersistenceException;
 	public abstract Entity saveEntity(int transaction_id,Entity e) throws PersistenceException;
+	
+	public abstract Entity createEntity(String type,Map<String,Object> value_map) throws PersistenceException;
+	public abstract Entity createEntity(int transaction_id,String type,Map<String,Object> value_map) throws PersistenceException;
+	public abstract Entity updateEntity(String type,long id,Map<String,Object> update_map) throws PersistenceException;
+	public abstract Entity updateEntity(int transaction_id,String type,long id,Map<String,Object> update_map) throws PersistenceException;
 	/**
 	 * Used for inserts of existing data as in a bulk restore. an entity. 
 	 * If <code>entity.id == Entity.UNDEFINED</code>, it fails. Otherwise it

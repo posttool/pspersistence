@@ -538,7 +538,8 @@ public class SqlStore implements PersistentStore
 	}
 
 
-
+	
+	
 
 	@Override
 	public void insertEntities(List<Entity> entities)
@@ -780,6 +781,46 @@ public class SqlStore implements PersistentStore
 	@Override
 	public EntityIndex getEntityIndex(String entity, String index_name)
 			throws PersistenceException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+
+
+	@Override
+	public Entity createEntity(String type, Map<String, Object> valueMap)
+			throws PersistenceException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+
+
+	@Override
+	public Entity createEntity(int transactionId, String type,
+			Map<String, Object> valueMap) throws PersistenceException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+
+
+	@Override
+	public Entity updateEntity(String type, long id,
+			Map<String, Object> updateMap) throws PersistenceException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+
+
+	@Override
+	public Entity updateEntity(int transactionId, String type, long id,
+			Map<String, Object> updateMap) throws PersistenceException {
 		// TODO Auto-generated method stub
 		return null;
 	}

@@ -752,16 +752,104 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		return e;
 	}
 
+	public Entity createEntity(String type,Map<String,Object> value_map) throws PersistenceException
+	{	
+		_store_locker.enterAppThread();
+		try
+		{
+			validate_value_map(type, value_map);
+			return do_create_entity(null, type, true, value_map);
+		}
+		catch(PersistenceException pe)
+		{
+			logger.error(pe);
+			throw pe;
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}	
+	}
+
+	public Entity createEntity(int transaction_id,String type,Map<String,Object> value_map) throws PersistenceException
+	{	
+		_store_locker.enterAppThread();
+		try
+		{
+			validate_value_map(type, value_map);
+			Transaction txn = get_transaction_by_transaction_id(transaction_id);
+			return do_create_entity(txn, type, true, value_map);
+		}
+		catch(PersistenceException pe)
+		{
+			logger.error(pe);
+			throw pe;
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}	
+	}
+
 	
+	public Entity updateEntity(String type,long id,Map<String,Object> update_map) throws PersistenceException
+	{	
+		_store_locker.enterAppThread();
+
+		try
+		{
+			return do_update_entity(null,type,id,true,update_map);
+
+		}
+		catch(PersistenceException pe)
+		{
+			logger.error(pe);
+			throw pe;
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}	
+
+	}
+
+	public Entity updateEntity(int transaction_id,String type,long id,Map<String,Object> update_map) throws PersistenceException
+	{	
+		_store_locker.enterAppThread();
+
+		try
+		{
+			validate_value_map(type,update_map);
+			Transaction txn = get_transaction_by_transaction_id(transaction_id);
+			return do_update_entity(txn,type,id,true,update_map);
+			
+		}
+		catch(PersistenceException pe)
+		{
+			logger.error(pe);
+			throw pe;
+		}
+		finally
+		{
+			_store_locker.exitAppThread();
+		}	
+
+	}
+
 	private void validate_entity(Entity e) throws PersistenceException
 	{
-		EntityDefinition def = do_get_entity_definition(e.getType());
+		validate_value_map(e.getType(), e.getAttributes());
+	}
+	
+	private void validate_value_map(String entity_type,Map<String,Object> update_map) throws PersistenceException
+	{
+		EntityDefinition def = do_get_entity_definition(entity_type);
 		List<FieldDefinition> fields = def.getFields();
 		int s = fields.size();
 		for (int i=0; i<s; i++)
 		{
 			FieldDefinition field = fields.get(i);
-			Object o = e.getAttribute(field.getName());
+			Object o = update_map.get(field.getName());
 			if (!field.isValidValue(o))
 			{
 				//this could either be more robust coercion or this little fix.
@@ -770,13 +858,13 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				if(o.getClass() == Integer.class && field.getType() == Types.TYPE_DOUBLE)
 				{
 					o = new Double((Integer)o);
-					e.setAttribute(field.getName(), o);
+					update_map.put(field.getName(), o);
 					continue;
 				}//also coerce doubles to ints
 				else if(o.getClass() == Double.class && field.getType() == Types.TYPE_INT)
 				{
 					o = new Integer((int)((Double)o).doubleValue());
-					e.setAttribute(field.getName(), o);
+					update_map.put(field.getName(), o);
 					continue;
 				}
 				throw new PersistenceException("Field "+field.getName()+" requires a value of type ["+FieldDefinition.typeAsString(field.getType())+"]. Not "+o.getClass());
@@ -915,16 +1003,15 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		throw new Exception("CANT COERCE");
 	}
 	
+	//TODO: save entity should be deprecated in favor of create and update entity//
 	protected Entity do_save_entity(Transaction parent_txn,Entity e,boolean resolve_relations) throws PersistenceException
 	{
 		BDBPrimaryIndex pi = entity_primary_indexes_as_map.get(e.getType());
 		return do_save_entity(parent_txn, pi, e,resolve_relations);
 	}
-
 	
 	protected Entity do_save_entity(Transaction parent_txn,BDBPrimaryIndex pi,Entity e, boolean resolve_relations) throws PersistenceException
 	{
-
 		boolean update 		= true;
 		DatabaseEntry pkey 	= null;
 		int retry_count = 0;
@@ -1014,6 +1101,136 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		
 	}
 	
+	protected Entity do_create_entity(Transaction parent_txn,String type, boolean resolve_relations,Map<String,Object> value_map) throws PersistenceException
+	{
+		Transaction txn 	= null;	
+		DatabaseEntry pkey 	= null;
+		int retry_count 	= 0;
+		BDBPrimaryIndex pi 	= entity_primary_indexes_as_map.get(type);
+		if(pi == null)
+			throw new PersistenceException("ENTITY OF TYPE "+type+" DOESNT EXIST IN STORE.");
+		while(true)
+		{
+			try{
+				txn = environment.beginTransaction(parent_txn, null);
+				Entity e = new Entity();
+				e.setType(type);
+				e.setId(Entity.UNDEFINED);
+				e.setAttributes(value_map);
+				set_default_values(txn, e);
+				pkey = pi.saveEntity(txn,e);
+				if(resolve_relations)
+					resolve_relationship_sidefx(txn,e,INSERT,RESOLVE_ALL_RELATIONS);
+
+				save_to_secondary_indexes(txn, pkey, e, false,ALL_FIELDS);
+				txn.commitNoSync();
+				checkpoint_policy.handleCheckpoint();
+				clean_query_cache(type);
+				return e;
+			}catch(DatabaseException dbe)
+			{
+				retry_count++;
+				//System.out.println(Thread.currentThread().getName()+" CAUGHT EXCEPTION FROM PRIMARY IDX RETRY COUNT IS "+retry_count);
+				abortTxn(txn);
+				//REMEMBER one_to_many entity clone properties
+				//if(retry_count >= BDBStore.MAX_DEADLOCK_RETRIES)
+				//{
+				//	logger.error(Thread.currentThread().getId()+" FAILING HORRIBLY HERE!!!!!!!!!");
+					throw new PersistenceException("CREATE OF ENTITY "+type+" "+value_map+" FAILED",dbe);
+				//}
+			}catch(Exception ee)
+			{
+				abortTxn(txn);
+				ee.printStackTrace();
+				throw new PersistenceException("FAILED CREATING ENTITY: "+ee.getMessage()+" SEE LOG.",ee);
+			}
+		}//end while
+	}
+	
+	protected Entity do_update_entity(Transaction parent_txn,String type,long id, boolean resolve_relations,Map<String,Object> update_map) throws PersistenceException
+	{		
+		Transaction txn 	= null;	
+		DatabaseEntry pkey 	= null;
+		int retry_count 	= 0;
+		BDBPrimaryIndex pi 	= entity_primary_indexes_as_map.get(type);
+		if(pi == null)
+			throw new PersistenceException("ENTITY OF TYPE "+type+" DOESNT EXIST IN STORE.");
+		Entity db_instance  = null;
+		while(true)
+		{
+			try{
+				txn = environment.beginTransaction(parent_txn, null);
+				db_instance = pi.getById(txn, id);
+				if(db_instance == null)
+					throw new PersistenceException("UPDATE FAILED. ENTITY OF TYPE "+pi.getName()+" WITH ID "+id+" DOES NOT EXIST IN STORE.");
+				List<String> dirty_attributes = new ArrayList<String>();
+				Iterator<String> it = update_map.keySet().iterator();
+				while(it.hasNext())
+					dirty_attributes.add(it.next());
+				/* resolve side effects first so we still have handle to old value */
+				if(resolve_relations)
+				{
+					//the relationship subsystem is very entity based so we make
+					//an entity struct out of the update_kvp in order to minimize
+					//code changes for now. why are we doing all this stuff in the first place
+					//since we don't have dirty fields anymore on the backend.
+					//we need to migrate towards an explicit update so that
+					//if we mask out some fields on return or something that
+					//they dont get overwritten when someone saves the entity back.
+					//we force the application to be explicit with regards to updates
+					Entity e = new Entity();
+					e.setType(type);
+					e.setId(id);
+					e.setAttributes(update_map);
+					resolve_relationship_sidefx(txn,e, UPDATE,dirty_attributes);
+					//could be side effected//
+					db_instance = pi.getById(txn, id);
+				
+				}
+				
+				//NOTE: the update is canonical. it gets the definitive version
+				//of the object from the store and just updates the fields you
+				//specify. this avoids problems when relationships side effect
+				//an entity but the local version you have in the function 
+				//still has the old value and it has not been dirtied. this
+				//results in that old value getting inserted back into the primary
+				//table even though relationships may have side effected it.
+				//in essence this causes what ever the relationship did to
+				//your object is undone since the relationship has no way
+				//of updating your local copy of the object. it can just
+				//do it in the db.
+		
+				int s = dirty_attributes.size();
+				for(int i = 0;i < s;i++)
+				{
+					String dirty_attribute = dirty_attributes.get(i);
+					db_instance.setAttribute(dirty_attribute, update_map.get(dirty_attribute));
+				}
+				pkey = pi.saveEntity(txn,db_instance);
+				save_to_secondary_indexes(txn, pkey, db_instance, true,dirty_attributes);	
+				txn.commitNoSync();
+				checkpoint_policy.handleCheckpoint();
+				clean_query_cache(type);
+				return db_instance;
+			}catch(DatabaseException dbe)
+			{
+				retry_count++;
+				//System.out.println(Thread.currentThread().getName()+" CAUGHT EXCEPTION FROM PRIMARY IDX RETRY COUNT IS "+retry_count);
+				abortTxn(txn);
+				//REMEMBER one_to_many entity clone properties
+				//if(retry_count >= BDBStore.MAX_DEADLOCK_RETRIES)
+				//{
+				//	logger.error(Thread.currentThread().getId()+" FAILING HORRIBLY HERE!!!!!!!!!");
+					throw new PersistenceException("SAVE OF ENTITY "+db_instance+" FAILED",dbe);
+				//}
+			}catch(Exception ee)
+			{
+				abortTxn(txn);
+				ee.printStackTrace();
+				throw new PersistenceException("FAILED SAVING ENTITY: "+ee.getMessage()+" SEE LOG.",ee);
+			}
+		}//end while
+	}
 	
 	protected Entity do_insert_entity(Transaction parent_txn,BDBPrimaryIndex pi,Entity e,boolean blow_cache,boolean checkpoint) throws DatabaseException
 	{
@@ -4215,7 +4432,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	{
 		_store_locker.enterLockerThread();
 		try{
-			logger.debug("truncate(String, boolean) - TUNCATE ENTITY " + entity_type);
+			logger.debug("truncate(String, boolean) - TRUNCATE ENTITY " + entity_type);
 			return do_truncate_entity(entity_type,count);
 		}catch(PersistenceException pe)
 		{

@@ -170,18 +170,19 @@ public class BDBPrimaryIndex implements IterableIndex
 					//throw new DatabaseException("PRIMARY KEY CONSTRAINT "+e.getType()+":"+seqnum+" ALREADY EXISTS IN DB");
 					//NOTE: if we ever change to hashtable DB the last
 					//will not necessarily have the greatest id!
-					System.out.println("BDBPRimaryIndex. There was a pkey collision for seqnum "+seqnum+" fixing sequence num for "+e.getType());
+					System.out.println("!! BDBPRimaryIndex. There was a pkey collision for seqnum "+seqnum+" fixing sequence num for "+e.getType());
 					Cursor cursor 		= _dbh.openCursor(txn, CursorConfig.READ_UNCOMMITTED);
 					DatabaseEntry key 	= new DatabaseEntry();
 					DatabaseEntry data 	= new DatabaseEntry();
 					cursor.getLast(key, data, LockMode.READ_UNCOMMITTED);
 					long max_id = LongBinding.entryToLong(key);
-					while(max_id+1 > 0 )
+					System.out.println("!! max used is for "+e.getType()+" is "+max_id);
+					while(max_id > 0 )
 					{
 						seqnum = _sequence.get(null, 1);
 						max_id--;
 					}
-					System.out.println("sequence for "+e.getType()+" is now set to "+seqnum);
+					System.out.println("!! sequence for "+e.getType()+" is now set to "+seqnum);
 					LongBinding.longToEntry(seqnum, pkey);
 					cursor.close();
 				}

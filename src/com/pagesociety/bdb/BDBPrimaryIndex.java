@@ -159,6 +159,8 @@ public class BDBPrimaryIndex implements IterableIndex
 				seqnum = _sequence.get(null, 1);
 				LongBinding.longToEntry(seqnum, pkey);//we dont use valueToEntry because we dont want the
 													//nullflag first
+				if(_dbh.exists(txn, pkey) != OperationStatus.NOTFOUND)
+					throw new DatabaseException("PRIMARY KEY CONSTRAINT "+e.getType()+":"+seqnum+" ALREADY EXISTS IN DB");
 			}
 			else
 			{
@@ -209,6 +211,7 @@ public class BDBPrimaryIndex implements IterableIndex
 		{
 			try{
 				txn = _environment.beginTransaction(parent_txn, null);		
+
 				DatabaseEntry data = new DatabaseEntry();
 				try{
 					_binding.entityToEntry(e, data);

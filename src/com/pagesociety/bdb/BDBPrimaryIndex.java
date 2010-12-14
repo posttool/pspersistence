@@ -15,6 +15,7 @@ import com.pagesociety.persistence.QueryResult;
 import com.pagesociety.persistence.Types;
 import com.sleepycat.bind.tuple.LongBinding;
 import com.sleepycat.db.Cursor;
+import com.sleepycat.db.CursorConfig;
 import com.sleepycat.db.Database;
 import com.sleepycat.db.DatabaseConfig;
 import com.sleepycat.db.DatabaseEntry;
@@ -158,9 +159,32 @@ public class BDBPrimaryIndex implements IterableIndex
 			{
 				seqnum = _sequence.get(null, 1);
 				LongBinding.longToEntry(seqnum, pkey);//we dont use valueToEntry because we dont want the
-													//nullflag first
-				if(_dbh.exists(txn, pkey) != OperationStatus.NOTFOUND)
-					throw new DatabaseException("PRIMARY KEY CONSTRAINT "+e.getType()+":"+seqnum+" ALREADY EXISTS IN DB");
+
+				//if(_dbh.exists(txn, pkey) != OperationStatus.NOTFOUND)
+				//NOTE: the thing above is what we want to do but there is
+				//a bug in 4.7 where exists doesn't work from java binding..
+				//http://forums.oracle.com/forums/thread.jspa?messageID=3733505
+				//..so we will use a get instead for now
+				if(_dbh.get(txn, pkey,new DatabaseEntry(),LockMode.READ_UNCOMMITTED) != OperationStatus.NOTFOUND)
+				{
+					//throw new DatabaseException("PRIMARY KEY CONSTRAINT "+e.getType()+":"+seqnum+" ALREADY EXISTS IN DB");
+					//NOTE: if we ever change to hashtable DB the last
+					//will not necessarily have the greatest id!
+					System.out.println("BDBPRimaryIndex. There was a pkey collision for seqnum "+seqnum+" fixing sequence num for "+e.getType());
+					Cursor cursor 		= _dbh.openCursor(txn, CursorConfig.READ_UNCOMMITTED);
+					DatabaseEntry key 	= new DatabaseEntry();
+					DatabaseEntry data 	= new DatabaseEntry();
+					cursor.getLast(key, data, LockMode.READ_UNCOMMITTED);
+					long max_id = LongBinding.entryToLong(key);
+					while(max_id+1 > 0 )
+					{
+						seqnum = _sequence.get(null, 1);
+						max_id--;
+					}
+					System.out.println("sequence for "+e.getType()+" is now set to "+seqnum);
+					LongBinding.longToEntry(seqnum, pkey);
+					cursor.close();
+				}
 			}
 			else
 			{

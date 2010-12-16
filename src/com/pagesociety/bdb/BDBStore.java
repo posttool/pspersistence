@@ -4941,7 +4941,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	            	  {
 	            		  filled_refs.add(r);
 	            		  logger.error("Data Integrity error: "+r.getType()+" "+r.getId()+
-	            			  " does not exist in db (parent="+e.getType()+" "+e.getId()+" field="+f.getName());
+	            			  " does not exist in db (parent="+e.getType()+" "+e.getId()+" field="+f.getName()+")");
 	            	  }
 	              }
 	            }

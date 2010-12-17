@@ -4372,28 +4372,27 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	private EntityIndex delete_entity_index_from_db(String entity,EntityIndex idx) throws DatabaseException
 	{
 		System.out.println("DELETING "+entity+" "+idx.getName()+" FROM DB");
-		DatabaseEntry key  = new DatabaseEntry();
-		FieldBinding.valueToEntry(Types.TYPE_STRING, entity, key);
 		
+		DatabaseEntry key  = new DatabaseEntry();
+		Cursor cursor = null;
+		FieldBinding.valueToEntry(Types.TYPE_STRING, entity, key);
 		Transaction txn = null;
 		try{
 
 			txn = environment.beginTransaction(null, null);
-			Cursor cursor 	   = entity_index_db.openCursor(txn, null);
+			cursor 	   = entity_index_db.openCursor(txn, null);
 			DatabaseEntry data = new DatabaseEntry();
 			OperationStatus op_stat = cursor.getSearchKey(key, data, LockMode.DEFAULT);
 			if(op_stat == OperationStatus.NOTFOUND)
 				throw new DatabaseException("NOTFOUND: COULDNT DELETE IDX "+entity+" "+idx.getName()+" BECAUSE THERE ARE NO INDEXES FOR "+entity);			
 
-			while((op_stat = cursor.getNextDup(key, data, LockMode.DEFAULT)) == OperationStatus.SUCCESS);
+			while((op_stat = cursor.getNextDup(key, data, LockMode.DEFAULT)) == OperationStatus.SUCCESS)
 			{
 				EntityIndex ei = (EntityIndex)entity_index_binding.entryToObject(data);
 				System.out.println("EI IS "+ei.getName()+" "+idx.getName());
 				if(ei.getName().equals(idx.getName()))
 				{
 					op_stat = cursor.delete();
-					cursor.close();
-					txn.commit();
 					if(op_stat != OperationStatus.SUCCESS)
 						throw new DatabaseException("DELETE FAILED: COULDNT DELETE IDX "+entity+" "+idx.getName());
 					return ei;
@@ -4404,15 +4403,14 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			
 		}catch(DatabaseException dbe)
 		{
-			try{
-				txn.abort();
-			}catch(Exception e)
-			{
-				e.printStackTrace();
-			}
 			dbe.printStackTrace();
 			throw new DatabaseException("DATABASE FAILURE FOR DELETE ENTITY INDEX");
 		}
+		finally{
+			
+			cursor.close();
+			txn.commit();
+		}		
 		return null;
 	}
 	

@@ -315,7 +315,7 @@ public class SingleFieldFreeTextIndex extends AbstractSingleFieldIndex
 		String K = new String(key.getData());
 		long ID  = LongBinding.entryToLong(new DatabaseEntry(row.getData(),0,8));
 		int C 	 = IntegerBinding.entryToInt(new DatabaseEntry(row.getData(),8,12));
-		System.out.println("FREE TEXT INDEX PUTTING ROW "+K+" | "+ID+":"+C );
+		//System.out.println("FREE TEXT INDEX PUTTING ROW "+K+" | "+ID+":"+C );
 		
 		Transaction txn 	= null;
 		int retry_count = 0;				

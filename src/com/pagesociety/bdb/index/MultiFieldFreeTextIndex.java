@@ -1,5 +1,6 @@
 package com.pagesociety.bdb.index;
 
+import java.awt.event.FocusAdapter;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +43,11 @@ public class MultiFieldFreeTextIndex extends AbstractMultiFieldIndex
 	
 	private List<FieldDefinition> _string_fields;
 	private List<FieldDefinition> _equality_fields;
+	
+	
+	private static final String ATT_STEMMER  			= "stemmer";
+	private static final String ATT_STOPLIST 			= "stoplist";
+	private static final String ATT_FORCE_EQUALITY_LIST = "force_equality_list";
 	
 	public MultiFieldFreeTextIndex()
 	{

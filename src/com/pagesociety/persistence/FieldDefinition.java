@@ -276,7 +276,7 @@ public class FieldDefinition implements java.io.Serializable
 				(_cascade_on_delete == f._cascade_on_delete) &&
 				(_required == f._required) &&
 				(_ref_type == f._ref_type || _ref_type.equals(f._ref_type)) &&
-				(_default_value == f._default_value || _default_value.equals(f._default_value)) &&
+				(_default_value == f._default_value || (_default_value != null &&  _default_value.equals(f._default_value))) &&
 				(_comment == f._comment || _comment.equals(f._comment))
 				);		
 	}

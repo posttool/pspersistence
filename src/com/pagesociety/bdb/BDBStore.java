@@ -3303,7 +3303,13 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 
 		env_cfg.setMaxLockers(100000);
 		env_cfg.setMaxLockObjects(100000);
-		env_cfg.setMaxLocks(100000);		
+		env_cfg.setMaxLocks(100000);	
+		
+		
+		// cant join without the following 2 lines on mac ->  Logging region out of memory
+		env_cfg.setLogRegionSize(1024*1024*100);
+		env_cfg.setLogBufferSize(1024*1024*80);
+//		env_cfg.setLogAutoRemove(true); //??
 
 		//env_cfg.setLockDetectMode(LockDetectMode.MINWRITE);
 		//env_cfg.setVerbose(VerboseConfig.FILEOPS_ALL, true);

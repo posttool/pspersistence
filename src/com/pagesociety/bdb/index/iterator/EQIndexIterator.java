@@ -90,11 +90,14 @@ public class EQIndexIterator extends PredicateIndexIterator implements Respositi
 		DatabaseEntry original_data = IteratorUtil.cloneDatabaseEntry(partial_data);
 		int s = original_data.getSize();
 		
+
 		last_opstat	=	index_cursor.getSearchBothRange(key, data, LockMode.DEFAULT);	
+
 		
+
 		if(IteratorUtil.compareDatabaseEntries(original_data, 0, s, data, 0, s) != 0)
 			last_opstat = OperationStatus.NOTFOUND;
-		
+
 	//	if(isValid())
 	//		System.out.println("\t\tMOVE OK "+new String(key.getData())+" | "+LongBinding.entryToLong(newdata));
 	//	else

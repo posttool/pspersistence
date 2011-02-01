@@ -1,7 +1,7 @@
 package com.pagesociety.bdb.index.iterator;
 
 
-import com.pagesociety.bdb.BDBSecondaryIndex;
+import com.sleepycat.bind.tuple.LongBinding;
 import com.sleepycat.db.DatabaseEntry;
 import com.sleepycat.db.DatabaseException;
 import com.sleepycat.db.Transaction;
@@ -24,12 +24,14 @@ public class FREETEXTCONTAINSALLIndexIterator extends SETCONTAINSALLIndexIterato
 		}
 		do
 		{		
-			//System.out.println(">>> ITER IS NOT DONE");
+			//System.out.println(">>> ITER IS NOT DONE "+keys_size);
 
 			for(int i = 1;i < keys_size;i++)
 			{
-				//System.out.println(">>>ABOUT TO MOVE DATA IS "+new String(iter.data.getData()));
+				//System.out.println(">>>ABOUT TO MOVE DATA IS "+new String(iter.data.getData())+" L "+LongBinding.entryToLong(currentData())+" key is "+new String(keys.get(i).getData())+" i is"+i+" keys_size "+keys_size);
+				long t1 = System.currentTimeMillis();
 				r_iter.moveWithPartialData(keys.get(i),currentData());
+				//System.out.println("MOVE WITH PARTIAL TOOK "+(System.currentTimeMillis() - t1));
 				if(((PredicateIndexIterator)r_iter).isDone())//failed so not a member of result set
 				{
 					//System.out.println("DIDNT FIND "+new String(keys.get(i).getData())+" | "+LongBinding.entryToLong(iter.currentData()));
@@ -37,6 +39,7 @@ public class FREETEXTCONTAINSALLIndexIterator extends SETCONTAINSALLIndexIterato
 				}
 				//System.out.println("FOUND "+new String(keys.get(i).getData())+" | "+LongBinding.entryToLong(iter.currentData()));
 			}
+			
 			if(keys_size > 1 && ((PredicateIndexIterator)r_iter).isDone())//try next dup result
 				iter.next();
 			else if(iter.isValid())

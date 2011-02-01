@@ -128,6 +128,8 @@ public class STARTSWITHDATAIndexIterator extends PredicateIndexIterator implemen
 	/* essentially move with partial key AND partial data */
 	public void moveWithPartialData(DatabaseEntry newkey,DatabaseEntry newdata) throws DatabaseException
 	{
+		
+		//System.out.println("MOVE WITH PARTIAL DATA NEW KEY IS "+new String(newkey.getData())+" NEW DATA IS "+LongBinding.entryToLong(newdata));
 		Cursor reverse_cursor = index.getReverseIndexDbh().openCursor(null, null);
 		DatabaseEntry original_data  	  = IteratorUtil.cloneDatabaseEntry(newdata);
 		int original_data_length = original_data.getSize();
@@ -139,19 +141,22 @@ public class STARTSWITHDATAIndexIterator extends PredicateIndexIterator implemen
 		 * pos data is part of freetext index pkey. 
 		 * 
 		 */
-		
+
 		last_opstat	=	reverse_cursor.getSearchKeyRange(newdata,key, LockMode.DEFAULT);
 		if(IteratorUtil.compareDatabaseEntries(newdata, 0, original_data_length, original_data, 0, original_data_length)==0)
 		{
 			do{
-				if((IteratorUtil.compareDatabaseEntries(newdata, 0, original_data_length, original_data, 0, original_data_length)==0)
-				&&(IteratorUtil.compareDatabaseEntries(key, 0, original_key_length, original_key, 0, original_key_length)==0))
+				if(IteratorUtil.compareDatabaseEntries(newdata, 0, original_data_length, original_data, 0, original_data_length)!=0)
+					break;
+				if(IteratorUtil.compareDatabaseEntries(key, 0, original_key_length, original_key, 0, original_key_length)==0)
 				{
 					index_cursor.getSearchBoth(key, newdata, LockMode.DEFAULT);
 					reverse_cursor.close();
 					return;
 				}
+
 			}while((last_opstat = reverse_cursor.getNext(newdata, key, LockMode.DEFAULT)) == OperationStatus.SUCCESS);
+
 		}
 
 		last_opstat = OperationStatus.NOTFOUND;

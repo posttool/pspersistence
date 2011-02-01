@@ -476,7 +476,6 @@ public class QueryExecutor
 		int offset		   		= /*b ||*/ _query.isComplex() ? 0 : _query.getOffset();
 		int iter_op	   	   		= (Integer)iter_node.attributes.get(Query.ATT_ITER_OP);
 		BDBPrimaryIndex p_idx 	= _env.getPrimaryIndex(return_type);
-			
 		if(index_name.equals(Query.PRIMARY_IDX))
 			return do_primary_index_iter(txn,p_idx,iter_node,iter_op,offset,page_size);
 		else
@@ -733,9 +732,7 @@ public class QueryExecutor
 					iter.next();
 					continue;
 				}
-					//System.out.println("ABOUT TO LOOKUP...CURRENT DATA IS "+new String(iter.currentData().getData()));
 				Entity e = p_idx.getByPrimaryKey(txn,iter.currentData());
-				
 		//		if(e == null)
 		//		{
 		//			System.out.println("E WAS NULL FOR PKEY "+new String(iter.currentData().getData()));
@@ -1443,7 +1440,6 @@ public class QueryExecutor
 			//this can happen when just stop words are provided/
 			if(multi_list_param.get(0).size()==0)
 				return null;
-				
 			return open_multi_field_freetext_iterator(txn,iter_type, idx, globbing, multi_list_param);			
 		}
 		else
@@ -1504,6 +1500,7 @@ public class QueryExecutor
 		//open the iterator and return it//
 		try{
 			iter.open(txn,idx,globbing,list_param,iter_type);
+
 		}catch(DatabaseException dbe)
 		{
 			try{

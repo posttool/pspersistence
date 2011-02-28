@@ -3463,8 +3463,8 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 				
 				continue;
 			}
-			if(sec_idx.invalidatedByFieldDelete(f))
-				throw new PersistenceException("DELETE ENTITY FIELD: "+field_name+" has a dependent index( "+sec_idx.getName()+" ). Delete the index first.");
+			//if(sec_idx.invalidatedByFieldDelete(f))
+			//	throw new PersistenceException("DELETE ENTITY FIELD: "+field_name+" has a dependent index( "+sec_idx.getName()+" ). Delete the index first.");
 		}
 		
 		EntityDefinition new_def = old_def.clone();

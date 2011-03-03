@@ -357,9 +357,11 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			for(int i = 0; i < sec_indexes.size();i++)
 			{
 				BDBSecondaryIndex s_idx = sec_indexes.get(i);
-				s_idx.delete();
+
 				/*remove it from the entity_index table */
 				delete_entity_index_from_db(ename, s_idx.getEntityIndex());
+				/* remove it from disk*/
+				s_idx.delete();
 			}
 			entity_secondary_indexes_as_list.remove(ename);
 			entity_secondary_indexes_as_map.remove(ename);
@@ -2391,6 +2393,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			OperationStatus op_stat = cursor.getSearchKey(key, data, LockMode.DEFAULT);
 			while (op_stat == OperationStatus.SUCCESS)
 			{
+				
 				EntityIndex e = (EntityIndex) entity_index_binding.entryToObject(data);
 				indices.add(e);
 				op_stat = cursor.getNextDup(key, data, LockMode.DEFAULT);
@@ -4391,7 +4394,20 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			OperationStatus op_stat = cursor.getSearchKey(key, data, LockMode.DEFAULT);
 			if(op_stat == OperationStatus.NOTFOUND)
 				throw new DatabaseException("NOTFOUND: COULDNT DELETE IDX "+entity+" "+idx.getName()+" BECAUSE THERE ARE NO INDEXES FOR "+entity);			
-
+			else
+			{
+				//THIS IS THE DELETE THAT HAPPENS WHEN THE ABOVE getSearchKey IS THE ONE THAT HITS YOUR IDX//
+				EntityIndex ei = (EntityIndex)entity_index_binding.entryToObject(data);
+				System.out.println("EI IS "+ei.getName()+" "+idx.getName());
+				if(ei.getName().equals(idx.getName()))
+				{
+					op_stat = cursor.delete();
+					if(op_stat != OperationStatus.SUCCESS)
+						throw new DatabaseException("DELETE FAILED: COULDNT DELETE IDX "+entity+" "+idx.getName());
+					return ei;
+				}
+			}
+				
 			while((op_stat = cursor.getNextDup(key, data, LockMode.DEFAULT)) == OperationStatus.SUCCESS)
 			{
 				EntityIndex ei = (EntityIndex)entity_index_binding.entryToObject(data);
@@ -4427,7 +4443,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		FieldBinding.valueToEntry(Types.TYPE_STRING, entity,key);
 		OperationStatus op_stat = entity_index_db.put(null, key, entity_index_binding.objectToEntry(idx));
 		if(op_stat != OperationStatus.SUCCESS)
-				throw new DatabaseException("");
+				throw new DatabaseException("WEIRD ERROR IN ADDING INDEX TO DB");
 	}
 	
 	

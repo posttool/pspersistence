@@ -165,6 +165,7 @@ public abstract class BDBSecondaryIndex implements IterableIndex
 		}catch(FileNotFoundException e)
 		{
 			logger.error(e);
+
 		}
 	}
 	

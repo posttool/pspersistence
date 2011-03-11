@@ -6,12 +6,14 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 
 import com.sleepycat.db.DatabaseException;
+import com.sun.management.OperatingSystemMXBean;
 
 public class DefaultCheckpointPolicyWithInterval implements CheckpointPolicy
 {
 	private static final Logger logger = Logger.getLogger(DefaultCheckpointPolicyWithInterval.class);
 	
-	// checkpoint on 20 records no matter what
+	// TODO instead of this, check load and checkpoint when it seems ok
+	// http://download.oracle.com/javase/6/docs/api/java/lang/management/package-summary.html#examples
 	private static final int MAX_COUNT 									= 3000; 
 	private static final int DEFAULT_CHECKPOINT_INTERVAL_IN_MINUTES 	= 1;
 	private static String PARAM_CHECKPOINT_THREAD_INTERVAL_IN_MINUTES 	= "checkpoint-interval-in-minutes";

@@ -3244,7 +3244,7 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 			return;
 		logger.debug("start_deadlock_monitor(int) - Starting deadlock monitor.");
 		_deadlock_monitor_running = true;
-		_deadlock_monitor = new Thread()
+		_deadlock_monitor = new Thread("BDBStore Deadlock Monitor")
 		{
 			public void run()
 			{

@@ -39,7 +39,7 @@ public class DefaultCheckpointPolicyWithInterval implements CheckpointPolicy
 	private void start_checkpoint_thread() 
 	{
 		checkpoint_thread_running = true;
-		checkpoint_thread		  = new Thread()
+		checkpoint_thread		  = new Thread("BDBStore DefaultCheckpointPolicy")
 		{
 			public void run()
 			{

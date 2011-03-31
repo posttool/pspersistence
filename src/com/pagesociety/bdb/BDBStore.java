@@ -1,6 +1,7 @@
 package com.pagesociety.bdb;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -5473,7 +5474,14 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 
 	public String[] getBackupIdentifiers() throws PersistenceException
 	{
-		File[] backups = backup_root_directory.listFiles();	
+		File[] backups = backup_root_directory.listFiles(new FileFilter()
+		{
+			@Override
+			public boolean accept(File pathname)
+			{
+				return !pathname.getName().startsWith(".");
+			}
+		});
 		String[] ss = new String[backups.length];
 		for(int i = 0;i< ss.length;i++)
 			ss[i]=backups[i].getAbsolutePath();

@@ -17,7 +17,7 @@ import java.util.Map;
  * A store implementation can be based on SQL, memory cached data, flat files,
  * b-trees, other object stores, etc.
  * </p>
- * 
+ *
  * <h3>Entity Definitions</h3>
  * <p>
  * The store is required to maintain detailed object/field meta data. This is
@@ -28,7 +28,7 @@ import java.util.Map;
  * <code>addEntityField</code>, <code>deleteEntityField</code>,
  * <code>renameEntityField</code>.
  * </p>
- * 
+ *
  * <h3>Indices</h3>
  * <p>
  * Many storage mechanisms use entity field value indexing to simplify data
@@ -39,7 +39,7 @@ import java.util.Map;
  * <code>getEntityIndexDefinitions</code>. Store users can add entity index
  * instances of type(s) defined by the store.
  * </p>
- * 
+ *
  * <h3>Relationships</h3>
  * <p>
  * In data modeling, the cardinality of one data table with respect to another
@@ -50,14 +50,14 @@ import java.util.Map;
  * child, one-to-many. Entity fields can be related as: one-to-one, one-to-many,
  * many-to-one, many-to-many.
  * </p>
- * 
+ *
  * <h3>Saving and Deleting Entities</h3>
  * <p>
  * Once entity definitions (as well as optional indices and relationships) have
  * been added to the store, the store is capable of saving and deleting entity
  * instances.
  * </p>
- * 
+ *
  * <h3>Object Graph Expansion</h3>
  * <p>
  * Reads from the store via <code>executeQuery</code> or
@@ -67,7 +67,7 @@ import java.util.Map;
  * requires the store user to call <code>fillReferenceFields</code> to expand
  * references.
  * </p>
- * 
+ *
  * <h3>Queries</h3>
  * <p>
  * The store assumes that all queries return homogeneous lists of entities. The
@@ -77,11 +77,11 @@ import java.util.Map;
  * specified by the persistence package. This allows the extent of the query
  * possibilities to vary between implementations.
  * </p>
- * 
- * 
+ *
+ *
  * @author Topher LaFata
  * @author David Karam
- * 
+ *
  */
 public interface PersistentStore
 {
@@ -90,7 +90,7 @@ public interface PersistentStore
 	 * the implementation. For SQL, this could indicate the connection
 	 * information. For a flat file, it might indicate a base path of the data
 	 * directory. The configuration HashMap has no formal rules.
-	 * 
+	 *
 	 * @param config
 	 *            Name/value configuration parameters
 	 * @throws PersistenceException
@@ -101,7 +101,7 @@ public interface PersistentStore
 
 	/**
 	 * Ends the life cycle of the store.
-	 * 
+	 *
 	 * @throws PersistenceException
 	 *             If the store does not close or shutdown properly
 	 */
@@ -109,7 +109,7 @@ public interface PersistentStore
 
 	/**
 	 * Adds a new entity definition to the store.
-	 * 
+	 *
 	 * @param entity_def
 	 *            The new <code>EntityDefintion</code>.
 	 * @throws PersistenceException
@@ -123,7 +123,7 @@ public interface PersistentStore
 	/**
 	 * Deletes an entity definition from the store. This implies that all
 	 * entities of the provided type will be deleted.
-	 * 
+	 *
 	 * @param entity_def_name
 	 *            The name of the entity definition to delete.
 	 * @throws PersistenceException
@@ -135,7 +135,7 @@ public interface PersistentStore
 
 	/**
 	 * Renames and entity definition.
-	 * 
+	 *
 	 * @param old_name
 	 *            The name of the entity definition.
 	 * @param new_name
@@ -147,7 +147,7 @@ public interface PersistentStore
 
 	/**
 	 * Returns an entity definition by name.
-	 * 
+	 *
 	 * @param entity_name
 	 *            The name of the entity.
 	 * @return The definition for the requested entity
@@ -160,7 +160,7 @@ public interface PersistentStore
 
 	/**
 	 * Returns all of the entity definitions.
-	 * 
+	 *
 	 * @return All entity definitions
 	 * @throws PersistenceException
 	 */
@@ -169,7 +169,7 @@ public interface PersistentStore
 
 	/**
 	 * Adds a field to the specified entity.
-	 * 
+	 *
 	 * @param entity
 	 *            The name of the entity that will get the new field.
 	 * @param entity_field_def
@@ -182,7 +182,7 @@ public interface PersistentStore
 
 	/**
 	 * Deletes a field from the specified entity
-	 * 
+	 *
 	 * @param entity
 	 *            The name of the entity that contains the field.
 	 * @param fieldname
@@ -195,7 +195,7 @@ public interface PersistentStore
 
 	/**
 	 * Renames a field.
-	 * 
+	 *
 	 * @param entity
 	 *            The name of the entity that contains the field.
 	 * @param old_field_name
@@ -213,7 +213,7 @@ public interface PersistentStore
 	 * Returns entity indices associated with an entity. An
 	 * <code>EntityIndex</code> is associated with an entity by calling
 	 * <code>addEntityIndex</code>.
-	 * 
+	 *
 	 * @param entity
 	 *            The name of an entity definition
 	 * @return The indices associated with the entity definition
@@ -230,7 +230,7 @@ public interface PersistentStore
 	/**
 	 * Adds an index to the store. This add signature indexes one field of an
 	 * entity.
-	 * 
+	 *
 	 * @param entity
 	 *            The name of the entity definition to be indexed.
 	 * @param field_name
@@ -250,7 +250,7 @@ public interface PersistentStore
 
 	/**
 	 * Adds an index with multiple fields.
-	 * 
+	 *
 	 * @param entity
 	 *            The name of the entity definition to be indexed.
 	 * @param field_names
@@ -270,7 +270,7 @@ public interface PersistentStore
 
 	/**
 	 * Deletes an index from the store.
-	 * 
+	 *
 	 * @param entity
 	 *            The name of the parent entity definition.
 	 * @param index_name
@@ -282,7 +282,7 @@ public interface PersistentStore
 
 	/**
 	 * Renames an index.
-	 * 
+	 *
 	 * @param entity
 	 *            The name of the parent entity definition.
 	 * @param old_name
@@ -297,7 +297,7 @@ public interface PersistentStore
 	/**
 	 * Adds an entity relationship constraint to the store. The relationship
 	 * constraint enforces object graph integrity.
-	 * 
+	 *
 	 * @param r
 	 *            The relationship.
 	 * @throws PersistenceException
@@ -310,7 +310,7 @@ public interface PersistentStore
 
 	/**
 	 * Returns a list of entity relationships registered with the store.
-	 * 
+	 *
 	 * @return Entity relationships.
 	 * @throws PersistenceException
 	 */
@@ -323,7 +323,7 @@ public interface PersistentStore
 	 * it. The returned entity should be populated by the store. If the entity
 	 * does have an id, then the store should assume that the user is attempting
 	 * to update or overwrite an existing record.
-	 * 
+	 *
 	 * @param e
 	 *            The entity to save.
 	 * @return The saved entity.
@@ -332,17 +332,17 @@ public interface PersistentStore
 	 */
 	public abstract Entity saveEntity(Entity e) throws PersistenceException;
 	public abstract Entity saveEntity(int transaction_id,Entity e) throws PersistenceException;
-	
+
 	public abstract Entity createEntity(String type,Map<String,Object> value_map) throws PersistenceException;
 	public abstract Entity createEntity(int transaction_id,String type,Map<String,Object> value_map) throws PersistenceException;
 	public abstract Entity updateEntity(String type,long id,Map<String,Object> update_map) throws PersistenceException;
 	public abstract Entity updateEntity(int transaction_id,String type,long id,Map<String,Object> update_map) throws PersistenceException;
 	/**
-	 * Used for inserts of existing data as in a bulk restore. an entity. 
+	 * Used for inserts of existing data as in a bulk restore. an entity.
 	 * If <code>entity.id == Entity.UNDEFINED</code>, it fails. Otherwise it
 	 * inserts the entity with whatever id is set. Relatoinship side-fx are not resolved
 	 * by this method.Make sure you call checkpoint after using this method.
-	 * 
+	 *
 	 * @param e
 	 *            The entity to save.
 	 * @return The saved entity.
@@ -355,7 +355,7 @@ public interface PersistentStore
 	/**
 	 * Restores an entity by its id. If the id does not exist the method returns
 	 * null.
-	 * 
+	 *
 	 * @param entity
 	 *            The name of an entity definition.
 	 * @param id
@@ -371,7 +371,7 @@ public interface PersistentStore
 	 * The programmer must delete contained references explicitly, unless the
 	 * contained reference is part of a relationship in which case the other
 	 * side of the relationship will be managed automatically by the store.
-	 * 
+	 *
 	 * @param e
 	 *            The entity to delete.
 	 * @throws PersistenceException
@@ -383,7 +383,7 @@ public interface PersistentStore
 	 * Truncates or deletes all records from an object store of type
 	 * entity_type. Set count to true if you want the number of records deleted
 	 * returned.
-	 * 
+	 *
 	 * @param entity_type
 	 *            The name of an entity definition.
 	 * @param count
@@ -395,7 +395,7 @@ public interface PersistentStore
 
 	/**
 	 * Fill all of the references within a list of entities.
-	 * 
+	 *
 	 * @param es
 	 *            The list of entities.
 	 * @throws PersistenceException
@@ -406,7 +406,7 @@ public interface PersistentStore
 
 	/**
 	 * Fills the named reference within a list of entities.
-	 * 
+	 *
 	 * @param es
 	 *            The list of entities.
 	 * @param fieldname
@@ -420,7 +420,7 @@ public interface PersistentStore
 
 	/**
 	 * Fill all of the references within a single entity.
-	 * 
+	 *
 	 * @param e
 	 *            The entities.
 	 * @throws PersistenceException
@@ -435,7 +435,7 @@ public interface PersistentStore
 	 * references) are not restored when executing a query or calling
 	 * <code>getById</code>. Use this method afterwards to restore the
 	 * reference field values.
-	 * 
+	 *
 	 * @param e
 	 *            The entity.
 	 * @param field_name
@@ -450,7 +450,7 @@ public interface PersistentStore
 
 	/**
 	 * Executes a query and return the results.
-	 * 
+	 *
 	 * @param q
 	 *            The query
 	 * @return The query result which includes a list of entities.
@@ -462,7 +462,7 @@ public interface PersistentStore
 
 	/**
 	 * Returns the distinct keys for any index.
-	 * 
+	 *
 	 * @param entity
 	 *            The name of the entity definition
 	 * @param index
@@ -475,7 +475,7 @@ public interface PersistentStore
 
 	/**
 	 * Returns the number of records for any query.
-	 * 
+	 *
 	 * @param q
 	 *            The query
 	 * @return The number of records the query would return.
@@ -485,11 +485,11 @@ public interface PersistentStore
 	public abstract int count(int transaction_id,Query q) throws PersistenceException;
 
 	//transaction shite//
-	public int startTransaction() throws PersistenceException;
-	public int startTransaction(int parent_transaction_id) throws PersistenceException;
+	public int startTransaction(String tag) throws PersistenceException;
+	public int startTransaction(int parent_transaction_id,String tag) throws PersistenceException;
 	public void commitTransaction(int transaction_id) throws PersistenceException;
 	public void rollbackTransaction(int transaction_id) throws PersistenceException;
-	
+
 	//QUEUE SUB SYSTEM//
 	public String createQueue(String name,int record_size,int num_records_in_extent) throws PersistenceException;
 	public void deleteQueue(String name) throws PersistenceException;
@@ -497,10 +497,10 @@ public interface PersistentStore
 	public byte[] dequeue(String queue_name,boolean durable_commit,boolean block) throws PersistenceException;
 	public List<String> listQueues() throws PersistenceException;
 
-	 
+
 	public void checkpoint() throws PersistenceException;
 	//backup stuff//
-	public boolean supportsFullBackup() throws PersistenceException;	
+	public boolean supportsFullBackup() throws PersistenceException;
 	public boolean supportsIncrementalBackup() throws PersistenceException;
 	public String doFullBackup() throws PersistenceException;
 	public String doIncrementalBackup(String backup_identifier) throws PersistenceException;

@@ -87,7 +87,7 @@ public class QueryTest {
 		//concurrency_test();
 		//untyped_reference_test();
 		//simple_freetext_test();
-		//multi_freetext_test();
+		multi_freetext_test();
 		//multi_freetext_globbing_test();
 		//multi_freetext_globbing_test2();
 		//default_value_test();
@@ -105,7 +105,7 @@ public class QueryTest {
 		//deep_indexing_test_multi();
 		//queue_test();
 		//queue_test2();
-		no_cache_offset_test();
+		//no_cache_offset_test();
 	}
 	
 	public void id_index_test() throws PersistenceException
@@ -497,10 +497,10 @@ public class QueryTest {
 			}
 			//System.out.println("BOOK "+i+" IS "+b);
 		}
-		addMultiFieldEntityIndex("Book", new String[]{"Title","Summary"/*,"Status"*/}, EntityIndex.TYPE_MULTI_FIELD_FREETEXT_INDEX, "BookFreeText", null);
+		addMultiFieldEntityIndex("Book", new String[]{"Title","Summary","Status"}, EntityIndex.TYPE_MULTI_FIELD_FREETEXT_INDEX, "BookFreeText", null);
 		Query q = new Query("Book");
 		q.idx("BookFreeText");
-		q.textContainsAny(q.list(q.list("Title","Summary"),q.list("the")/*,1*/));
+		q.textContainsAll(q.list(q.list("Summary"),q.list("summary","one"),Query.VAL_GLOB));
 	
 		t1 = System.currentTimeMillis();
 		QueryResult result = _store.executeQuery(q);

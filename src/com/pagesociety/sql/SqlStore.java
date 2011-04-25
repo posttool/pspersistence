@@ -103,7 +103,7 @@ public class SqlStore implements PersistentStore
 			}
 		}
 	}
-	
+
 	public Entity saveEntity(Entity entity) throws PersistenceException
 	{
 		// TODO
@@ -198,9 +198,9 @@ public class SqlStore implements PersistentStore
 		}
 		return entity;
 	}
-	
-	
-	
+
+
+
 	private static SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 	private static String get_db_value(Object val)
@@ -297,8 +297,8 @@ public class SqlStore implements PersistentStore
 		}
 		return null;
 	}
-	
-	
+
+
 	public void useDatabase(String db) throws PersistenceException
 	{
 		do_update("CREATE DATABASE IF NOT EXISTS " + db);
@@ -454,7 +454,7 @@ public class SqlStore implements PersistentStore
 		throw new PersistenceException("SqlStore.getDistinctKeys NOT IMPLEMENTED");
 	}
 
-	
+
 
 	public Entity getEntityById(String type, long id) throws PersistenceException
 	{
@@ -501,7 +501,7 @@ public class SqlStore implements PersistentStore
 		throw new PersistenceException("SqlStore.getNextResults NOT IMPLEMENTED");
 	}
 
-	
+
 
 	public void renameEntityDefinition(String ename, String new_name)
 			throws PersistenceException
@@ -534,18 +534,18 @@ public class SqlStore implements PersistentStore
 	@Override
 	public void checkpoint() throws PersistenceException {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 
-	
-	
+
+
 
 	@Override
 	public void insertEntities(List<Entity> entities)
 			throws PersistenceException {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 
@@ -554,7 +554,7 @@ public class SqlStore implements PersistentStore
 	@Override
 	public void insertEntity(Entity e) throws PersistenceException {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 
@@ -564,7 +564,7 @@ public class SqlStore implements PersistentStore
 	public void deleteBackup(String backup_identifier)
 			throws PersistenceException {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 
@@ -575,7 +575,7 @@ public class SqlStore implements PersistentStore
 		// TODO Auto-generated method stub
 		return null;
 	}
-	
+
 	public File getBackupAsZipFile(String backup_id) throws PersistenceException {
 		// TODO Auto-generated method stub
 		return null;
@@ -607,7 +607,7 @@ public class SqlStore implements PersistentStore
 	public void restoreFromBackup(String backup_identifier)
 			throws PersistenceException {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 
@@ -627,7 +627,7 @@ public class SqlStore implements PersistentStore
 		// TODO Auto-generated method stub
 		return false;
 	}
-	
+
 
 
 	@Override
@@ -644,7 +644,7 @@ public class SqlStore implements PersistentStore
 
 
 
-	
+
 
 
 
@@ -652,7 +652,7 @@ public class SqlStore implements PersistentStore
 	public void commitTransaction(int transaction_id)
 			throws PersistenceException {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 
@@ -662,14 +662,14 @@ public class SqlStore implements PersistentStore
 	public void rollbackTransaction(int transaction_id)
 			throws PersistenceException {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 
 
 
 	@Override
-	public int startTransaction() throws PersistenceException {
+	public int startTransaction(String tag) throws PersistenceException {
 		// TODO Auto-generated method stub
 		return 0;
 	}
@@ -681,7 +681,7 @@ public class SqlStore implements PersistentStore
 	public void deleteEntity(int transaction_id, Entity e)
 			throws PersistenceException {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 
@@ -729,7 +729,7 @@ public class SqlStore implements PersistentStore
 
 
 	@Override
-	public int startTransaction(int parent_transaction_id)
+	public int startTransaction(int parent_transaction_id,String tag)
 			throws PersistenceException {
 		// TODO Auto-generated method stub
 		return 0;
@@ -742,7 +742,7 @@ public class SqlStore implements PersistentStore
 	public void fillReferenceField(int transaction_id, List<Entity> es,
 			String fieldname) throws PersistenceException {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 
@@ -752,7 +752,7 @@ public class SqlStore implements PersistentStore
 	public void fillReferenceField(int transaction_id, Entity e,
 			String field_name) throws PersistenceException {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 
@@ -762,7 +762,7 @@ public class SqlStore implements PersistentStore
 	public void fillReferenceFields(int transaction_id, List<Entity> es)
 			throws PersistenceException {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 
@@ -772,7 +772,7 @@ public class SqlStore implements PersistentStore
 	public void fillReferenceFields(int transaction_id, Entity e)
 			throws PersistenceException {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 

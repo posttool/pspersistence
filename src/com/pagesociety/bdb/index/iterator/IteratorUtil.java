@@ -12,7 +12,8 @@ public class IteratorUtil {
 	{
 		int s = clonee.getSize();
 		byte[] key_dup = new byte[s];
-		System.arraycopy(clonee.getData(),0,key_dup,0,s);	
+		if (s!=0)
+			System.arraycopy(clonee.getData(),0,key_dup,0,s);	
 		DatabaseEntry d = new DatabaseEntry(key_dup);
 		return d;
 	}

@@ -76,7 +76,7 @@ public class Entity implements Comparable<Entity>,java.io.Serializable
 	 * @param def
 	 *            The entity definition.
 	 */
-	protected Entity(String type)
+	public Entity(String type)
 	{
 		this(type, UNDEFINED);
 	}

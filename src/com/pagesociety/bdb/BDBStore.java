@@ -2934,15 +2934,14 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		{
 			_db_env_props.load(new FileInputStream(_db_env_props_file));
             db_env_home = new File(db_env_root, _db_env_props.getProperty(BDBConstants.KEY_ACTIVE_ENVIRONMENT));
-        }
+
+		}
 		catch (Exception e)
 		{
-			System.out.println("!!!!!\n\n\n");
 			e.printStackTrace();
         	db_env_home = new File(db_env_root, timestamp());
         	db_env_home.mkdir();
         	set_active_env_prop(db_env_home.getName());
-        	System.out.println("!!!!!\n\n\n");
 		}
         if (db_env_home == null || !db_env_home.exists())
         	throw new PersistenceException("INVALID BASE_DB_ENV. "+db_env_home+" DOES NOT EXIST");

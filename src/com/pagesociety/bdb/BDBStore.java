@@ -2923,12 +2923,14 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 	private void init_environment(Map<String, Object> config) throws PersistenceException
 	{
 		String path = (String)config.get(BDBStoreConfigKeyValues.KEY_STORE_ROOT_DIRECTORY);
+
 		if(path == null)
 			throw new PersistenceException("PLEASE SPECIFY BASE_DB_ENV IN CONFIG");
 
 		File db_env_home = null;
 		File db_env_root = new File(path);
 		_db_env_props_file = new File(db_env_root, BDBConstants.ENVIRONMENT_PROPERTIES_FILE_NAME);
+
 		_db_env_props = new Properties();
 		try
 		{
@@ -2938,7 +2940,6 @@ public class BDBStore implements PersistentStore, BDBEntityDefinitionProvider
 		}
 		catch (Exception e)
 		{
-			e.printStackTrace();
         	db_env_home = new File(db_env_root, timestamp());
         	db_env_home.mkdir();
         	set_active_env_prop(db_env_home.getName());

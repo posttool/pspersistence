@@ -6,7 +6,6 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 
 import com.sleepycat.db.DatabaseException;
-import com.sun.management.OperatingSystemMXBean;
 
 public class DefaultCheckpointPolicyWithInterval implements CheckpointPolicy
 {
